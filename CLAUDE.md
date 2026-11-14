@@ -26,6 +26,8 @@ A student explains a topic out loud to Milo, a cartoon kid who knows nothing. Mi
 
 Milo is also a bit of a teacher, at one moment only. When the student has tried the same gap twice and is still not there, he says they are onto something, sketches a small hint on the paper in blue dashed pencil, and asks them to build on it. The idea only counts once the student says it in their own words.
 
+Every turn is fact-checked before anything is drawn. A clearly wrong statement goes on the paper small and grey with a red question mark, never as a fact, and Milo asks about it first.
+
 Outside that moment, if a feature idea makes Milo explain, lead, or draw something the student did not say, it is the wrong feature.
 
 ## Hard rules

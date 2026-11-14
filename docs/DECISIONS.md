@@ -82,6 +82,12 @@ Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipe
 
 **D32. No names, no mumbles.** Milo never calls the student by a name. Turns of one or two words are not scored.
 
+**D33. Fact check before drawing.** Ali's call after hearing Milo draw a wrong statement as if it were right. Every turn is checked for clearly false statements in the same Claude call that scores it, so it adds no waiting. A wrong claim goes on the paper small and grey with a red question mark, and Milo asks about it first. This replaces "a wrong idea is drawn literally" in D5. It is a model's judgement at school level, not a guarantee.
+
+**D34. No flattery.** Milo praised and then backpedalled in the same breath, which felt fake. No compliments, no verdicts, no "nice… but", and one steady tone per reply.
+
+**D35. The paper reacts in under three seconds.** A redraw still takes 5 to 9 seconds, because fal's edit has no faster setting. So Milo jots the student's words on the paper as soon as the brain answers (about 2.6 s), and the drawing replaces the note when it lands.
+
 ## Still open
 
 | Question | Who can settle it |

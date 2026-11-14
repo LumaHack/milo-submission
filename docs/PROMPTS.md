@@ -57,6 +57,8 @@ One call per student turn. It returns the `TurnResult` from [SPEC.md](SPEC.md) a
 - **Level.** 1 no idea clear. 2 ideas vague, or one clear. 3 at least two clear and none wrong. 4 every idea clear.
 - **Biggest gap.** Wrong before vague before missing, because that is closest to what the student is already thinking about.
 - **Milo's line.** At most 20 words and one question. He repeats back a few of the student's words, then asks one small open question about the biggest gap. Never a question with the answer inside it ("is it X or Y?", "…, right?"), never the missing term, never his drawing. On a wrong idea he says what it made him picture, says it looks odd, and asks them to check.
+- **Fact check.** Every turn, the brain lists statements that are clearly false at school level, in the student's words, whether or not they touch a key idea. If unsure, it leaves them out. A wrong claim is drawn small in grey pencil with a red question mark and never as a fact, and Milo's next line asks about it first.
+- **No flattery.** No praise, no verdicts, no "nice… but". Milo's help line is plain too.
 - **Help.** After two failed tries at the same gap (once per gap): his line becomes a teacher line of up to 40 words, and the drawing gains a small hint sketch in blue dashed pencil marked 'hint'. No technical term. The idea still only counts when the student says it.
 - **Stuck.** Still not clear after the hint: he wraps up and names the gap to look up.
 - **Drawing instruction.** Only what the student said. Vague ideas drawn vaguely, wrong ideas drawn literally. Starts with "Keep the same drawing and style" on edits. Words on the paper in single quotes after "spelled exactly:". Says what to remove. Ends with "Do not add any other parts, shapes or words."
@@ -109,7 +111,7 @@ That creates the agent the first time and updates it afterwards.
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
 | Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
 
-**Who Milo is.** A warm, curious kid who follows the student. At most 20 words and exactly one question per reply. He repeats back their words and asks one small open question. He never puts an answer in a question, never uses a name, and never opens with his drawing. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
+**Who Milo is.** A warm, curious kid who follows the student. He does not praise and then backpedal: no compliments, no verdicts, one steady tone with no mood switches inside a reply. At most 20 words and exactly one question per reply. He repeats back their words and asks one small open question. He never puts an answer in a question, never uses a name, and never opens with his drawing. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
 
 **Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.
 

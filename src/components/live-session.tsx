@@ -330,6 +330,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       spokenLine={connected ? spoken : null}
       status={status}
       drawing={session.busy === "drawing"}
+      boardNote={session.note}
       error={voiceError ?? session.error}
       seconds={seconds}
       over={session.live.stuck || (session.live.level !== null && session.live.gaps.length === 0)}

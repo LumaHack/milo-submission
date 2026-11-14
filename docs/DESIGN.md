@@ -113,7 +113,7 @@ Footer: one small muted credits line.
 - A ring inside his picture thickens with the voice. Green (the ok colour) while he listens, black while he talks.
 - When he levels up he shrinks back, overshoots and lands, with a short white flash, and the age badge pops.
 - His line arrives word by word.
-- Reaction bursts pop out of his picture in a crayon hand (Gaegu, the only place that font is used): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
+- Reaction bursts pop out of his picture in a crayon hand (Gaegu, used only for his bursts and his jotted note on the paper): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
 - The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
 - He speaks once per student turn. He only speaks unprompted when the final board lands, or when he has sketched a hint.
 - A hint sketch is blue dashed pencil with the handwritten word "hint". Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
@@ -133,7 +133,9 @@ Footer: one small muted credits line.
 | Milo off | miss | Milo is off |
 | Connecting | faint | Waking Milo up |
 
-**The board while fal is drawing.** Keep the old board. Put a small white pill at the bottom centre of the paper: "Milo is drawing…". Swap the image only when the new one has fully loaded.
+**The board while fal is drawing.** Keep the old board. About two and a half seconds after the student stops, Milo's jotted note appears on the paper: their words in quotes, in his crayon hand (Gaegu), on a paper-coloured strip along the bottom, with "Milo is drawing this…" under it. On an empty board the note sits in the middle, larger. Swap the image only when the new one has fully loaded, and remove the note with it.
+
+**A wrong claim on the board** is small, grey pencil, with a red question mark and the student's words as its label. It must read as "not sure about this", never as part of the answer.
 
 ### Revision sheet (`SheetV3.dc.html`)
 

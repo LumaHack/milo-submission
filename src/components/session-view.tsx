@@ -48,6 +48,8 @@ export type SessionViewProps = {
   spokenLine?: string | null;
   status: MiloStatus;
   drawing: boolean;
+  /** What Milo has jotted on the paper while the drawing is being made. */
+  boardNote?: string | null;
   error: string | null;
   seconds: number;
   /** What the agent has been doing, oldest first. */
@@ -360,10 +362,27 @@ export function SessionView(props: SessionViewProps) {
                 />
               ) : (
                 <div className="flex aspect-video w-full items-center justify-center bg-paper p-6 text-center text-[15px] text-muted">
-                  Nothing drawn yet. Start explaining and Milo will draw what you say.
+                  {props.boardNote ? "" : "Nothing drawn yet. Start explaining and Milo will draw what you say."}
                 </div>
               )}
-              {props.drawing && (
+              {/* Milo's jotted note: your words in his handwriting, on the paper about two seconds after you stop. */}
+              {props.boardNote && (
+                <div
+                  key={props.boardNote}
+                  className={`pointer-events-none absolute inset-x-0 flex animate-rise flex-col gap-2 px-6 py-4 ${
+                    frame ? "bottom-0 bg-paper/90" : "inset-y-0 items-center justify-center text-center"
+                  }`}
+                >
+                  <p className={`m-0 font-crayon leading-[1.15] text-ink ${frame ? "text-[26px]" : "max-w-[24ch] text-[40px]"}`}>
+                    <Words text={`“${props.boardNote}”`} />
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted">
+                    Milo is drawing this
+                    <Dots />
+                  </span>
+                </div>
+              )}
+              {props.drawing && !props.boardNote && (
                 <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-medium">
                   Milo is drawing
                   <Dots />

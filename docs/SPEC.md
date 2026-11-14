@@ -37,6 +37,8 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 1. **The student talks.** Milo's ElevenLabs agent is listening. It is a back-and-forth, not a speech: Milo comes in at the first small pause. The student can interrupt him at any time.
 2. **The turn ends.** The agent decides the student has paused (turn-taking set to eager). The browser receives the final transcript of what the student said.
 3. **The brain scores it.** The browser sends everything the student has said so far to our server. Claude returns: the status of each key idea, the crayon level, the biggest gap, Milo's hint, a one-line version of what the student said, and the drawing instruction. See "The turn contract".
+   - **Fact check first.** The same call lists anything clearly false in the turn (`wrongClaims`), before any drawing is asked for. A wrong claim is never drawn as a fact: it goes on the paper small, in grey pencil, with a red question mark, and Milo asks about it first.
+   - **A note within about 2.6 s.** As soon as the brain answers, Milo jots the student's words on the paper in his handwriting. The real drawing replaces the note when fal returns.
 4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet.
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
 6. **Milo speaks.** Milo asks about the biggest gap. See "Who writes Milo's line" below.
@@ -44,7 +46,7 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
    - **Still stuck after the hint:** the brain sets `stuck`. Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black.
 7. Repeat until every key idea is clear. Then Milo says he gets it, and the revision sheet is offered.
 
-While step 3 and 4 run, the old board stays visible and the board shows "Milo is drawing…". The student can keep talking.
+While step 3 and 4 run, the old board stays visible. From about 2.6 seconds in it carries Milo's jotted note of what the student said, with "Milo is drawing this…" under it. The student can keep talking.
 
 ## The turn contract
 
@@ -73,6 +75,7 @@ type TurnResult = {
   ideas: { id: string; status: "missing" | "vague" | "clear" | "wrong" }[];  // one per key idea
   level: 1 | 2 | 3 | 4;
   biggestGapId: string | null;   // null when every idea is clear
+  wrongClaims: string[];         // the fact check: clearly false statements in the latest turn, in the student's words
   hint: string;                  // Milo's next line. At most 20 words, one question. On a help turn: his teacher line
   help: boolean;                 // true after two failed tries at the same gap: Milo sketches a hint
   stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up

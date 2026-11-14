@@ -100,6 +100,9 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   const [steps, setSteps] = useState<Step[]>([]);
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [heard, setHeard] = useState<string | null>(null);
+  // What Milo jots on the paper while the real drawing is being made, so the board reacts within
+  // a couple of seconds instead of sitting still until fal answers.
+  const [note, setNote] = useState<string | null>(null);
 
   const turns = useRef<string[]>([]);
   const scored = useRef(0);
@@ -238,6 +241,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
 
         drawing = true;
         setBusy("drawing");
+        setNote(owed.said);
         openStep = beginStep(
           owed.help ? "Sketching a hint for you" : "Redrawing the board",
           result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
@@ -276,6 +280,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         };
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
+        setNote(null);
 
         // Every new board updates this session's entry in the history. Saved before Milo is told,
         // so a dropped voice call cannot lose the frame.
@@ -306,6 +311,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
       );
     } finally {
       running.current = false;
+      setNote(null);
       setBusy("idle");
     }
   };
@@ -330,5 +336,5 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   /** Everything the student has said so far, oldest first. */
   const said = () => turns.current.slice();
 
-  return { frames, live, busy, error, steps, reaction, heard, addTurn, start, said };
+  return { frames, live, busy, error, steps, reaction, heard, note, addTurn, start, said };
 }
