@@ -4,13 +4,17 @@
 // Nolan is an ElevenLabs agent in a live conversation. The browser reads what the witness said from
 // the agent's transcript and has Claude keep the written notes. No picture is ever shown here.
 
+import type { AnamClient } from "@anam-ai/js-sdk";
 import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Dots, Page } from "@/components/ui";
 import { formatClock, type Detail, type Fact, type Invite, type Turn, type Witness } from "@/lib/nolan";
-import { NOLAN_COVERED_NOTE, nolanCatchUpNote, nolanFirstMessage, nolanVariables } from "@/lib/prompts";
+import { NOLAN_COVERED_NOTE, detailList, nolanCatchUpNote, nolanFirstMessage, nolanVariables } from "@/lib/prompts";
+
+/** The video element Nolan's live face is streamed into. */
+const FACE_VIDEO_ID = "nolan-face";
 
 const BAR_HEIGHTS = [10, 18, 28, 38, 22, 12, 30, 40, 24, 14, 32, 20, 10, 26, 36, 16, 28, 12, 22, 34];
 
@@ -75,6 +79,22 @@ function Interview({ invite }: { invite: Invite }) {
   // Development only: talk to the real agent in text, with no microphone. Set from the console.
   const textMode = useRef(false);
   const typedByUs = useRef<string | null>(null);
+
+  // Nolan's live face (Anam). Only used when the server says it is set up, and never run so far: no Anam
+  // key was available when this was written. If it fails to start, the interview carries on with his voice alone.
+  const face = useRef<AnamClient | null>(null);
+  const faceLines = useRef(new Map<string, { content: string; filed: boolean }>());
+  const faceHeard = useRef(false);
+  const [faceReady, setFaceReady] = useState(false);
+  const [faceStarting, setFaceStarting] = useState(false);
+  const [faceOn, setFaceOn] = useState(false);
+  const [faceSpeaking, setFaceSpeaking] = useState(false);
+  useEffect(() => {
+    fetch("/api/face")
+      .then((response) => response.json())
+      .then((data: { anam?: boolean }) => setFaceReady(Boolean(data.anam)))
+      .catch(() => {});
+  }, []);
 
   // What this witness has said goes to the case file through their own link. Saves go one after another,
   // so an older one can never land on top of a newer one.
@@ -181,21 +201,39 @@ function Interview({ invite }: { invite: Invite }) {
       setPhase("break");
     },
   });
-  const connected = conversation.status === "connected";
-  const connecting = conversation.status === "connecting";
-  const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
+  // Nolan is on the line through his voice alone, or through his face (which carries the same voice).
+  const voiceConnected = conversation.status === "connected";
+  const connected = voiceConnected || faceOn;
+  const connecting = conversation.status === "connecting" || faceStarting;
+  const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume } = conversation;
+  const isSpeaking = faceOn ? faceSpeaking : conversation.isSpeaking;
 
+  // Notes to Nolan go over the voice connection. The face connection has no way to send one.
   useEffect(() => {
     sendNote.current = (text) => {
-      if (connected) sendContextualUpdate(text);
+      if (voiceConnected) sendContextualUpdate(text);
     };
-  }, [connected, sendContextualUpdate]);
+  }, [voiceConnected, sendContextualUpdate]);
+
+  const stopFace = useCallback(() => {
+    const client = face.current;
+    face.current = null;
+    setFaceOn(false);
+    setFaceSpeaking(false);
+    if (client) void client.stopStreaming().catch(() => {});
+  }, []);
+
+  // Hang up, whichever way Nolan is connected.
+  const hangUp = useCallback(() => {
+    endSession();
+    stopFace();
+  }, [endSession, stopFace]);
 
   // Hang up when the witness leaves the page.
-  const endRef = useRef(endSession);
+  const endRef = useRef(hangUp);
   useEffect(() => {
-    endRef.current = endSession;
-  }, [endSession]);
+    endRef.current = hangUp;
+  }, [hangUp]);
   useEffect(() => () => endRef.current(), []);
 
   // The clock only runs while Nolan is on the line.
@@ -217,6 +255,85 @@ function Interview({ invite }: { invite: Invite }) {
     };
   }, []);
 
+  /**
+   * Starts Nolan with his live face. Anam connects to his ElevenLabs agent itself, so what was said arrives
+   * as Anam's own transcript events. True when he is on screen, false when the witness left meanwhile.
+   */
+  const startFace = async (resuming: boolean): Promise<boolean> => {
+    setFaceStarting(true);
+    try {
+      const variables = nolanVariables(invite.title, witness.where, invite.opener, invite.details, resuming);
+      if (resuming) {
+        // This connection cannot be sent a note, so what is already covered goes into his list instead.
+        const covered = invite.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
+        const open = invite.details.filter((detail) => !covered.includes(detail));
+        variables.details =
+          (open.length > 0 ? detailList(open) : "(Nothing is left on the list.)") +
+          (covered.length > 0 ? `\nAlready covered, do not ask about these again: ${covered.map((detail) => detail.label).join("; ")}.` : "");
+      }
+      const response = await fetch("/api/face/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-nolan-witness": invite.token },
+        body: JSON.stringify({ variables }),
+      });
+      const data = (await response.json().catch(() => null)) as { sessionToken?: string; error?: string } | null;
+      if (!response.ok || !data?.sessionToken) throw new Error(data?.error ?? "No face session.");
+
+      const { createClient, AnamEvent, MessageRole, ConnectionClosedCode } = await import("@anam-ai/js-sdk");
+      const client = createClient(data.sessionToken);
+      face.current = client;
+      faceLines.current = new Map();
+
+      // What is said arrives in pieces, one message id per turn. A turn is filed once it has ended.
+      client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (event) => {
+        if (face.current !== client) return;
+        const line = faceLines.current.get(event.id) ?? { content: "", filed: false };
+        line.content += event.content;
+        faceLines.current.set(event.id, line);
+        const text = line.content.replace(/\[[^\]]{1,24}\]\s*/g, "").trim();
+        const nolan = event.role === MessageRole.PERSONA;
+        if (nolan) {
+          if (text) setSpoken(text);
+          setFaceSpeaking(!event.endOfSpeech && !event.interrupted);
+        }
+        if ((event.endOfSpeech || event.interrupted) && !line.filed && /[\p{L}\p{N}]/u.test(text)) {
+          line.filed = true;
+          addTurn(nolan ? "nolan" : "witness", text);
+        }
+      });
+      client.addListener(AnamEvent.USER_SPEECH_STARTED, () => {
+        faceHeard.current = true;
+      });
+      client.addListener(AnamEvent.USER_SPEECH_ENDED, () => {
+        faceHeard.current = false;
+      });
+      client.addListener(AnamEvent.CONNECTION_CLOSED, (reason, details) => {
+        if (face.current !== client) return;
+        face.current = null;
+        setFaceOn(false);
+        setFaceSpeaking(false);
+        if (reason === ConnectionClosedCode.NORMAL) return;
+        console.error("Nolan's face dropped out:", reason, details);
+        setError(
+          reason === ConnectionClosedCode.MICROPHONE_PERMISSION_DENIED
+            ? "Nolan needs the microphone. Allow it in the browser, then press Carry on."
+            : "Nolan dropped out. Press Carry on to bring him back. Your notes are safe.",
+        );
+        setPhase("break");
+      });
+
+      await client.streamToVideoElement(FACE_VIDEO_ID);
+      if (!alive.current || face.current !== client) {
+        void client.stopStreaming().catch(() => {});
+        return false;
+      }
+      setFaceOn(true);
+      return true;
+    } finally {
+      setFaceStarting(false);
+    }
+  };
+
   const connect = async () => {
     // One attempt at a time, and never after the witness has left the page.
     if (connectingNow.current || !alive.current) return;
@@ -232,11 +349,20 @@ function Interview({ invite }: { invite: Invite }) {
     setError(null);
     setPhase("live");
     try {
+      const resuming = turns.current.length > 0;
+      if (!text && faceReady) {
+        try {
+          if (await startFace(resuming)) return;
+        } catch (caught) {
+          console.error("Nolan's face could not start. Carrying on with his voice alone:", caught);
+          stopFace();
+        }
+        if (!alive.current) return;
+      }
       const response = await fetch(`/api/token${text ? "?text=1" : ""}`, { method: "POST", headers: { "x-nolan-witness": invite.token } });
       const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
       if (!response.ok || !(data.token || data.signedUrl)) throw new Error(data.error ?? "Could not reach Nolan.");
       if (!alive.current) return;
-      const resuming = turns.current.length > 0;
       const dynamicVariables = nolanVariables(invite.title, witness.where, invite.opener, invite.details, resuming);
       if (text && data.signedUrl) {
         conversation.startSession({ signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true, dynamicVariables });
@@ -253,7 +379,7 @@ function Interview({ invite }: { invite: Invite }) {
 
   // When the witness comes back from a break, tell Nolan where they were, so he does not start over.
   useEffect(() => {
-    if (!connected || !turns.current.some((turn) => turn.who === "witness")) return;
+    if (!voiceConnected || !turns.current.some((turn) => turn.who === "witness")) return;
     const covered = invite.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
     const open = invite.details.filter((detail) => !covered.includes(detail));
     sendContextualUpdate(
@@ -262,10 +388,10 @@ function Interview({ invite }: { invite: Invite }) {
         open.map((detail) => detail.label),
       ),
     );
-  }, [connected, sendContextualUpdate, invite.details]);
+  }, [voiceConnected, sendContextualUpdate, invite.details]);
 
   const takeBreak = () => {
-    endSession();
+    hangUp();
     persist({});
     setPhase("break");
   };
@@ -283,7 +409,7 @@ function Interview({ invite }: { invite: Invite }) {
   }, []);
 
   const end = () => {
-    endSession();
+    hangUp();
     const said = turns.current.some((turn) => turn.who === "witness");
     persist({ status: said ? "done" : "waiting" });
     if (said) setPhase("done");
@@ -305,7 +431,7 @@ function Interview({ invite }: { invite: Invite }) {
   useEffect(() => {
     connectRef.current = connect;
     sayRef.current = (text) => {
-      if (connected) {
+      if (voiceConnected) {
         typedByUs.current = text;
         sendUserMessage(text);
       }
@@ -313,7 +439,7 @@ function Interview({ invite }: { invite: Invite }) {
     };
     textRef.current = () => {
       textMode.current = true;
-      if (connected) endSession();
+      if (connected) hangUp();
       setTimeout(() => void connectRef.current(), 400);
     };
   });
@@ -342,7 +468,12 @@ function Interview({ invite }: { invite: Invite }) {
     let raf = 0;
     let smooth = 0;
     const tick = () => {
-      const level = Math.min(1, Math.max(0, (isSpeaking ? getOutputVolume() : getInputVolume()) * 2.2));
+      // The face connection gives no level, only whether someone is speaking.
+      const level = faceOn
+        ? isSpeaking || faceHeard.current
+          ? 0.55
+          : 0
+        : Math.min(1, Math.max(0, (isSpeaking ? getOutputVolume() : getInputVolume()) * 2.2));
       // Rise fast, fall slowly, like a level meter.
       smooth = level > smooth ? level : smooth * 0.88 + level * 0.12;
       node.style.setProperty("--vol", smooth.toFixed(3));
@@ -350,7 +481,7 @@ function Interview({ invite }: { invite: Invite }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [voiceActive, isSpeaking, getInputVolume, getOutputVolume]);
+  }, [voiceActive, faceOn, isSpeaking, getInputVolume, getOutputVolume]);
 
   let status: { text: string; dot: string; busy: boolean; ring: string } = { text: "Ready", dot: "", busy: false, ring: "" };
   if (phase === "break") status = { text: "On a break", dot: "miss", busy: false, ring: "" };
@@ -367,7 +498,7 @@ function Interview({ invite }: { invite: Invite }) {
   return (
     <Page
       sub={`Case ${invite.caseNumber}, witness ${invite.position} of ${invite.total}`}
-      footer="Voice by ElevenLabs. Notes by Claude."
+      footer={faceOn ? "Voice by ElevenLabs. Face by Anam. Notes by Claude." : "Voice by ElevenLabs. Notes by Claude."}
       actions={
         <>
           {(phase === "live" || phase === "break") && (
@@ -407,6 +538,8 @@ function Interview({ invite }: { invite: Invite }) {
               <div className="orb-head" />
               <div className="orb-body" />
             </div>
+            {/* Nolan's live face, when one is set up. It is always in the page so the stream has somewhere to land. */}
+            <video id={FACE_VIDEO_ID} autoPlay playsInline aria-label="Nolan" className={`orb-face ${faceOn ? "on" : ""}`} />
             {status.ring && (
               <span
                 aria-hidden="true"

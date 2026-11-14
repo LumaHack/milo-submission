@@ -55,6 +55,7 @@ Nolan's ElevenLabs agent needs no setup. The first interview finds it by name in
 | Job | Tool | Where |
 |---|---|---|
 | Nolan's voice and ears | ElevenLabs Agents | `src/lib/agent.ts`, `src/app/api/token` |
+| Nolan's face, optional and not yet run | Anam | `src/app/api/face`, `startFace` in `src/components/interview.tsx` |
 | The interview plan, the notes, the comparison, the scene instructions | Claude (`claude-opus-5-5`, structured output) | `src/lib/brain.ts`, `src/app/api/case`, `extract`, `compare` |
 | The scenes | fal (`google/nano-banana-2-lite`, then `/edit` for each witness) | `src/app/api/draw` |
 
@@ -92,11 +93,12 @@ Not run:
 
 - **A person talking to Nolan.** Both spoken tests use generated speech and a simulated microphone in Chrome. Nobody has listened to his voice or tried pausing mid-sentence.
 - **A real phone.** The https link was opened by Chrome on this machine at the network address, with the certificate warning accepted by a flag. A phone on the Wi-Fi should behave the same after "Proceed", but none was tried.
+- **Nolan's Anam face.** No key. See "What is not built".
 - An internet tunnel for witnesses on another network.
 
-## What is not built
+## What is not built, or not proven
 
-- **Nolan's live face.** The design gives Nolan an Anam face. No Anam key is set up for this project (`GET /api/face` reports it), so it is not wired and could not be tested. Anam's documented way is for Anam to connect to the ElevenLabs agent itself (the session token carries the agent's signed URL), which replaces the browser's voice code, so it is not something to add blind. The app shows what the design's artboard draws: an orange swirl with a head and shoulders, which moves with the voice. The credits do not name Anam.
+- **Nolan's live face is wired but has never run.** The design gives Nolan an Anam face. The code for it is in place and follows Anam's ElevenLabs guide: the server asks Anam for a session that connects to Nolan's ElevenLabs agent (`src/app/api/face/session`), and the interview streams the face into Nolan's picture and reads what was said from Anam's transcript events (`startFace` in `src/components/interview.tsx`). No Anam key was available, so none of it has been run, and it should be treated as untested until someone watches it work. To try it, add `ANAM_API_KEY` and `ANAM_AVATAR_ID` (a Cara 4 avatar from lab.anam.ai/avatars) to `.env.local` and restart. Things to check on the first run: that his opening line and questions are the case's own (the prompt blanks are sent as `dynamicVariables`), that notes appear after each answer, and that "Take a break" and "Carry on" work. On this path Nolan cannot be sent the mid-interview notes he gets on the voice path, so he decides by himself when everything is covered. If the face fails to start, the interview carries on with his voice alone. Without the two values the app shows what the design's artboard draws, an orange swirl with a head and shoulders that moves with the voice, and the credits do not name Anam.
 - **Adaption.** The design tunes the questions with a fine-tuned model. Here the open-question rules are in the prompts. The credits do not name Adaption.
 - **Audio recording.** The agent is created with voice recording off. The screen says "Transcribed with your consent", not "Recording".
 - **A login.** Anyone on the machine that runs Nolan is the investigator.
