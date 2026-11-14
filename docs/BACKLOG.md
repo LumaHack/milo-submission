@@ -8,15 +8,27 @@ Tick items on your own branch as you finish them.
 
 `Ali`, `Antoine` and `Yusuf` are three separate attempts at the same spec. Nobody pushes to `main`.
 
-The screens, the prompts and the turn contract are the same for everyone. The part most likely to go wrong is the voice loop, so that is where the attempts should differ. A suggested split, swap as you like:
+The screens, the prompts and the turn contract are the same for everyone. The part most likely to go wrong is the voice loop, so that is where the attempts should differ.
+
+**All three are live.** In every branch Milo is an ElevenLabs agent in a live conversation: the student just talks, Milo can be interrupted, nobody holds a button. What differs is how the live conversation reaches the brain and the board. A suggested split, swap as you like:
 
 | Branch | Voice loop | Trade-off |
 |---|---|---|
-| `Ali` | **A. Live agent, scored on the side.** ElevenLabs agent talks to the student. The browser reads the transcript from `onMessage`, calls the brain, and sends Claude's hint back with `sendContextualUpdate` | Truly live and interruptible. Milo's first reply each turn comes from his own prompt, before Claude's hint arrives |
-| `Antoine` | **B. Live agent with a client tool.** Same agent, but it calls a browser tool (for example `update_board`) when the student finishes a point, and the tool runs the brain and the drawing | The agent decides when to redraw. Depends on the agent's model passing the student's words to the tool correctly, which ElevenLabs' docs warn can be unreliable |
-| `Yusuf` | **C. Turn-based fallback.** Hold to talk. ElevenLabs speech-to-text, then the brain, then ElevenLabs text-to-speech reads Claude's hint | Simplest and most predictable. Milo says exactly Claude's hint. Not live, and weaker for the ElevenLabs bounty |
+| `Ali` | **A. Live agent, scored on the side.** The browser reads the student's transcript from `onMessage`, calls the brain, and sends Claude's hint back to the agent with `sendContextualUpdate` | Least to set up. Milo's first reply each turn comes from his own prompt, before Claude's hint arrives, so his question can lag one turn behind the board |
+| `Antoine` | **B. Live agent with a client tool.** The agent calls a browser tool (for example `update_board`) when the student finishes a point. The tool runs the brain and the drawing and returns the hint to the agent | The agent decides when to redraw and waits for the hint, so Milo and the board agree. Depends on the agent's model passing the student's words to the tool correctly, which ElevenLabs' docs warn can be unreliable |
+| `Yusuf` | **C. Live agent with Claude as its brain.** The agent's LLM is set to "Custom LLM" and points at our server. One Claude call per turn writes Milo's spoken reply and the score together. The server streams the reply back to ElevenLabs and pushes the score and drawing instruction to the browser | Milo's line and the board always match, and Claude is the only brain. Most setup: see "Approach C needs" below |
 
-**Picking the winner.** Saturday 20:30: whichever branch runs one full four-turn session on "How a cell works" becomes the base. Open a pull request from it to `main`, the other two review, then everyone branches from the new `main` for polish. If two work, take the one that is live. If none works by 20:30, everyone moves to the closest one.
+**Approach C needs** (from ElevenLabs' custom LLM docs, read Sat 14 Nov):
+
+- Our server exposes an OpenAI-style `/v1/chat/completions` endpoint and answers as a stream (`Content-Type: text/event-stream`, chunks as `data: {json}`, ending with `data: [DONE]`). Streaming is required.
+- ElevenLabs must reach it from the internet. Run a tunnel such as ngrok to the dev server and paste that URL in the agent's LLM settings, with a model id and a secret.
+- The request carries `messages` (the conversation so far) and, if system tools are on, `tools`. Our endpoint turns that into a Claude call and streams Claude's text back in the OpenAI chunk format.
+- If the reply is slow to start, send a first chunk that ends in `"... "` so the audio does not glitch.
+- Milo's spoken line must stream first and fast. Run the scoring and drawing instruction so they do not hold up his voice.
+
+**Picking the winner.** Saturday 20:30: whichever branch runs one full four-turn live session on "How a cell works" becomes the base. Open a pull request from it to `main`, the other two review, then everyone branches from the new `main` for polish. If two work, take the one where Milo's question matches the board most reliably. If none works by 20:30, everyone moves to the closest one.
+
+**Last resort only.** If no live loop works by Sunday 10:00: hold to talk, ElevenLabs speech-to-text, the brain, ElevenLabs text-to-speech. It is not a branch plan. It is weaker for the ElevenLabs bounty, and the video would have to say it is not live.
 
 ## Checkpoints
 
@@ -39,7 +51,7 @@ The screens, the prompts and the turn contract are the same for everyone. The pa
 - [ ] **Draw route.** DrawRequest in, DrawResult out, right model for the level. *Done when:* the four tested prompts in PROMPTS.md, sent in order, give four boards that look like `design/boards/`.
 - [ ] **Brain route.** TurnRequest in, TurnResult out, structured output. *Done when:* the four demo turns give sensible levels (1, 2, 3, 4), hints that do not contain the answer, and drawing instructions with nothing the student did not say.
 - [ ] **Brain plus drawing.** One turn of typed text goes through the brain and then fal, and the new board appears in the session screen with a new history frame. *Done when:* typing the four demo turns produces four evolving boards.
-- [ ] **Voice.** Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns, Milo answers each time without giving an answer, and the board redraws each time.
+- [ ] **Voice.** Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
 - [ ] **Drawing state.** "Milo is drawing…" shows within 100 ms, the old board stays, one redraw in flight, newest result wins. *Done when:* talking fast for 30 seconds never shows an empty or out-of-order board.
 - [ ] **Failure handling.** fal slow or failing, Claude returning nothing usable, mic permission denied. *Done when:* each leaves the old board up with a plain message and the session carries on.
 

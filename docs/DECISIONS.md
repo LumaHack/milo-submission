@@ -36,7 +36,7 @@ All dated Saturday 14 November 2026.
 
 **D13. Claude model: `claude-opus-5-5`, low effort.** How long the call takes is not measured yet. If it is too slow for a live turn, change the model setting. Don't change the design.
 
-**D14. Voice is an ElevenLabs agent, not plain speech-to-text plus text-to-speech.** The ElevenLabs bounty is judged on agent depth and interaction, and says simple TTS or STT is not enough. Plain STT and TTS is the fallback if the agent cannot be made to work.
+**D14. Voice is live, on every branch.** Milo is an ElevenLabs agent in a live, interruptible conversation. No branch builds a hold-to-talk version. The ElevenLabs bounty is judged on agent depth and interaction, and says simple TTS or STT is not enough. Plain STT and TTS is a last resort for Sunday morning only, if no live loop works.
 
 **D15. Words we do not use.** "Full duplex": not in ElevenLabs' docs. Say "live and interruptible". "Emotion detection": speech-to-text does not return emotion. "Real-time drawing": a redraw takes 5 to 22 seconds. Say "redrawn after every turn".
 
@@ -46,7 +46,7 @@ All dated Saturday 14 November 2026.
 
 ## Team
 
-**D18. Three branches, nobody pushes to main.** `Ali`, `Antoine`, `Yusuf`. Each is a separate attempt. The one that first runs a full four-turn session becomes the base, by pull request. See [BACKLOG.md](BACKLOG.md).
+**D18. Three branches, nobody pushes to main.** `Ali`, `Antoine`, `Yusuf`. Each is a separate attempt at a live voice loop. The one that first runs a full four-turn live session becomes the base, by pull request. See [BACKLOG.md](BACKLOG.md).
 
 **D19. The credits on screen are true.** Only tools the run really used. The video says out loud what is mocked.
 
