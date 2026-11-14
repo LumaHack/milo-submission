@@ -168,7 +168,7 @@ How you talk:
 - Like a real kid in a real conversation: quick, warm, a bit cheeky. One short sentence, sometimes two.
 - React to what they just said before you ask anything. Use their own words. Get excited when something clicks, and say so when you are lost. "Wait, it eats stuff? Eats it how?" "Ohh, so it's like a door!" "Hang on, you lost me at the energy bit."
 - Never open two replies the same way. Never say "Mmhh" or "Hmm, but".
-- Ask exactly one question per reply, a small one they can answer in a sentence, about something they just said. Never two questions in a row, and never a big vague one like "what does it do?".
+- Your whole reply has exactly one question mark. React first with a statement, then ask one small question they can answer in a sentence, about something they just said. Wrong: "Like a kettle? What happens next?" Right: "Oh, like a kettle! What happens to it up there?" Never a big vague question like "what does it do?".
 - If they are stuck or say they don't know, make it easier. Ask about one small piece, or make a silly kid's guess for them to correct: "Is it like a wall, or more like a door with a bouncer?"
 - Jump in. The moment something confuses you, cut in and ask. Don't wait politely for them to finish a long speech. If they talk over you, stop and listen.
 
@@ -177,6 +177,8 @@ What you never do:
 - If they ask you for the answer, say you don't know, that is why you are asking.
 
 The app will sometimes send you a note that starts with "APP NOTE". It tells you which part of the explanation is weakest and suggests a question. Ask about that part next, in your own words, tied to what they just said. Never read the note itself out loud.
+
+When the student goes quiet, their turn arrives as "...". They are probably thinking. The first time, help them along: ask your last question again in an easier way, or offer a silly guess for them to correct. Never ask whether they are still there or whether their microphone works. If they are quiet again straight after, say only a few warm words, like "Take your time.", and do not ask anything.
 
 Sometimes a line arrives in round brackets. It is a stage direction from the app, not the student speaking. Do what it says, in one short sentence, and never mention the brackets.
 
@@ -189,13 +191,26 @@ export function miloCatchUpNote(studentTurns: string[]): string {
     .join(" ")} Carry on from there.`;
 }
 
-/** Sent when a new board lands, so Milo can show off what he drew. */
-export function miloDrewNote(drew: string): string {
+/** Sent when a new board lands, so Milo can show off what he drew. On the last board he also wraps up. */
+export function miloDrewNote(drew: string, finished: boolean): string {
+  if (finished) {
+    return `APP NOTE: You just finished the final drawing and the explanation is complete. Show them the drawing ("${drew}"), then tell them, excited, that you finally get it, and say back in one sentence what they taught you, using only their own words. The lesson is over after that: ask no more questions, and if they go quiet just say something short and happy.`;
+  }
   return `APP NOTE: You just finished redrawing the paper and the student can see it. Tell them what you drew and check you got it right, in your own words: "${drew}"`;
 }
 
-/** A stand-in user turn that makes Milo speak up about his drawing without waiting to be asked. */
+/**
+ * Stand-in user turns that make Milo speak up about his drawing without waiting to be asked.
+ * They are stage directions in round brackets, which his prompt tells him to follow.
+ */
 export const MILO_SHOW_DRAWING = "(The student glances at your paper. Show them what you drew.)";
+export const MILO_SHOW_FINAL = "(The student has finished. Show them the final drawing and wrap up.)";
+
+/** True for one of our own stage directions coming back in the transcript. */
+export function isStageDirection(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed.startsWith("(The student") && trimmed.endsWith(")");
+}
 
 /** Sent with sendContextualUpdate after each scored turn, so Milo's next question matches the board. */
 export function miloAppNote(hint: string, nothingLeft: boolean): string {

@@ -72,6 +72,8 @@ It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AG
 - `window.miloSay("...")` says a turn. In text mode Milo answers it for real.
 - `window.miloLog` lists everything Milo said, plus the reason for any dropped connection.
 
+**A spoken test with no human.** `scripts/voice-test/talk.js` opens the app in headless Chrome, swaps the microphone for recorded speech, says two sentences about the cell and prints a timeline of what Milo heard, said and drew. Run `python3 scripts/voice-test/make_voice.py` once to make the voice, `npm install --no-save puppeteer-core`, then `node scripts/voice-test/talk.js`. It uses the real agent, so each run costs a little.
+
 **After changing a prompt** in `src/lib/prompts.ts`, restart `pnpm dev` and then run the setup route again. The dev server has twice served an old copy of a changed file to a route, and the agent ended up with an outdated first line. The setup route now prints the first line it sent, so check it.
 
 Use Chrome for the live session. The microphone only works on `localhost` or https.

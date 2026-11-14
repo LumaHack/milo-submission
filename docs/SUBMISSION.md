@@ -92,8 +92,11 @@ Fill in from your own runs.
 | Claude scoring and drawing instruction | Yes | Many typed runs on Sat 14 Nov, on the cell and on a typed topic |
 | fal board redraws | Yes | Same runs. One early run drew a part nobody mentioned, before the "add nothing else" rule |
 | Milo's agent: replies, app notes, announcing his drawing, switching off and on | Yes, in text mode | The real ElevenLabs agent, driven with typed turns through the same code as voice |
-| Spoken conversation | One session by Ali, before the personality rewrite | Not yet repeated after it |
-| Milo cutting in at a pause, and the nudge after 5 s of silence | No | These only exist with audio. The agent's settings were read back from ElevenLabs and are set |
+| Spoken conversation | Yes, automated | `scripts/voice-test/talk.js` plays recorded speech into the page's microphone. Three full runs on Sat 14 Nov: both sentences transcribed word for word, Mastered in two turns |
+| Milo answering after the student stops | Yes | He replied 1 to 2 s after the speech ended |
+| Milo cutting in mid-sentence | He does not | A 0.9 s pause in the middle of a sentence did not make him jump in. Eager turn-taking means he answers fast once you stop, not that he talks over you |
+| The nudge when the student goes quiet | Yes | After about 8 s of silence he helps with an easier question, then just says "Take your time" |
+| Milo showing each drawing and wrapping up | Yes | He waits until he has stopped talking, then says what he drew. On the last board he says he finally gets it and repeats the explanation back |
 | Custom topic, history, slideshow | Yes | In the browser |
 | Film | Yes | Started from the button, survived a reload, played in the page. 214 s for the first one |
 

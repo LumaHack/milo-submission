@@ -36,8 +36,8 @@ export type Live = {
 export type MiloCallbacks = {
   /** Milo's next question, after a turn is scored. Return true if it reached the voice agent. */
   onHint?: (hint: string, nothingLeft: boolean) => boolean;
-  /** A new board is on screen. The text is what Milo can say about it. */
-  onDrawn?: (drew: string) => void;
+  /** A new board is on screen. The text is what Milo can say about it. Finished means nothing is left to ask. */
+  onDrawn?: (drew: string, finished: boolean) => void;
 };
 
 /** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
@@ -218,7 +218,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         };
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
-        if (result.drew) callbacksRef.current.onDrawn?.(result.drew);
+        if (result.drew) callbacksRef.current.onDrawn?.(result.drew, gaps.length === 0);
 
         // Every new board updates this session's entry in the history.
         sessionId.current ??= Date.now().toString(36);

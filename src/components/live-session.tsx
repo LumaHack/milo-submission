@@ -13,6 +13,8 @@ import { useDetail } from "@/lib/detail-store";
 import { useChosenTopic } from "@/lib/history";
 import {
   MILO_SHOW_DRAWING,
+  MILO_SHOW_FINAL,
+  isStageDirection,
   miloAppNote,
   miloCatchUpNote,
   miloDrewNote,
@@ -48,22 +50,26 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
   const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
-  const showDrawing = useRef<(drew: string) => void>(() => {});
+  const showDrawing = useRef<(drew: string, finished: boolean) => void>(() => {});
   const session = useMiloSession(topic, detail, {
     onHint: (hint, nothingLeft) => sendNote.current(hint, nothingLeft),
-    onDrawn: (drew) => showDrawing.current(drew),
+    onDrawn: (drew, finished) => showDrawing.current(drew, finished),
   });
   const { addTurn } = session;
 
   // When the student was last heard speaking, so Milo does not talk over them to show a drawing.
   const lastSpeech = useRef(0);
+  const pendingShow = useRef<{ since: number; cue: string } | null>(null);
 
   const conversation = useConversation({
     onMessage: (payload) => {
-      log.current.push({ who: payload.role, text: payload.message });
-      if (payload.role !== "user") setSpoken(payload.message);
+      log.current.push({ who: payload.role, text: payload.message, at: Date.now() });
+      // When the student stays quiet, ElevenLabs reports a turn of "...". That is not something they said.
+      if (payload.role === "user" && !/[\p{L}\p{N}]/u.test(payload.message)) return;
+      // Milo's lines carry delivery tags for his voice, such as [curious]. They are not for the screen.
+      if (payload.role !== "user") setSpoken(payload.message.replace(/\[[^\]]{1,24}\]\s*/g, "").trim());
       // Our own stage direction is not something the student said.
-      else if (payload.message.trim() === MILO_SHOW_DRAWING) return;
+      else if (isStageDirection(payload.message)) return;
       // In text mode we add the turn ourselves, so skip the echo of what we just sent.
       else if (payload.message === typedByUs.current) typedByUs.current = null;
       else addTurn(payload.message);
@@ -99,13 +105,32 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
     // himself instead of waiting to be asked.
-    showDrawing.current = (drew) => {
+    showDrawing.current = (drew, finished) => {
       if (!connected) return;
-      sendContextualUpdate(miloDrewNote(drew));
-      const quiet = Date.now() - lastSpeech.current > 1500;
-      if (quiet && !isSpeaking) sendUserMessage(MILO_SHOW_DRAWING);
+      sendContextualUpdate(miloDrewNote(drew, finished));
+      // He is often still mid-sentence when the board lands, so the cue to show it waits for a gap.
+      pendingShow.current = { since: Date.now(), cue: finished ? MILO_SHOW_FINAL : MILO_SHOW_DRAWING };
     };
-  }, [connected, isSpeaking, sendContextualUpdate, sendUserMessage]);
+  }, [connected, sendContextualUpdate]);
+
+  // Give the cue once Milo has stopped talking and the student is quiet. Drop it if no gap comes.
+  useEffect(() => {
+    if (!connected) return;
+    const timer = setInterval(() => {
+      const pending = pendingShow.current;
+      if (!pending) return;
+      if (Date.now() - pending.since > 15000) {
+        pendingShow.current = null;
+        return;
+      }
+      const quiet = Date.now() - lastSpeech.current > 1500;
+      if (quiet && !isSpeaking) {
+        pendingShow.current = null;
+        sendUserMessage(pending.cue);
+      }
+    }, 400);
+    return () => clearInterval(timer);
+  }, [connected, isSpeaking, sendUserMessage]);
 
   // Hang up when the student leaves the page.
   const endRef = useRef(endSession);
@@ -174,7 +199,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   //   window.miloLog                                                 everything Milo and the student said
   const sayRef = useRef<(text: string) => void>(() => {});
   const textRef = useRef<() => void>(() => {});
-  const log = useRef<{ who: string; text: string }[]>([]);
+  const log = useRef<{ who: string; text: string; at?: number }[]>([]);
   useEffect(() => {
     sayRef.current = (text) => {
       begin();
@@ -196,7 +221,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     const target = window as unknown as {
       miloSay?: (text: string) => void;
       miloText?: () => void;
-      miloLog?: { who: string; text: string }[];
+      miloLog?: { who: string; text: string; at?: number }[];
     };
     target.miloSay = (text) => sayRef.current(text);
     target.miloText = () => textRef.current();

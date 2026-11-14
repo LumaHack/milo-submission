@@ -101,7 +101,7 @@ That creates the agent the first time and updates it afterwards.
 | Setting | Value | Why |
 |---|---|---|
 | First message | `{{milo_first_line}}`, filled in by the browser. On a new session: "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?". When Milo is switched back on mid-session: "Okay, I'm back! Where were we?" | A concrete first question, so the student knows where to start, and no second introduction after a restart |
-| Turn timeout | 5 seconds | If the student goes quiet, Milo speaks up instead of waiting |
+| Turn timeout | 8 seconds | If the student goes quiet, Milo helps once with an easier question, then only says "Take your time". Five seconds cut into thinking time |
 | Turn eagerness | Eager | Milo jumps in at the first small pause instead of waiting politely |
 | Speculative turn | On | His reply starts generating during the pause, so he answers faster |
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |

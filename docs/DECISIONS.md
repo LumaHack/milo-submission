@@ -54,7 +54,7 @@ All dated Saturday 14 November 2026.
 
 **D20. Milo is a conversation partner, not a "Mmhh… but" machine.** Ali spoke to the first version on Sat 14 Nov: the repeated "Mmhh… but" opener was annoying, and the vague questions left him not knowing what to say. Milo now reacts to what was said, asks one small concrete question, guesses wildly when the student is stuck, and never opens the same way twice. D4 still holds: he never explains and never gives the proper term.
 
-**D21. Milo cuts in.** Turn-taking is Eager with speculative turn on, replacing Patient. Being interrupted by a curious kid is fine and feels alive. ElevenLabs has no setting to talk over someone mid-word, so "cuts in" means at the first small pause.
+**D21. Milo answers fast.** Turn-taking is Eager with speculative turn on, replacing Patient. Measured in a spoken test: he replies 1 to 2 seconds after the student stops. He does not jump in at a short pause mid-sentence (0.9 s was tried), and ElevenLabs has no setting to talk over someone. So we say "he answers fast", not "he interrupts". If the student goes quiet for 8 seconds he helps once, then waits.
 
 **D22. Level of detail: Basics, Exam, Deep. Default Basics.** Reaching Mastered at exam strictness was too hard out loud. Basics marks the three core ideas and accepts everyday words. Exam and Deep are there for students who want to be pushed.
 
