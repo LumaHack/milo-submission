@@ -116,7 +116,7 @@ Footer: one small muted credits line.
 - Reaction bursts pop out of his picture in a crayon hand (Gaegu, used only for his bursts and his jotted note on the paper): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
 - The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
 - He speaks once per student turn. He only speaks unprompted when the final board lands, or when he has sketched a hint.
-- A hint sketch is blue dashed pencil with the handwritten word "hint". Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
+- A hint sketch is blue dashed pencil with the handwritten word "hint" beside it. It is drawn where the missing part belongs (inside the cell if the part is inside the cell), large enough to read at a glance, never off in a corner or over a label. Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
 - When everything is clear Milo says his wrap-up and then switches himself off: the badge reads "Milo is off" and the bar reads "Milo is off. Press to switch him on".
 - When the lesson is over (everything clear, or the student still stuck after a hint) the "Open revision sheet" pill turns black and pops, and "End session" turns light.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
