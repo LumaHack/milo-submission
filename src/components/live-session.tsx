@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SessionView } from "@/components/session-view";
 import { useDetail } from "@/lib/detail-store";
-import { miloAppNote } from "@/lib/prompts";
+import { MILO_SHOW_DRAWING, miloAppNote, miloDrewNote } from "@/lib/prompts";
 import { DETAILS, getTopic, type Detail } from "@/lib/topics";
 import type { MiloStatus } from "@/lib/turn";
 import { useMiloSession } from "@/lib/use-milo-session";
@@ -37,14 +37,24 @@ function Live({ detail }: { detail: Detail }) {
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
   const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
-  const onHint = useCallback((hint: string, nothingLeft: boolean) => sendNote.current(hint, nothingLeft), []);
-  const session = useMiloSession(TOPIC_ID, detail, onHint);
+  const showDrawing = useRef<(drew: string) => void>(() => {});
+  const session = useMiloSession(TOPIC_ID, detail, {
+    onHint: (hint, nothingLeft) => sendNote.current(hint, nothingLeft),
+    onDrawn: (drew) => showDrawing.current(drew),
+  });
   const { addTurn } = session;
+
+  // When the student was last heard speaking, so Milo does not talk over them to show a drawing.
+  const lastSpeech = useRef(0);
 
   const conversation = useConversation({
     onMessage: (payload) => {
-      if (payload.role === "user") addTurn(payload.message);
-      else setSpoken(payload.message);
+      if (payload.role !== "user") setSpoken(payload.message);
+      // Our own stage direction is not something the student said.
+      else if (payload.message.trim() !== MILO_SHOW_DRAWING) addTurn(payload.message);
+    },
+    onVadScore: ({ vadScore }) => {
+      if (vadScore > 0.6) lastSpeech.current = Date.now();
     },
     onError: (message) =>
       setVoiceError(
@@ -55,7 +65,7 @@ function Live({ detail }: { detail: Detail }) {
   });
   const connected = conversation.status === "connected";
   const connecting = conversation.status === "connecting";
-  const { sendContextualUpdate, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
+  const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
     sendNote.current = (hint, nothingLeft) => {
@@ -63,7 +73,15 @@ function Live({ detail }: { detail: Detail }) {
       sendContextualUpdate(miloAppNote(hint, nothingLeft));
       return true;
     };
-  }, [connected, sendContextualUpdate]);
+    // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
+    // himself instead of waiting to be asked.
+    showDrawing.current = (drew) => {
+      if (!connected) return;
+      sendContextualUpdate(miloDrewNote(drew));
+      const quiet = Date.now() - lastSpeech.current > 1500;
+      if (quiet && !isSpeaking) sendUserMessage(MILO_SHOW_DRAWING);
+    };
+  }, [connected, isSpeaking, sendContextualUpdate, sendUserMessage]);
 
   // Hang up when the student leaves the page.
   const endRef = useRef(endSession);
@@ -182,6 +200,8 @@ function Live({ detail }: { detail: Detail }) {
       error={voiceError ?? session.error}
       seconds={seconds}
       steps={session.steps}
+      reaction={session.reaction}
+      heard={session.heard}
       micOn={micOn}
       micLabel={micLabel}
       micHint={micHint}

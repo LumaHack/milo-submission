@@ -29,7 +29,8 @@ export async function POST() {
     ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
     // Eager: Milo jumps in at the first small pause instead of waiting politely.
     // Speculative turn: his reply starts generating during the pause, so he answers faster.
-    turn: { turn_eagerness: "eager", speculative_turn: true },
+    // Turn timeout: if the student goes quiet for five seconds, Milo speaks up instead of waiting.
+    turn: { turn_eagerness: "eager", speculative_turn: true, turn_timeout: 5 },
   };
 
   const response = await fetch(

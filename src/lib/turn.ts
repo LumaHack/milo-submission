@@ -43,6 +43,9 @@ export const TurnResultSchema = z.object({
     .boolean()
     .describe("False when the latest turn added nothing that can be drawn. The board is then left as it is."),
   drawPrompt: z.string().describe("Instruction for the image model. Repeats the previous one when changed is false."),
+  drew: z
+    .string()
+    .describe("One short spoken sentence in which Milo says what he just drew, in the student's words. Empty when changed is false."),
 });
 export type TurnResult = z.infer<typeof TurnResultSchema>;
 

@@ -15,7 +15,7 @@ import { formatClock } from "@/lib/demo";
 import { LEVELS, levelInfo, type Level } from "@/lib/levels";
 import { MILO_FIRST_MESSAGE } from "@/lib/prompts";
 import type { Frame, IdeaStatus, MiloStatus } from "@/lib/turn";
-import type { Step } from "@/lib/use-milo-session";
+import type { Reaction, Step } from "@/lib/use-milo-session";
 
 const STATUS: Record<MiloStatus, { text: string; dot: string; busy: boolean; motion: string; ring: string }> = {
   off: { text: "Mic is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
@@ -49,6 +49,10 @@ export type SessionViewProps = {
   seconds: number;
   /** What the agent has been doing, oldest first. */
   steps: Step[];
+  /** A short burst over Milo's picture. A new id replays it. */
+  reaction?: Reaction | null;
+  /** The last thing the student said, shown next to Milo's reply. */
+  heard?: string | null;
   micOn: boolean;
   micLabel: string;
   /** Shown in the mic bar instead of the waveform, for example before the session starts. */
@@ -193,6 +197,15 @@ export function SessionView(props: SessionViewProps) {
                   style={{ boxShadow: `inset 0 0 0 calc(2px + var(--vol, 0) * 9px) ${status.ring}` }}
                 />
               )}
+              {props.reaction && (
+                <span
+                  key={props.reaction.id}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-3 right-3 animate-reaction rounded-[16px_16px_16px_4px] bg-card px-3.5 py-1.5 font-crayon text-[28px] leading-none text-ink shadow-paper"
+                >
+                  {props.reaction.text}
+                </span>
+              )}
               <span
                 key={props.status}
                 aria-live="polite"
@@ -210,12 +223,19 @@ export function SessionView(props: SessionViewProps) {
               </span>
             </div>
 
-            <p className="m-0 rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium">
-              <Words key={line} text={line} />
-            </p>
-            <p className="m-0 text-sm leading-normal text-muted">
-              Milo gives a hint at your biggest gap. He never gives the answer.
-            </p>
+            <div className="flex flex-col gap-2">
+              {props.heard && onNewest && (
+                <p
+                  key={props.heard}
+                  className="m-0 ml-auto line-clamp-2 max-w-[88%] animate-rise rounded-[18px_18px_4px_18px] bg-ink px-4 py-2.5 text-[15px] leading-[1.4] text-white"
+                >
+                  {props.heard}
+                </p>
+              )}
+              <p className="m-0 mr-auto rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium">
+                <Words key={line} text={line} />
+              </p>
+            </div>
           </div>
 
           <AgentFeed steps={props.steps} />

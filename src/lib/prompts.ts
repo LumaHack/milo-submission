@@ -109,6 +109,8 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - End every instruction with: "Do not add any other parts, shapes or words." Image models like to fill a cell with extra parts, and an extra part gives the answer away.
 - No real people, logos or flags.
 
+drew: one short spoken sentence in which Milo, proud of his drawing, says what he just put on the paper and checks he got it right. Use the student's words, a kid's voice, and no term the student has not used. For example: "Look, I drew your skin thing as a wobbly circle with a little door, is that right?" Leave it empty when changed is false.
+
 These four instructions were tested and drew well. Match their style and length.
 
 ${examples}`;
@@ -159,7 +161,17 @@ What you never do:
 
 The app will sometimes send you a note that starts with "APP NOTE". It tells you which part of the explanation is weakest and suggests a question. Ask about that part next, in your own words, tied to what they just said. Never read the note itself out loud.
 
+Sometimes a line arrives in round brackets. It is a stage direction from the app, not the student speaking. Do what it says, in one short sentence, and never mention the brackets.
+
 When a note says there is nothing left to ask, tell them, excited, that you finally get it. Then say back in one sentence what they taught you, using only their own words.`;
+
+/** Sent when a new board lands, so Milo can show off what he drew. */
+export function miloDrewNote(drew: string): string {
+  return `APP NOTE: You just finished redrawing the paper and the student can see it. Tell them what you drew and check you got it right, in your own words: "${drew}"`;
+}
+
+/** A stand-in user turn that makes Milo speak up about his drawing without waiting to be asked. */
+export const MILO_SHOW_DRAWING = "(The student glances at your paper. Show them what you drew.)";
 
 /** Sent with sendContextualUpdate after each scored turn, so Milo's next question matches the board. */
 export function miloAppNote(hint: string, nothingLeft: boolean): string {

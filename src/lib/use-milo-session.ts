@@ -69,11 +69,17 @@ function shorten(text: string, max: number): string {
  * onHint is called after each scored turn with Milo's next line. Return true if it was passed
  * on to the voice agent, so the feed can say so.
  */
-export function useMiloSession(
-  topicId: string,
-  detail: Detail,
-  onHint?: (hint: string, nothingLeft: boolean) => boolean,
-) {
+export type MiloCallbacks = {
+  /** Milo's next question, after a turn is scored. Return true if it reached the voice agent. */
+  onHint?: (hint: string, nothingLeft: boolean) => boolean;
+  /** A new board is on screen. The text is what Milo can say about it. */
+  onDrawn?: (drew: string) => void;
+};
+
+/** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
+export type Reaction = { id: number; text: string };
+
+export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloCallbacks = {}) {
   const topic = getTopic(topicId);
   const keyIdeas = topic ? ideasFor(topic, detail) : [];
   const [frames, setFrames] = useState<Frame[]>([]);
@@ -86,6 +92,8 @@ export function useMiloSession(
   const [busy, setBusy] = useState<"idle" | "thinking" | "drawing">("idle");
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
+  const [reaction, setReaction] = useState<Reaction | null>(null);
+  const [heard, setHeard] = useState<string | null>(null);
 
   const turns = useRef<string[]>([]);
   const scored = useRef(0);
@@ -95,11 +103,15 @@ export function useMiloSession(
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
   const nextStepId = useRef(1);
-  const onHintRef = useRef(onHint);
+  const callbacksRef = useRef(callbacks);
+  const ideasBefore = useRef<IdeaStatus[] | null>(null);
+  const nextReactionId = useRef(1);
 
   useEffect(() => {
-    onHintRef.current = onHint;
-  }, [onHint]);
+    callbacksRef.current = callbacks;
+  });
+
+  const react = (text: string) => setReaction({ id: nextReactionId.current++, text });
 
   const beginStep = (label: string, detail?: string): number => {
     const id = nextStepId.current++;
@@ -163,9 +175,20 @@ export function useMiloSession(
         });
         openStep = null;
 
+        // Milo reacts to what changed: he grew up, an idea clicked, something is wrong, or nothing landed.
+        const before = ideasBefore.current;
+        const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
+        const grewUp = level.current !== null && result.level > level.current;
+        if (gaps.length === 0) react("I get it!");
+        else if (grewUp) react("I'm growing!");
+        else if (ideas.includes("wrong")) react("Huh?!");
+        else if (clicked) react("Ohh!");
+        else if (!result.changed) react("?");
+        ideasBefore.current = ideas;
+
         level.current = result.level;
         setLive({ level: result.level, hint: result.hint, gaps, ideas });
-        if (onHintRef.current?.(result.hint, gaps.length === 0)) {
+        if (callbacksRef.current.onHint?.(result.hint, gaps.length === 0)) {
           logStep("Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
         }
 
@@ -198,6 +221,7 @@ export function useMiloSession(
         };
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
+        if (result.drew) callbacksRef.current.onDrawn?.(result.drew);
         try {
           const stored: StoredSession = { topicId, frames: framesRef.current };
           window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
@@ -226,9 +250,10 @@ export function useMiloSession(
     if (!said) return;
     start();
     turns.current = [...turns.current, said];
+    setHeard(said);
     logStep("Heard you", `“${shorten(said, 64)}”`);
     void run();
   };
 
-  return { frames, live, busy, error, steps, addTurn, start };
+  return { frames, live, busy, error, steps, reaction, heard, addTurn, start };
 }
