@@ -88,6 +88,10 @@ Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipe
 
 **D35. The paper reacts in under three seconds.** A redraw still takes 5 to 9 seconds, because fal's edit has no faster setting. So Milo jots the student's words on the paper as soon as the brain answers (about 2.6 s), and the drawing replaces the note when it lands.
 
+## Nolan
+
+**D33. Nolan is its own product, in `nolan/`.** Ali's call on Sat 14 Nov, late evening. It replaces the "ten-second mention" in D1. Nolan takes witness accounts for an investigator: he interviews each witness alone, then shows where the accounts agree and differ. It is a separate Next.js app with its own dependencies, dev server (port 3001) and README, built from the "Nolan" design artifact. Milo's code does not import it and is not changed by it. Milo is still the submission unless the humans decide otherwise.
+
 ## Still open
 
 | Question | Who can settle it |

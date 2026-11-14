@@ -1,8 +1,8 @@
-// POST /api/nolan/token
+// POST /api/token
 // Returns a short-lived conversation token so the browser can talk to Nolan's ElevenLabs agent
-// over WebRTC without ever seeing the API key. The agent is created on first use, see src/lib/nolan-agent.ts.
+// over WebRTC without ever seeing the API key. The agent is created on first use, see src/lib/agent.ts.
 
-import { nolanAgentId } from "@/lib/nolan-agent";
+import { nolanAgentId } from "@/lib/agent";
 
 export async function POST(request: Request) {
   const apiKey = process.env.ELEVENLABS_API_KEY;

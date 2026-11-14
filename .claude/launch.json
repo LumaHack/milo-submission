@@ -4,8 +4,20 @@
     {
       "name": "milo",
       "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeArgs": [
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "nolan",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--dir",
+        "nolan",
+        "dev"
+      ],
+      "port": 3001
     }
   ]
 }

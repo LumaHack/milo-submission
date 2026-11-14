@@ -1,5 +1,5 @@
-// Server only. One structured Claude call, shared by the three routes under /api/nolan.
-// Same settings as /api/turn: the Anthropic SDK, claude-opus-5-5, low effort, structured output.
+// Server only. One structured Claude call, shared by the brain routes.
+// The Anthropic SDK, claude-opus-5-5, low effort, structured output.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
@@ -23,7 +23,7 @@ export async function askClaude<S extends z.ZodType>(
     return { ok: false, status: 500, error: "ANTHROPIC_API_KEY is not set. Add it to .env.local." };
   }
   const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
-  const fast = Boolean(options.fast) && model === DEFAULT_MODEL && process.env.MILO_FAST !== "0";
+  const fast = Boolean(options.fast) && model === DEFAULT_MODEL && process.env.NOLAN_FAST !== "0";
   const client = new Anthropic();
   const started = Date.now();
 

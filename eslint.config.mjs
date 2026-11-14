@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Plain Node scripts, not part of the app.
     "scripts/**",
+    // Nolan is its own app with its own lint setup.
+    "nolan/**",
   ]),
 ]);
 

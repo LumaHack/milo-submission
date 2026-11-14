@@ -1,9 +1,9 @@
-// Server only. Nolan's voice is a second ElevenLabs agent, separate from Milo's.
+// Server only. Nolan's voice is an ElevenLabs agent.
 // There is nothing to set up by hand: the first interview finds the agent by name in the workspace,
-// creates it if it is missing, and brings its prompt up to date from src/lib/nolan-prompts.ts.
+// creates it if it is missing, and brings its prompt up to date from src/lib/prompts.ts.
 // Set ELEVENLABS_NOLAN_AGENT_ID to skip the lookup and pin one agent.
 
-import { NOLAN_AGENT_NAME, NOLAN_AGENT_PROMPT, NOLAN_FIRST_MESSAGE } from "@/lib/nolan-prompts";
+import { NOLAN_AGENT_NAME, NOLAN_AGENT_OLD_NAMES, NOLAN_AGENT_PROMPT, NOLAN_FIRST_MESSAGE } from "@/lib/prompts";
 
 const API = "https://api.elevenlabs.io/v1/convai";
 
@@ -18,10 +18,10 @@ function conversationConfig() {
       // Defaults for the blanks in the prompt and first line. A live interview always sends its own.
       dynamic_variables: {
         dynamic_variable_placeholders: {
-          witness_name: "the witness",
-          moment: "The opening ceremony",
-          questions: "1. What did you see?\n2. Who was there?\n3. What was said?\n4. How long did it last?\n5. How did it feel to be there?",
-          nolan_first_line: "I'm Nolan. I have five questions. Tell me only what you remember yourself. First: what did you see?",
+          case_title: "An incident",
+          witness_where: "saw it",
+          details: '- What happened: "What happened next?"',
+          nolan_first_line: "Hello, I'm Nolan. I'm here to take your account. Tell me what you saw, from the moment you first noticed something.",
         },
       },
       language: "en",
@@ -32,7 +32,7 @@ function conversationConfig() {
       },
     },
     ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
-    // Patient: a witness who is remembering gets time. Nolan waits through pauses instead of jumping in.
+    // Patient: a witness who is remembering gets time. Nolan waits while they think and never talks over them.
     // Turn timeout: after twelve quiet seconds he says "Take your time."
     turn: { turn_eagerness: "patient", turn_timeout: 12 },
   };
@@ -55,7 +55,10 @@ async function sync(apiKey: string): Promise<string> {
     const found = await call(apiKey, `/agents?search=${encodeURIComponent("Nolan")}&page_size=100`);
     if (!found.ok) throw new Error(`ElevenLabs refused the agent list (${found.status}).`);
     const agents = (found.data?.agents ?? []) as { agent_id?: string; name?: string }[];
-    agentId = agents.find((agent) => agent.name === NOLAN_AGENT_NAME)?.agent_id ?? null;
+    agentId =
+      agents.find((agent) => agent.name === NOLAN_AGENT_NAME)?.agent_id ??
+      agents.find((agent) => NOLAN_AGENT_OLD_NAMES.includes(agent.name ?? ""))?.agent_id ??
+      null;
   }
 
   if (!agentId) {
@@ -65,9 +68,9 @@ async function sync(apiKey: string): Promise<string> {
         name: NOLAN_AGENT_NAME,
         conversation_config: conversationConfig(),
         platform_settings: {
-          // Private agent: an interview needs a token from /api/nolan/token.
+          // Private agent: an interview needs a token from /api/token.
           auth: { enable_auth: true },
-          // A witness's voice is not kept. Only the words are, as text.
+          // A witness's voice is not stored. Only the words are, as text.
           privacy: { record_voice: false },
         },
       }),
@@ -79,7 +82,11 @@ async function sync(apiKey: string): Promise<string> {
 
   const updated = await call(apiKey, `/agents/${encodeURIComponent(agentId)}`, {
     method: "PATCH",
-    body: JSON.stringify({ conversation_config: conversationConfig(), platform_settings: { privacy: { record_voice: false } } }),
+    body: JSON.stringify({
+      name: NOLAN_AGENT_NAME,
+      conversation_config: conversationConfig(),
+      platform_settings: { privacy: { record_voice: false } },
+    }),
   });
   if (!updated.ok) throw new Error(`ElevenLabs did not update Nolan's agent (${updated.status}).`);
   return agentId;

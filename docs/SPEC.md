@@ -293,7 +293,7 @@ Milo's agent prompt and first line have blanks (`{{topic_about}}`, `{{topic_titl
 
 ## Out of scope
 
-- Nolan, the witness-interview mode.
+- Nolan, the witness-interview product. It is not part of Milo. It is a separate app in `nolan/` with its own README.
 - Uploading slides or notes.
 - A moving Milo. We tried turning his picture into a video with fal. The video model refused it as a possible likeness of a real person.
 - Points, streaks, leaderboards.

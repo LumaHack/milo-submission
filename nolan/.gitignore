@@ -1,0 +1,12 @@
+# secrets: never commit a key
+.env
+.env.*
+!.env.example
+
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
