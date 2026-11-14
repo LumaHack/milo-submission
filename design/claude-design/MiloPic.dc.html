@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milo in 3D, four ages</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 100%; background: #E4DEEE">
+<sc-if value="{{ is1 }}" hint-placeholder-val="{{ true }}">
+<img src="/_blob/2fecab9806dfb523459faf63e56f97ed" alt="Milo as a small boy with curly brown hair in a navy hoodie, holding a pink crayon, puzzled, with a finger on his chin" style="display: block; width: 100%; aspect-ratio: {{ ratio }}; object-fit: cover; object-position: 50% 25%">
+</sc-if>
+<sc-if value="{{ is2 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/169aaccde756d8632641dc5f97b5fe96" alt="Milo a few years older, holding a coloured pencil with one eyebrow raised" style="display: block; width: 100%; aspect-ratio: {{ ratio }}; object-fit: cover; object-position: 50% 25%">
+</sc-if>
+<sc-if value="{{ is3 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/cfae6db37fea2d1b93b0ffccd0025a29" alt="Milo as a young teenager in round glasses, holding a marker pen and thinking" style="display: block; width: 100%; aspect-ratio: {{ ratio }}; object-fit: cover; object-position: 50% 25%">
+</sc-if>
+<sc-if value="{{ is4 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/14d3eaba6932ac4934a226969120ddd9" alt="Milo grown up, in a graduation cap and glasses, smiling with his arms crossed" style="display: block; width: 100%; aspect-ratio: {{ ratio }}; object-fit: cover; object-position: 50% 25%">
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stage":{"editor":"enum","options":["1","2","3","4"],"default":"1"},"shape":{"editor":"enum","options":["wide","square"],"default":"wide"},"$preview":{"width":400,"height":300}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = String(this.props.stage ?? '1');
+const ratio = (this.props.shape ?? 'wide') === 'square' ? '1 / 1' : '4 / 3';
+return { is1: s === '1', is2: s === '2', is3: s === '3', is4: s === '4', ratio };
+}
+}
+</script>
+</body>
+</html>

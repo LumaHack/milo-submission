@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milo whiteboard, drawn by fal</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 100%; background: #F4F2EE">
+<sc-if value="{{ is1 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/3b8e62def74fbca8691e2cd204de03b3" alt="Crayon level one: a pink scribbled blob with the words the cell, does stuff and keeps us alive, each with a question mark" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover">
+</sc-if>
+<sc-if value="{{ is2 }}" hint-placeholder-val="{{ true }}">
+<img src="/_blob/b5a658537e5c05de9ae6f9fe000ec160" alt="Crayon level two: a pink outline of a cell with circles going in, a squiggly mitochondrion with yellow rays, a lightning bolt leaving, and two purple question marks" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover">
+</sc-if>
+<sc-if value="{{ is3 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/10ff0b90212be3042ebea45fd9d2eb68" alt="Crayon level three: a purple cell with a hatched nucleus and two orange mitochondria. Handwritten labels say cell membrane, controls what enters, and mitochondria, make energy, ATP" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover">
+</sc-if>
+<sc-if value="{{ is4 }}" hint-placeholder-val="{{ false }}">
+<img src="/_blob/5de4ce436e608ebe9b9eb52721d893e9" alt="The finished revision sheet: a labelled cell with the nucleus, ribosomes, rough ER, Golgi, mitochondria and an ATP star, with arrows showing how proteins move" style="display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover">
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stage":{"editor":"enum","options":["1","2","3","4"],"default":"2"},"$preview":{"width":880,"height":495}}'>
+class Component extends DCLogic {
+renderVals() {
+const s = String(this.props.stage ?? '2');
+return { is1: s === '1', is2: s === '2', is3: s === '3', is4: s === '4' };
+}
+}
+</script>
+</body>
+</html>

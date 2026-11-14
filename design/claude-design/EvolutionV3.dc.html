@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Milo, replay, version 3</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat+Brush&family=Patrick+Hand&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1440px; height: 640px; box-sizing: border-box; padding: 40px; background: #FBFAF8; color: #000000; font-family: 'Instrument Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 28px">
+
+<div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 48px">
+<h1 style="margin: 0; font-size: 48px; line-height: 1.04; font-weight: 500; letter-spacing: -0.04em">Replay the whole session</h1>
+<p style="margin: 0; max-width: 420px; font-size: 16px; line-height: 1.55; color: #636268">Every frame pairs what you said with what Milo drew from it. Play it back to watch a scribble turn into a revision sheet.</p>
+</div>
+
+<div style="flex: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 12px; background: #F1EFEC; border-radius: 28px">
+
+<div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0; min-height: 66px; box-sizing: border-box; padding: 12px 16px; border-radius: 16px 16px 4px 16px; background: #000000; color: #FFFFFF; font-size: 15px; line-height: 1.4">“The cell does stuff and keeps the body alive.”</p>
+<div style="flex: 1; display: flex; align-items: center"><div style="width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(42, 35, 64, 0.14)"><dc-import name="BoardV3" stage="1" hint-size="100%,180px"></dc-import></div></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px"><span style="font-weight: 600">Turn 1, 0:20</span><span style="color: #636268">Milo is 4. Crayon.</span></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0; min-height: 66px; box-sizing: border-box; padding: 12px 16px; border-radius: 16px 16px 4px 16px; background: #000000; color: #FFFFFF; font-size: 15px; line-height: 1.4">“The cell takes in things and makes energy.”</p>
+<div style="flex: 1; display: flex; align-items: center"><div style="width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(42, 35, 64, 0.14)"><dc-import name="BoardV3" stage="2" hint-size="100%,180px"></dc-import></div></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px"><span style="font-weight: 600">Turn 2, 0:55</span><span style="color: #636268">Milo is 7. Sketching.</span></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0; min-height: 66px; box-sizing: border-box; padding: 12px 16px; border-radius: 16px 16px 4px 16px; background: #000000; color: #FFFFFF; font-size: 15px; line-height: 1.4">“The membrane controls what enters, and mitochondria make the energy.”</p>
+<div style="flex: 1; display: flex; align-items: center"><div style="width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(42, 35, 64, 0.14)"><dc-import name="BoardV3" stage="3" hint-size="100%,180px"></dc-import></div></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px"><span style="font-weight: 600">Turn 3, 1:40</span><span style="color: #636268">Milo is 11. Clearer.</span></div>
+</div>
+
+<div style="background: #FFFFFF; border-radius: 20px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0; min-height: 66px; box-sizing: border-box; padding: 12px 16px; border-radius: 16px 16px 4px 16px; background: #000000; color: #FFFFFF; font-size: 15px; line-height: 1.4">“DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out.”</p>
+<div style="flex: 1; display: flex; align-items: center"><div style="width: 100%; border-radius: 8px; overflow: hidden; box-shadow: 0 6px 18px rgba(42, 35, 64, 0.14)"><dc-import name="BoardV3" stage="4" hint-size="100%,180px"></dc-import></div></div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px"><span style="font-weight: 600">Final sheet, 2:30</span><span style="color: #636268">Milo is 18. Mastered.</span></div>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":640}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

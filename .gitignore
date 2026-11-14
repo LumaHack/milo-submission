@@ -1,0 +1,25 @@
+# secrets: never commit a key
+.env
+.env.*
+!.env.example
+
+# dependencies and build output
+node_modules/
+.next/
+out/
+build/
+dist/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+__pycache__/
+.venv/
+
+# output of the fal test scripts
+scripts/fal_test_out/
+scripts/milo_assets/
+
+# misc
+.DS_Store
+*.pem
+*.log
