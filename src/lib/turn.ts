@@ -70,4 +70,4 @@ export type Frame = {
   gaps: string[];
 };
 
-export type MiloStatus = "off" | "listening" | "thinking" | "drawing" | "speaking";
+export type MiloStatus = "off" | "connecting" | "listening" | "thinking" | "drawing" | "speaking";

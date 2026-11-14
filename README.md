@@ -59,7 +59,7 @@ Then open http://localhost:3000.
 | Page | What it is |
 |---|---|
 | `/` | Start screen |
-| `/session` | The live session. Press the mic button, allow the microphone, and explain the cell to Milo |
+| `/session` | The live session. It connects by itself: allow the microphone and start explaining the cell to Milo. The mic button only mutes |
 | `/demo` | The scripted run from stored images. No keys or network. The header says "Scripted run" |
 | `/sheet` | The revision sheet from the last session in this browser |
 

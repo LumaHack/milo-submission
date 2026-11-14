@@ -18,6 +18,7 @@ import type { Step } from "@/lib/use-milo-session";
 
 const STATUS: Record<MiloStatus, { text: string; dot: string; busy: boolean; motion: string; ring: string }> = {
   off: { text: "Mic is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
+  connecting: { text: "Waking Milo up", dot: "bg-faint", busy: true, motion: "animate-breathe", ring: "" },
   listening: { text: "Listening", dot: "bg-ok animate-pulse-dot", busy: false, motion: "animate-listen", ring: "var(--color-ok)" },
   thinking: { text: "Thinking", dot: "bg-faint", busy: true, motion: "animate-ponder", ring: "" },
   drawing: { text: "Drawing", dot: "bg-faint", busy: true, motion: "animate-ponder", ring: "" },
@@ -258,22 +259,19 @@ export function SessionView(props: SessionViewProps) {
 
           <div className="sticky bottom-3 z-10 mt-auto flex items-center gap-3.5 rounded-card bg-card px-4 py-3.5 shadow-paper">
             <span className="relative flex-none">
-              {!props.micOn && props.micHint && (
-                <span aria-hidden="true" className="absolute inset-0 animate-ping-ring rounded-full bg-ink" />
-              )}
               <button
                 type="button"
                 onClick={props.onMic}
                 aria-label={props.micLabel}
                 aria-pressed={props.micOn}
                 title={props.micLabel}
-                className="press relative inline-flex h-12 w-12 items-center justify-center rounded-full border border-ink bg-ink text-white"
+                className={`press relative inline-flex h-12 w-12 items-center justify-center rounded-full border ${props.micOn ? "border-ink bg-ink text-white" : "border-line bg-card text-ink"}`}
               >
                 <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="9" y="3" width="6" height="11" rx="3" />
                   <path d="M5 11a7 7 0 0 0 14 0" />
                   <path d="M12 18v3" />
-                  {!props.micOn && !props.micHint && <path d="M4 4l16 16" />}
+                  {!props.micOn && <path d="M4 4l16 16" />}
                 </svg>
               </button>
             </span>

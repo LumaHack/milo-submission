@@ -45,7 +45,7 @@ function Live() {
     onError: (message) =>
       setVoiceError(
         /permission|notallowed/i.test(message)
-          ? "Milo needs your microphone. Allow it in the browser, then press the mic button again."
+          ? "Milo needs your microphone. Allow it in the browser, then tap anywhere."
           : `Milo's voice hit a problem: ${message}`,
       ),
   });
@@ -110,27 +110,53 @@ function Live() {
     }
   };
 
+  // The session is live as soon as the page opens. Nobody presses anything to start.
+  // Browsers only allow sound after the student has interacted with the page. Arriving from the
+  // Start screen counts. After a refresh it does not, so the first tap anywhere starts Milo instead.
+  const connectRef = useRef(connect);
+  useEffect(() => {
+    connectRef.current = connect;
+  });
+  const idle = conversation.status === "disconnected" || conversation.status === "error";
+  const tried = useRef(false);
+  useEffect(() => {
+    if (!tried.current) {
+      tried.current = true;
+      void connectRef.current();
+    }
+  }, []);
+  useEffect(() => {
+    if (!idle) return;
+    const wake = () => void connectRef.current();
+    window.addEventListener("pointerdown", wake, { once: true });
+    return () => window.removeEventListener("pointerdown", wake);
+  }, [idle]);
+
+  // The mic button only mutes and unmutes.
   const onMic = () => {
-    if (connecting) return;
-    if (!connected) void connect();
-    else conversation.setMuted(!conversation.isMuted);
+    if (connected) conversation.setMuted(!conversation.isMuted);
   };
 
   const micOn = connected && !conversation.isMuted;
   let status: MiloStatus = "off";
-  if (connected && isSpeaking) status = "speaking";
+  if (connecting) status = "connecting";
+  else if (connected && isSpeaking) status = "speaking";
   else if (session.busy === "drawing") status = "drawing";
   else if (session.busy === "thinking") status = "thinking";
   else if (micOn) status = "listening";
 
   const micLabel = !connected
-    ? connecting
-      ? "Connecting to Milo"
-      : "Start talking to Milo"
+    ? "Milo is not connected yet"
     : conversation.isMuted
       ? "Unmute your microphone"
       : "Mute your microphone";
-  const micHint = connected ? null : connecting ? "Connecting to Milo…" : "Press the mic to start";
+  const micHint = connected
+    ? conversation.isMuted
+      ? "You are muted"
+      : null
+    : connecting
+      ? "Waking Milo up…"
+      : "Tap anywhere to wake Milo";
 
   // Milo's own voice while he talks, the student's microphone the rest of the time.
   const getVoiceLevel = useCallback(

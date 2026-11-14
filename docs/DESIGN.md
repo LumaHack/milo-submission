@@ -111,7 +111,7 @@ Footer: one small muted credits line.
 - His line arrives word by word.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
 - Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
-- Before the session starts the mic button pulses and the bar reads "Press the mic to start". The mic bar stays pinned to the bottom of the column.
+- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo" and the first tap starts it. The mic button only mutes. The mic bar stays pinned to the bottom of the column.
 
 **Status badge states**
 
