@@ -44,6 +44,29 @@ Keys are shared in the team chat, never in this repo. `.env.local` is ignored by
 
 There is no app code on `main` yet. Each branch starts its own. The stack we recommend, and the package versions we checked today, are in [docs/SPEC.md](docs/SPEC.md).
 
+### Running the app (branch `Ali`)
+
+```bash
+pnpm install
+```
+
+```bash
+pnpm dev
+```
+
+Then open http://localhost:3000.
+
+| Page | What it is |
+|---|---|
+| `/` | Start screen |
+| `/session` | The live session. Press the mic button, allow the microphone, and explain the cell to Milo |
+| `/demo` | The scripted run from stored images. No keys or network. The header says "Scripted run" |
+| `/sheet` | The revision sheet from the last session in this browser |
+
+It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env.local`. Milo's agent is created once with `curl -X POST http://localhost:3000/api/elevenlabs/setup`, which prints the id. Set `NEXT_PUBLIC_MILO_TYPING=1` to get a text box for typing a turn instead of speaking it.
+
+Use Chrome for the live session. The microphone only works on `localhost` or https.
+
 ## What is in here besides docs
 
 - `design/boards/` the four whiteboards, real fal output from our test run

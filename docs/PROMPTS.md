@@ -73,7 +73,7 @@ ideas: one entry per key idea, in the order given, judged across everything said
 level: the crayon level for the explanation so far.
 - 1, Crayon: no key idea is clear.
 - 2, Sketching: ideas are there but vague, or only one is clear.
-- 3, Clearer: at least half the key ideas are clear and none is wrong.
+- 3, Clearer: at least two key ideas are clear and none is wrong.
 - 4, Mastered: every key idea is clear.
 
 biggestGapId: the id of the most important key idea that is missing, vague or wrong. Prefer a wrong idea over a vague one, and a vague one over a missing one, because it is closest to what the student is already thinking about. Null when every idea is clear.

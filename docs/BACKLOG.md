@@ -45,23 +45,25 @@ The screens, the prompts and the turn contract are the same for everyone. The pa
 
 ## P0: needed for the video
 
-- [ ] **App skeleton.** Next.js app on your branch, tokens and font from DESIGN.md, `.env.local` loading. *Done when:* the Start screen renders and matches the design.
-- [ ] **Start screen.** *Done when:* it matches `StartV3` and "How a cell works" opens the session.
-- [ ] **Session screen with scripted data.** The four demo turns from DESIGN.md with the images in `design/boards/` and `design/milo/`. Clicking a history frame shows that board, level, age, hint and gaps. Replay steps through them. *Done when:* it matches `MainV3` and a reviewer cannot tell it from the design.
-- [ ] **Draw route.** DrawRequest in, DrawResult out, right model for the level. *Done when:* the four tested prompts in PROMPTS.md, sent in order, give four boards that look like `design/boards/`.
-- [ ] **Brain route.** TurnRequest in, TurnResult out, structured output. *Done when:* the four demo turns give sensible levels (1, 2, 3, 4), hints that do not contain the answer, and drawing instructions with nothing the student did not say.
-- [ ] **Brain plus drawing.** One turn of typed text goes through the brain and then fal, and the new board appears in the session screen with a new history frame. *Done when:* typing the four demo turns produces four evolving boards.
-- [ ] **Voice.** Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
+Ticks below are for the `Ali` branch. Ticked items were run, not just written: four typed turns went through Claude and fal and drew four evolving boards.
+
+- [x] **App skeleton.** Next.js app on your branch, tokens and font from DESIGN.md, `.env.local` loading. *Done when:* the Start screen renders and matches the design.
+- [x] **Start screen.** *Done when:* it matches `StartV3` and "How a cell works" opens the session.
+- [x] **Session screen with scripted data.** (`/demo`) The four demo turns from DESIGN.md with the images in `design/boards/` and `design/milo/`. Clicking a history frame shows that board, level, age, hint and gaps. Replay steps through them. *Done when:* it matches `MainV3` and a reviewer cannot tell it from the design.
+- [x] **Draw route.** DrawRequest in, DrawResult out, right model for the level. *Done when:* the four tested prompts in PROMPTS.md, sent in order, give four boards that look like `design/boards/`.
+- [x] **Brain route.** TurnRequest in, TurnResult out, structured output. *Done when:* the four demo turns give sensible levels (1, 2, 3, 4), hints that do not contain the answer, and drawing instructions with nothing the student did not say.
+- [x] **Brain plus drawing.** One turn of typed text goes through the brain and then fal, and the new board appears in the session screen with a new history frame. *Done when:* typing the four demo turns produces four evolving boards.
+- [ ] **Voice.** *On `Ali`: approach A is written and Milo's agent exists, but nobody has spoken to it yet. A human must test it with a real microphone in Chrome.* Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
 - [ ] **Drawing state.** "Milo is drawing…" shows within 100 ms, the old board stays, one redraw in flight, newest result wins. *Done when:* talking fast for 30 seconds never shows an empty or out-of-order board.
 - [ ] **Failure handling.** fal slow or failing, Claude returning nothing usable, mic permission denied. *Done when:* each leaves the old board up with a plain message and the session carries on.
 
 ## P1: makes it good
 
-- [ ] **Revision sheet screen.** Final board, "In your words", "How you got here". Save to `localStorage`. *Done when:* it matches `SheetV3` and survives a page reload.
+- [x] **Revision sheet screen.** Final board, "In your words", "How you got here". Save to `localStorage`. *Done when:* it matches `SheetV3` and survives a page reload.
 - [ ] **Level-up moment.** Chip pop, Milo's picture and age change (rules 1, 5, 10 in DESIGN.md). *Done when:* levelling up is the one thing on screen you cannot miss.
 - [ ] **Status badge.** Listening, Thinking, Drawing, Milo is talking, Mic is off, driven by the real state.
 - [ ] **Live waveform.** The bars move with the microphone level while listening.
-- [ ] **Scripted fallback mode.** A switch that runs the session from the reference images with no network. *Done when:* the demo can be filmed even if the venue wifi dies. Say in the video that it is the scripted run if you use it.
+- [x] **Scripted fallback mode.** (`/demo`) A switch that runs the session from the reference images with no network. *Done when:* the demo can be filmed even if the venue wifi dies. Say in the video that it is the scripted run if you use it.
 - [ ] **Time everything.** Brain call, each fal call, time from end of speech to new board. Write the numbers into SUBMISSION.md for the Q&A.
 
 ## P2: only if P0 and P1 are done
