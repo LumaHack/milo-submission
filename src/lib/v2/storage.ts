@@ -5,6 +5,13 @@
 import type { Mode } from "./contract";
 import type { Memory, V2Frame, V2Live } from "./use-milo-v2";
 
+/** The student's own words for each idea they explained clearly, picked once for the end page. */
+export type SavedSummary = {
+  nailed: { id: string; words: string | null }[];
+  /** How many student turns the summary covers. A later turn makes it out of date. */
+  turns: number;
+};
+
 export type SavedSession = {
   version: 1;
   topicId: string;
@@ -19,6 +26,10 @@ export type SavedSession = {
   frames: V2Frame[];
   live: V2Live;
   hintsUsed: number;
+  /** The end page's tidy copy of the last board, and the board it was made from. */
+  polished?: { url: string; from: string };
+  /** The end page's summary. Both extras are dropped when the session carries on. */
+  summary?: SavedSummary;
 };
 
 export type Look = "new" | "classic";
@@ -46,6 +57,18 @@ export function loadSession(topicId: string, mode: Mode): SavedSession | null {
     return saved;
   } catch {
     return null;
+  }
+}
+
+/** Adds the end page's extras to a saved session, if it is still there. */
+export function updateSession(topicId: string, mode: Mode, patch: Pick<SavedSession, "polished" | "summary">): void {
+  try {
+    const key = sessionKey(topicId, mode);
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return;
+    window.localStorage.setItem(key, JSON.stringify({ ...(JSON.parse(raw) as SavedSession), ...patch }));
+  } catch {
+    // Blocked or full. The end page still shows what it has.
   }
 }
 

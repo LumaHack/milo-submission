@@ -31,7 +31,7 @@ const STATUS: Record<ViewStatus, { text: string; dot: string; busy: boolean; mot
   paused: { text: "Paused", dot: "bg-faint", busy: false, motion: "animate-breathe", ring: "" },
 };
 
-const IDEA_WORD: Record<IdeaStatus, string> = {
+export const IDEA_WORD: Record<IdeaStatus, string> = {
   missing: "Not yet",
   vague: "Getting there",
   clear: "Got it",
@@ -43,6 +43,8 @@ const BAR_HEIGHTS = [8, 16, 26, 34, 20, 12, 28, 36, 22, 14, 30, 18, 10, 24, 32, 
 export type SessionViewV2Props = {
   topic: V2Topic;
   mode: Mode;
+  /** "History, how World War II started, exam mode". */
+  subjectLine: string;
   frames: V2Frame[];
   live: V2Live;
   /** What Milo is saying or last said. */
@@ -65,7 +67,11 @@ export type SessionViewV2Props = {
   onResume: () => void;
   onRestart: () => void;
   onClassic: () => void;
+  /** Leaving without the end page: save and hang up. */
   onEnd: () => void;
+  /** "End session" and "See your sheet": wait for the last drawing, save, then open the end page. */
+  onFinish: () => void;
+  finishing: boolean;
   /** Voice level from 0 to 1: the microphone while listening, Milo's own voice while he talks. */
   getVoiceLevel?: () => number;
 };
@@ -182,8 +188,6 @@ export function SessionViewV2(props: SessionViewV2Props) {
     }, 1400);
   };
 
-  const about = `${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}`;
-
   return (
     <Page
       header={
@@ -192,18 +196,16 @@ export function SessionViewV2(props: SessionViewV2Props) {
             <Link href="/v2" className="text-xl font-semibold tracking-[-0.02em] text-ink no-underline" onClick={props.onEnd}>
               Milo
             </Link>
-            <span className="text-[15px] text-muted">
-              {topic.subject}, {about}, {props.mode === "exam" ? "exam mode" : "coach mode"}
-            </span>
+            <span className="text-[15px] text-muted">{props.subjectLine}</span>
           </div>
           <LevelSteps level={level} scored={scored} />
           <div className="flex flex-wrap gap-2">
             <button type="button" className={pill.light} onClick={props.onClassic}>
               Classic look
             </button>
-            <Link href="/v2" className={pill.dark} onClick={props.onEnd}>
-              End session
-            </Link>
+            <button type="button" className={`${pill.dark} disabled:opacity-60`} onClick={props.onFinish} disabled={props.finishing}>
+              {props.finishing ? "Finishing the drawing…" : "End session"}
+            </button>
           </div>
         </>
       }
@@ -402,7 +404,7 @@ function Checklist({
   );
 }
 
-function IdeaIcon({ status }: { status: IdeaStatus }) {
+export function IdeaIcon({ status }: { status: IdeaStatus }) {
   if (status === "clear") {
     return (
       <span aria-hidden="true" className="inline-flex h-4 w-4 animate-pop items-center justify-center rounded-full bg-ink text-white">
@@ -512,6 +514,8 @@ function VoiceBar(props: SessionViewV2Props & { className: string }) {
   }, [confirmRestart]);
 
   const listening = props.micOn && props.status === "listening";
+  // Every idea is clear: the sheet is ready, and this is the next thing to press.
+  const allClear = Boolean(props.live.ideas?.length) && (props.live.ideas ?? []).every((status) => status === "clear");
   return (
     <div className={`flex flex-wrap items-center gap-3 rounded-card bg-card px-4 py-3 ${props.className}`}>
       <button
@@ -552,6 +556,16 @@ function VoiceBar(props: SessionViewV2Props & { className: string }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {allClear && (
+          <button
+            type="button"
+            className={`${pill.dark} animate-pop disabled:opacity-60`}
+            onClick={props.onFinish}
+            disabled={props.finishing}
+          >
+            {props.finishing ? "Finishing the drawing…" : "See your sheet"}
+          </button>
+        )}
         {props.paused ? (
           <button type="button" className={`${pill.dark} gap-2`} onClick={props.onResume}>
             <svg aria-hidden="true" width="12" height="14" viewBox="0 0 12 14">
@@ -584,8 +598,8 @@ function VoiceBar(props: SessionViewV2Props & { className: string }) {
   );
 }
 
-/** A name for each board in the timeline, from what changed in that turn. */
-function frameLabel(frame: V2Frame, previous: V2Frame | undefined, isLast: boolean): string {
+/** A name for each board in the timeline, from what changed in that turn. The end page uses it too. */
+export function frameLabel(frame: V2Frame, previous: V2Frame | undefined, isLast: boolean): string {
   if (isLast && frame.level === 4) return "Final board";
   if (!previous) return "First explanation";
   const gained = frame.clear - previous.clear;

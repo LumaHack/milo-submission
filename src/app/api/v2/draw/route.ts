@@ -8,6 +8,7 @@ import { fal } from "@fal-ai/client";
 import { FAL_CAREFUL_EDIT, FAL_FAST_EDIT, FAL_FIRST_BOARD } from "@/lib/levels";
 import type { DrawResult } from "@/lib/turn";
 import { V2DrawRequestSchema } from "@/lib/v2/contract";
+import { logUsage } from "@/lib/v2/usage";
 
 type FalImages = { images?: { url?: string }[] };
 
@@ -43,9 +44,11 @@ export async function POST(request: Request) {
       return Response.json({ error: `fal returned no image from ${endpoint}.` }, { status: 502 });
     }
     const drawn: DrawResult = { imageUrl, endpoint, seconds: (Date.now() - started) / 1000 };
+    logUsage({ route: "draw", endpoint, seconds: drawn.seconds });
     return Response.json(drawn);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    logUsage({ route: "draw", endpoint, seconds: (Date.now() - started) / 1000, failed: message.slice(0, 200) });
     return Response.json({ error: `fal failed on ${endpoint}: ${message}` }, { status: 502 });
   }
 }

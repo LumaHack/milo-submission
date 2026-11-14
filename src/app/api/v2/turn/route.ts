@@ -6,8 +6,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
 import { V2TurnRequestSchema, V2TurnResultSchema, type V2TurnRequest, type V2TurnResult } from "@/lib/v2/contract";
+import { topicFromRequest } from "@/lib/v2/part";
 import { cleanMiloLine, v2SystemPrompt, v2UserMessage } from "@/lib/v2/prompts";
-import { getV2Topic, type V2Topic } from "@/lib/v2/topics";
+import type { V2Topic } from "@/lib/v2/topics";
+import { claudeDollars, logUsage } from "@/lib/v2/usage";
 
 const DEFAULT_MODEL = "claude-opus-5-5";
 // Models that accept the server-side refusal fallback in its "default" form.
@@ -42,8 +44,9 @@ export async function POST(request: Request) {
   }
   const input = body.data;
 
-  const topic = getV2Topic(input.topicId);
-  if (!topic || !topic.ready) {
+  // A built-in topic by its id, or the part of the student's own course that came with the request.
+  const topic = topicFromRequest(input.topicId, input.part);
+  if (!topic) {
     return Response.json({ error: `Topic "${input.topicId}" is not ready yet.` }, { status: 404 });
   }
 
@@ -91,6 +94,19 @@ export async function POST(request: Request) {
     }
 
     const result = enforce(response.parsed_output, topic, input);
+    logUsage({
+      route: "turn",
+      model: response.model,
+      fast: usedFastMode,
+      seconds: (Date.now() - started) / 1000,
+      tokens: {
+        input: response.usage.input_tokens,
+        output: response.usage.output_tokens,
+        cacheRead: response.usage.cache_read_input_tokens ?? 0,
+        cacheWrite: response.usage.cache_creation_input_tokens ?? 0,
+      },
+      dollars: claudeDollars(response.model, response.usage, usedFastMode),
+    });
     return Response.json({
       ...result,
       model: response.model,

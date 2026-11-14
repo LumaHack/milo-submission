@@ -1,6 +1,7 @@
 "use client";
 
-// Reads the topic and mode from the address, for example /v2/session?topic=ww2&mode=exam.
+// Reads the topic and mode from the address: a built-in topic (/v2/session?topic=ww2&mode=exam) or a
+// part of the student's own course (/v2/session?course=…&part=…&mode=coach). See src/lib/v2/target.ts.
 // If this topic has a saved session, it first asks: pick up where you left off, or start fresh.
 // For testing without a microphone: &voice=text runs a typed chat with Milo's agent,
 // &voice=off runs with no Milo at all. See window.miloSay in live-session-v2.tsx.
@@ -14,38 +15,41 @@ import { browser } from "react-dom";
 
 import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
-import type { Mode } from "@/lib/v2/contract";
 import { clearSession, loadSession, type SavedSession } from "@/lib/v2/storage";
-import { getV2Topic } from "@/lib/v2/topics";
+import { readTarget, voiceSuffix, type Target } from "@/lib/v2/target";
 
 import { LiveSessionV2, type VoiceMode } from "./live-session-v2";
+import { TopicMissing } from "./topic-missing";
 
 export function SessionFromUrl() {
   const params = useSearchParams();
-  const topicId = params.get("topic") ?? "cell";
-  const mode: Mode = params.get("mode") === "exam" ? "exam" : "coach";
   const voiceParam = params.get("voice");
   const voice: VoiceMode = voiceParam === "off" ? "off" : voiceParam === "text" ? "text" : "on";
-  return <SessionGate key={`${topicId}-${mode}-${voice}`} topicId={topicId} mode={mode} voice={voice} />;
+  return <SessionGate key={params.toString()} voice={voice} />;
 }
 
-function SessionGate({ topicId, mode, voice }: { topicId: string; mode: Mode; voice: VoiceMode }) {
-  // The saved session lives in this browser's storage, so this only renders in the browser.
+function SessionGate({ voice }: { voice: VoiceMode }) {
+  // The saved session and the student's courses live in this browser's storage, so this only renders in the browser.
   use(browser("The saved session is kept in localStorage."));
-  const [saved] = useState(() => loadSession(topicId, mode));
+  const params = useSearchParams();
+  const [target] = useState(() => readTarget(params));
+  const [saved] = useState(() => (target ? loadSession(target.topic.id, target.mode) : null));
   const [decision, setDecision] = useState<"resume" | "fresh" | null>(
     saved && saved.frames.length > 0 ? null : "fresh",
   );
   // Bumped by "Start again", so the session starts over from nothing.
   const [run, setRun] = useState(0);
 
+  if (!target) return <TopicMissing />;
+
   if (decision === null && saved) {
     return (
       <ResumeChoice
+        target={target}
         saved={saved}
         onResume={() => setDecision("resume")}
         onFresh={() => {
-          clearSession(topicId, mode);
+          clearSession(target.topic.id, target.mode);
           setDecision("fresh");
         }}
       />
@@ -54,9 +58,9 @@ function SessionGate({ topicId, mode, voice }: { topicId: string; mode: Mode; vo
   return (
     <LiveSessionV2
       key={run}
-      topicId={topicId}
-      mode={mode}
+      target={target}
       voice={voice}
+      endHref={`/v2/end?${target.query}${voiceSuffix(params)}`}
       initial={decision === "resume" && run === 0 ? saved : null}
       onRestart={() => {
         setDecision("fresh");
@@ -67,18 +71,20 @@ function SessionGate({ topicId, mode, voice }: { topicId: string; mode: Mode; vo
 }
 
 function ResumeChoice({
+  target,
   saved,
   onResume,
   onFresh,
 }: {
+  target: Target;
   saved: SavedSession;
   onResume: () => void;
   onFresh: () => void;
 }) {
-  const topic = getV2Topic(saved.topicId);
+  const { topic } = target;
   const last = saved.frames.at(-1);
   const clear = saved.live.ideas?.filter((status) => status === "clear").length ?? 0;
-  const total = topic?.keyIdeas.length ?? 0;
+  const total = topic.keyIdeas.length;
   return (
     <Page header={<span className="text-xl font-semibold tracking-[-0.02em]">Milo</span>}>
       <main className="flex flex-1 items-start justify-center rounded-panel bg-panel p-3">
@@ -86,7 +92,7 @@ function ResumeChoice({
           <div className="flex flex-col gap-2">
             <h1 className="m-0 text-[28px] leading-[1.15] font-medium tracking-[-0.03em]">Pick up where you left off?</h1>
             <p className="m-0 text-base leading-normal text-muted">
-              {topic?.title ?? "Your last session"}: {clear} of {total} ideas explained, {saved.frames.length}{" "}
+              {topic.title}: {clear} of {total} ideas explained, {saved.frames.length}{" "}
               {saved.frames.length === 1 ? "board" : "boards"}, {formatClock(saved.elapsed)} of explaining.
             </p>
           </div>
@@ -106,7 +112,7 @@ function ResumeChoice({
             <button type="button" className={pill.light} onClick={onFresh}>
               Start fresh
             </button>
-            <Link href="/v2" className={pill.light}>
+            <Link href={target.homeHref} className={pill.light}>
               Pick another topic
             </Link>
           </div>

@@ -10,17 +10,15 @@
 // Two looks run on the same engine: the new screen, and Ali's classic one.
 
 import { ConversationProvider, useConversation, useConversationClientTool } from "@elevenlabs/react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SessionView } from "@/components/session-view";
-import { Page, pill } from "@/components/ui";
+import { pill } from "@/components/ui";
 import type { MiloStatus } from "@/lib/turn";
 import { UPDATE_BOARD } from "@/lib/v2/agent";
-import type { Mode } from "@/lib/v2/contract";
 import { cleanMiloLine } from "@/lib/v2/prompts";
 import { clearSession, loadLook, saveLook, type Look, type SavedSession } from "@/lib/v2/storage";
-import { getV2Topic, type V2Topic } from "@/lib/v2/topics";
+import type { Target } from "@/lib/v2/target";
 import { useMiloV2 } from "@/lib/v2/use-milo-v2";
 
 import { SessionViewV2, type ViewStatus } from "./session-view-v2";
@@ -32,54 +30,45 @@ const SAFETY_NET_MS = 6000;
 export type VoiceMode = "on" | "text" | "off";
 
 type Props = {
-  topicId: string;
-  mode: Mode;
+  /** The topic and mode, from the address: a built-in topic or a part of the student's own course. */
+  target: Target;
+  /** Where "End session" and "See your sheet" go. */
+  endHref: string;
   voice?: VoiceMode;
   /** A saved session to pick up from. */
   initial?: SavedSession | null;
   onRestart?: () => void;
 };
 
-export function LiveSessionV2({ topicId, mode, voice = "on", initial = null, onRestart = () => {} }: Props) {
-  const topic = getV2Topic(topicId);
-  if (!topic || !topic.ready) {
-    return (
-      <Page header={<span className="text-xl font-semibold tracking-[-0.02em]">Milo</span>}>
-        <main className="flex flex-1 flex-col items-start gap-4 pt-7">
-          <p className="m-0 text-[18px]">This topic is not ready yet.</p>
-          <Link href="/v2" className={pill.dark}>
-            Pick another topic
-          </Link>
-        </main>
-      </Page>
-    );
-  }
+export function LiveSessionV2({ target, endHref, voice = "on", initial = null, onRestart = () => {} }: Props) {
   return (
     <ConversationProvider>
-      <Live topic={topic} mode={mode} voice={voice} initial={initial} onRestart={onRestart} />
+      <Live target={target} endHref={endHref} voice={voice} initial={initial} onRestart={onRestart} />
     </ConversationProvider>
   );
 }
 
 function Live({
-  topic,
-  mode,
+  target,
+  endHref,
   voice,
   initial,
   onRestart,
 }: {
-  topic: V2Topic;
-  mode: Mode;
+  target: Target;
+  endHref: string;
   voice: VoiceMode;
   initial: SavedSession | null;
   onRestart: () => void;
 }) {
+  const { topic, mode } = target;
   const session = useMiloV2(topic, mode, initial);
   const { addTranscript, scoreNow, hasUnscored, takeLine, peekLine } = session;
   const [spoken, setSpoken] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(initial?.elapsed ?? 0);
   const [paused, setPaused] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [look, setLook] = useState<Look>(() => loadLook());
 
   // Whether Milo has called update_board since the student's last turn.
@@ -338,14 +327,37 @@ function Live({
     session.persist();
     endSession();
   };
+  // "End session" and "See your sheet". The last drawing may still be on its way from fal, and the
+  // end page shows what is saved, so wait for it to land before leaving.
+  // It leaves with a full page load on purpose. Next keeps a page it navigates away from alive in
+  // the background and brings it back for the same address, so "Explain it again" would reopen this
+  // finished session instead of starting a new one.
+  const finish = () => {
+    if (finishing) return;
+    setFinishing(true);
+    clearSafetyNet();
+    session.pauseClock();
+    endSession();
+    void session.whenIdle().then(() => {
+      session.persist();
+      window.location.assign(endHref);
+    });
+  };
+  // If the browser brings this page back from its own back-forward cache, the button works again.
+  useEffect(() => {
+    const onShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setFinishing(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   if (look === "classic") {
-    const about = `${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}`;
     return (
       <>
         <SessionView
           topicTitle={topic.title}
-          subjectLine={`${topic.subject}, ${about}, ${mode === "exam" ? "exam mode" : "coach mode"}`}
+          subjectLine={target.subjectLine}
           frames={session.frames}
           live={{ level: session.live.level, hint: session.live.miloLine, gaps: session.gaps, ideas: session.live.ideas }}
           spokenLine={spoken ?? session.live.miloLine}
@@ -372,6 +384,7 @@ function Live({
     <SessionViewV2
       topic={topic}
       mode={mode}
+      subjectLine={target.subjectLine}
       frames={session.frames}
       live={session.live}
       spokenLine={spoken}
@@ -392,6 +405,8 @@ function Live({
       onRestart={restart}
       onClassic={() => switchLook("classic")}
       onEnd={onEnd}
+      onFinish={finish}
+      finishing={finishing}
       getVoiceLevel={voiceLevel}
     />
   );

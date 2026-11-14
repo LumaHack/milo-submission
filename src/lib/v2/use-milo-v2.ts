@@ -14,6 +14,7 @@ import type { DrawResult, Frame, IdeaStatus } from "@/lib/turn";
 import type { Step } from "@/lib/use-milo-session";
 
 import type { HintStep, Mode, V2TurnRequest, V2TurnResult } from "./contract";
+import { topicToPart } from "./part";
 import { saveSession, type SavedSession } from "./storage";
 import type { V2Topic } from "./topics";
 
@@ -277,6 +278,8 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
         const before = memory.current;
         const request: V2TurnRequest = {
           topicId: topic.id,
+          // A part of the student's own course lives in the browser, so its definition goes along.
+          ...(topic.custom ? { part: topicToPart(topic) } : {}),
           mode,
           studentTurns,
           previousLevel: before.level,
@@ -339,6 +342,21 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
     }
   };
 
+  /**
+   * Resolves once nothing is being scored or drawn, so the saved session holds the last board.
+   * "End session" waits for it. It gives up after limitMs, so a stuck drawing never traps the student.
+   */
+  const whenIdle = (limitMs = 30000): Promise<void> =>
+    new Promise((resolve) => {
+      const since = Date.now();
+      const check = () => {
+        const busy = Boolean(scoring.current || inFlight.current || waiting.current);
+        if (!busy || Date.now() - since > limitMs) resolve();
+        else setTimeout(check, 150);
+      };
+      check();
+    });
+
   const gaps = useMemo(() => {
     if (!live.ideas) return topic.keyIdeas.map((idea) => idea.gapLabel);
     const ideas = topic.keyIdeas.map((idea, index) => ({ id: idea.id, status: live.ideas?.[index] ?? "missing" }));
@@ -362,6 +380,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
     elapsed,
     persist,
     discard,
+    whenIdle,
     addTranscript,
     scoreNow,
     hasUnscored,

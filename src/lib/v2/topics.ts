@@ -5,6 +5,8 @@
 import { BOARD_EXAMPLES, BOARD_STYLE } from "@/lib/prompts";
 import { getTopic, TOPICS, type KeyIdea } from "@/lib/topics";
 
+import type { LayoutKind } from "./layouts";
+
 export type BoardExample = { level: 1 | 2 | 3 | 4; said: string; drawPrompt: string };
 
 export type Subject = "Biology" | "History";
@@ -20,7 +22,8 @@ export type V2KeyIdea = KeyIdea & {
 
 export type V2Topic = {
   id: string;
-  subject: Subject;
+  /** "Biology" or "History" for a built-in topic, the course's title for a part of a student's course. */
+  subject: string;
   title: string;
   blurb: string;
   /** What Milo knows nothing about, in a few words: "how a cell works". */
@@ -32,10 +35,14 @@ export type V2Topic = {
   /** Words speech-to-text should listen out for, such as hard names. */
   keywords: string[];
   keyIdeas: V2KeyIdea[];
-  /** Tested board prompts for this topic, one per level. Claude matches their style. */
+  /** How the paper is organised for this kind of topic. See layouts.ts. */
+  layout: LayoutKind;
+  /** Tested board prompts for this topic, one per level. Empty means: use the layout's examples. */
   boardExamples: BoardExample[];
   /** Only ready topics can start a session. The others are shown on the start screen and do nothing. */
   ready: boolean;
+  /** True for a part of a student's own course. The browser then sends its definition with each turn. */
+  custom?: boolean;
 };
 
 /** What "close enough" means for each of the cell's key ideas. */
@@ -109,6 +116,7 @@ const CELL: V2Topic = {
   firstMessage: "Hi, I'm Milo! I don't know anything about cells. Can you explain how a cell works? I'll draw what you say.",
   keywords: ["membrane", "mitochondria", "ATP", "nucleus", "DNA", "ribosomes", "endoplasmic reticulum", "Golgi"],
   keyIdeas: cellIdeas(),
+  layout: "structure",
   boardExamples: BOARD_EXAMPLES,
   ready: true,
 };
@@ -174,6 +182,7 @@ const WW2: V2Topic = {
       term: "invasion of Poland",
     },
   ],
+  layout: "causes",
   boardExamples: WW2_EXAMPLES,
   ready: true,
 };
@@ -189,6 +198,7 @@ function placeholder(id: string, subject: Subject, title: string, blurb: string)
     firstMessage: "",
     keywords: [],
     keyIdeas: [],
+    layout: "structure",
     boardExamples: [],
     ready: false,
   };
