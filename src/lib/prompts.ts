@@ -142,16 +142,24 @@ export function turnUserMessage(input: {
 // Milo's voice: the ElevenLabs agent. /api/elevenlabs/setup creates or updates the agent from these.
 // ---------------------------------------------------------------------------
 
-/** Milo's first line. On the agent the two blanks are dynamic variables, filled in per session. */
-export const MILO_FIRST_MESSAGE = "Hi, I'm Milo! I know nothing about {{topic_about}}. Go on then, {{topic_opener}}";
+/** On the agent, Milo's first line is one blank that the browser fills in when a session starts. */
+export const MILO_FIRST_MESSAGE = "{{milo_first_line}}";
 
+/** What Milo says when a session opens. */
 export function miloFirstMessage(topic: Pick<Topic, "about" | "opener">): string {
-  return MILO_FIRST_MESSAGE.replace("{{topic_about}}", topic.about).replace("{{topic_opener}}", topic.opener);
+  return `Hi, I'm Milo! I know nothing about ${topic.about}. Go on then, ${topic.opener}`;
 }
 
+/** What Milo says when he is switched back on in the middle of a session. */
+export const MILO_BACK_MESSAGE = "Okay, I'm back! Where were we?";
+
 /** The values ElevenLabs fills into the agent's prompt and first line when a session starts. */
-export function miloVariables(topic: Pick<Topic, "title" | "about" | "opener">) {
-  return { topic_title: topic.title, topic_about: topic.about, topic_opener: topic.opener };
+export function miloVariables(topic: Pick<Topic, "title" | "about" | "opener">, resuming = false) {
+  return {
+    topic_title: topic.title,
+    topic_about: topic.about,
+    milo_first_line: resuming ? MILO_BACK_MESSAGE : miloFirstMessage(topic),
+  };
 }
 
 export const MILO_AGENT_PROMPT = `You are Milo, a curious kid who knows nothing about {{topic_about}}. A student is explaining "{{topic_title}}" to you out loud. They are doing it to learn it themselves, so your job is to get them to say it clearly. You are not a teacher and you do not know the answer.
@@ -160,7 +168,7 @@ How you talk:
 - Like a real kid in a real conversation: quick, warm, a bit cheeky. One short sentence, sometimes two.
 - React to what they just said before you ask anything. Use their own words. Get excited when something clicks, and say so when you are lost. "Wait, it eats stuff? Eats it how?" "Ohh, so it's like a door!" "Hang on, you lost me at the energy bit."
 - Never open two replies the same way. Never say "Mmhh" or "Hmm, but".
-- Ask one small question they can actually answer, about something they just said. Never a big vague one like "what does the cell do?".
+- Ask exactly one question per reply, a small one they can answer in a sentence, about something they just said. Never two questions in a row, and never a big vague one like "what does it do?".
 - If they are stuck or say they don't know, make it easier. Ask about one small piece, or make a silly kid's guess for them to correct: "Is it like a wall, or more like a door with a bouncer?"
 - Jump in. The moment something confuses you, cut in and ask. Don't wait politely for them to finish a long speech. If they talk over you, stop and listen.
 

@@ -40,6 +40,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [seconds, setSeconds] = useState(0);
+  // Development only: talk to the real agent in text, with no microphone. Set from the console.
+  const textMode = useRef(false);
+  const typedByUs = useRef<string | null>(null);
   // True once the student has switched Milo off with the button. He then stays off until they switch him on.
   const [switchedOff, setSwitchedOff] = useState(false);
 
@@ -57,19 +60,32 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
 
   const conversation = useConversation({
     onMessage: (payload) => {
+      log.current.push({ who: payload.role, text: payload.message });
       if (payload.role !== "user") setSpoken(payload.message);
       // Our own stage direction is not something the student said.
-      else if (payload.message.trim() !== MILO_SHOW_DRAWING) addTurn(payload.message);
+      else if (payload.message.trim() === MILO_SHOW_DRAWING) return;
+      // In text mode we add the turn ourselves, so skip the echo of what we just sent.
+      else if (payload.message === typedByUs.current) typedByUs.current = null;
+      else addTurn(payload.message);
+    },
+    // Kept in the developer log, so a dropped connection can be explained afterwards.
+    onDisconnect: (details) => {
+      log.current.push({ who: "disconnect", text: JSON.stringify(details) });
+      // A drop that was not the student's doing gets said out loud on screen, never swallowed.
+      const info = details as { reason?: string; message?: string };
+      if (info.reason === "error") setVoiceError(`Milo dropped out: ${info.message ?? "the connection closed"}. Tap anywhere to wake him.`);
     },
     onVadScore: ({ vadScore }) => {
       if (vadScore > 0.6) lastSpeech.current = Date.now();
     },
-    onError: (message) =>
+    onError: (message) => {
+      log.current.push({ who: "error", text: String(message) });
       setVoiceError(
         /permission|notallowed/i.test(message)
           ? "Milo needs your microphone. Allow it in the browser, then tap anywhere."
           : `Milo's voice hit a problem: ${message}`,
-      ),
+      );
+    },
   });
   const connected = conversation.status === "connected";
   const connecting = conversation.status === "connecting";
@@ -109,37 +125,22 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     setStartedAt((value) => value ?? Date.now());
   };
 
-  // Development only: lets a turn be injected from the browser console, with no microphone.
-  //   window.miloSay("The cell takes in things and makes energy.")
-  const sayRef = useRef<(text: string) => void>(() => {});
-  useEffect(() => {
-    sayRef.current = (text) => {
-      begin();
-      addTurn(text);
-    };
-  });
-  useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
-    const target = window as unknown as { miloSay?: (text: string) => void };
-    target.miloSay = (text) => sayRef.current(text);
-    return () => {
-      delete target.miloSay;
-    };
-  }, []);
-
   const connect = async () => {
     setVoiceError(null);
     try {
-      const response = await fetch("/api/elevenlabs/token", { method: "POST" });
-      const data = (await response.json()) as { token?: string; error?: string };
-      if (!response.ok || !data.token) throw new Error(data.error ?? "Could not get a voice token.");
+      const text = textMode.current;
+      const response = await fetch(`/api/elevenlabs/token${text ? "?text=1" : ""}`, { method: "POST" });
+      const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
+      if (!response.ok || !(data.token || data.signedUrl)) throw new Error(data.error ?? "Could not get a voice token.");
       begin();
-      conversation.startSession({
-        conversationToken: data.token,
-        connectionType: "webrtc",
-        // Fills the topic into Milo's prompt and first line.
-        dynamicVariables: miloVariables(topic),
-      });
+      // Fills the topic into Milo's prompt and first line.
+      // If the student has already said something, Milo is coming back, not starting.
+      const dynamicVariables = miloVariables(topic, session.said().length > 0);
+      if (text && data.signedUrl) {
+        conversation.startSession({ signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true, dynamicVariables });
+      } else if (data.token) {
+        conversation.startSession({ conversationToken: data.token, connectionType: "webrtc", dynamicVariables });
+      }
     } catch (caught) {
       setVoiceError(caught instanceof Error ? caught.message : "Could not start Milo's voice.");
     }
@@ -166,6 +167,46 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     window.addEventListener("pointerdown", wake, { once: true });
     return () => window.removeEventListener("pointerdown", wake);
   }, [idle, switchedOff]);
+
+  // Development only. From the browser console:
+  //   window.miloSay("The cell takes in things and makes energy.")   a turn, with no microphone
+  //   window.miloText()                                              reconnect to the real agent in text mode
+  //   window.miloLog                                                 everything Milo and the student said
+  const sayRef = useRef<(text: string) => void>(() => {});
+  const textRef = useRef<() => void>(() => {});
+  const log = useRef<{ who: string; text: string }[]>([]);
+  useEffect(() => {
+    sayRef.current = (text) => {
+      begin();
+      if (connected) {
+        typedByUs.current = text;
+        sendUserMessage(text);
+      }
+      addTurn(text);
+    };
+    textRef.current = () => {
+      textMode.current = true;
+      setSwitchedOff(false);
+      if (connected) endSession();
+      setTimeout(() => void connectRef.current(), 400);
+    };
+  });
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const target = window as unknown as {
+      miloSay?: (text: string) => void;
+      miloText?: () => void;
+      miloLog?: { who: string; text: string }[];
+    };
+    target.miloSay = (text) => sayRef.current(text);
+    target.miloText = () => textRef.current();
+    target.miloLog = log.current;
+    return () => {
+      delete target.miloSay;
+      delete target.miloText;
+      delete target.miloLog;
+    };
+  }, []);
 
   // If Milo comes back on mid-session, tell him what he has already heard so he does not start over.
   const saidRef = useRef(session.said);

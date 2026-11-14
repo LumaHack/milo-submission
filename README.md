@@ -64,7 +64,15 @@ Then open http://localhost:3000.
 | `/sheet` | A session's revision sheet, with a slideshow and a fal film of the drawing growing up |
 | `/sheets` | Every session saved in this browser |
 
-It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env.local`. Milo's agent is created once with `curl -X POST http://localhost:3000/api/elevenlabs/setup`, which prints the id. For testing without a microphone, run `window.miloSay("...")` in the browser console on `/session` (development only).
+It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env.local`. Milo's agent is created once with `curl -X POST http://localhost:3000/api/elevenlabs/setup`, which prints the id.
+
+**Testing without a microphone** (development only, in the browser console on `/session`):
+
+- `window.miloText()` reconnects to the real ElevenLabs agent in text mode, so no microphone is needed.
+- `window.miloSay("...")` says a turn. In text mode Milo answers it for real.
+- `window.miloLog` lists everything Milo said, plus the reason for any dropped connection.
+
+**After changing a prompt** in `src/lib/prompts.ts`, restart `pnpm dev` and then run the setup route again. The dev server has twice served an old copy of a changed file to a route, and the agent ended up with an outdated first line. The setup route now prints the first line it sent, so check it.
 
 Use Chrome for the live session. The microphone only works on `localhost` or https.
 

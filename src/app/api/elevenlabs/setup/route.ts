@@ -24,7 +24,7 @@ export async function POST() {
         dynamic_variable_placeholders: {
           topic_title: "How a cell works",
           topic_about: "cells",
-          topic_opener: "what even is a cell?",
+          milo_first_line: "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?",
         },
       },
       language: "en",
@@ -71,7 +71,7 @@ export async function POST() {
   }
   return Response.json(
     agentId
-      ? { agentId: data.agent_id, updated: true }
+      ? { agentId: data.agent_id, updated: true, firstMessage: MILO_FIRST_MESSAGE, promptLength: MILO_AGENT_PROMPT.length }
       : { agentId: data.agent_id, created: true, next: "Add ELEVENLABS_AGENT_ID to .env.local." },
   );
 }

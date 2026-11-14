@@ -85,6 +85,18 @@ Fill in from your own runs.
 | fal film of the first board becoming the last | 214 s, one run on Sat 14 Nov |
 | Cost of one session | |
 
+## What has been tested, and how
+
+| Part | Tested | How |
+|---|---|---|
+| Claude scoring and drawing instruction | Yes | Many typed runs on Sat 14 Nov, on the cell and on a typed topic |
+| fal board redraws | Yes | Same runs. One early run drew a part nobody mentioned, before the "add nothing else" rule |
+| Milo's agent: replies, app notes, announcing his drawing, switching off and on | Yes, in text mode | The real ElevenLabs agent, driven with typed turns through the same code as voice |
+| Spoken conversation | One session by Ali, before the personality rewrite | Not yet repeated after it |
+| Milo cutting in at a pause, and the nudge after 5 s of silence | No | These only exist with audio. The agent's settings were read back from ElevenLabs and are set |
+| Custom topic, history, slideshow | Yes | In the browser |
+| Film | Yes | Started from the button, survived a reload, played in the page. 214 s for the first one |
+
 ## Likely questions
 
 - **Why not draw in real time?** A redraw takes 5 to 9 seconds. We redraw once per turn and keep the old board up, so it never blocks the conversation.

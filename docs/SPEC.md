@@ -279,7 +279,7 @@ Suggested server routes, all `POST`, all reading keys from the environment:
 
 No database. The session lives in memory in the browser. Finished boards, the chosen topic and the level of detail are kept in `localStorage` (`src/lib/history.ts`), up to 24 sessions.
 
-Milo's agent prompt and first line have blanks (`{{topic_about}}`, `{{topic_title}}`, `{{topic_opener}}`). The browser fills them per session with `dynamicVariables` in `startSession`, so one agent works for every topic.
+Milo's agent prompt and first line have blanks (`{{topic_about}}`, `{{topic_title}}`, `{{milo_first_line}}`). The browser fills them per session with `dynamicVariables` in `startSession`, so one agent works for every topic.
 
 ## Out of scope
 

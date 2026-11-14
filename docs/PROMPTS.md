@@ -100,13 +100,16 @@ That creates the agent the first time and updates it afterwards.
 
 | Setting | Value | Why |
 |---|---|---|
-| First message | "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?" | A concrete first question, so the student knows where to start |
+| First message | `{{milo_first_line}}`, filled in by the browser. On a new session: "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?". When Milo is switched back on mid-session: "Okay, I'm back! Where were we?" | A concrete first question, so the student knows where to start, and no second introduction after a restart |
+| Turn timeout | 5 seconds | If the student goes quiet, Milo speaks up instead of waiting |
 | Turn eagerness | Eager | Milo jumps in at the first small pause instead of waiting politely |
 | Speculative turn | On | His reply starts generating during the pause, so he answers faster |
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
 | Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
 
 **Who Milo is.** A quick, warm, cheeky kid in a real back-and-forth. He reacts to what was just said in the student's words, asks one small answerable question, makes silly guesses when the student is stuck, and cuts in when he is confused. He never explains, never gives the proper term, and never says "Mmhh".
+
+**Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.
 
 **What ElevenLabs cannot do.** There is no setting that makes the agent talk over the student mid-word. Eager turn-taking is the closest: he comes in the moment the student pauses. The student can always interrupt him.
 
