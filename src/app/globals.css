@@ -218,6 +218,16 @@
   }
 }
 
+/* The progress bar of the slide on screen. Used from an inline style, so it lives outside the theme. */
+@keyframes slide-fill {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
+
 body {
   background: var(--color-bg);
   color: var(--color-ink);

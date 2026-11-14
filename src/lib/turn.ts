@@ -16,7 +16,11 @@ export const DetailSchema = z.enum(["basics", "exam", "deep"]);
 
 /** What the browser sends after the student finishes a turn. */
 export const TurnRequestSchema = z.object({
-  topicId: z.string(),
+  /** The topic and the key ideas to mark at the chosen level of detail. Sent by the browser, so topics the student typed work too. */
+  topic: z.object({
+    title: z.string().min(1).max(120),
+    keyIdeas: z.array(z.object({ id: z.string(), idea: z.string() })).min(1).max(8),
+  }),
   detail: DetailSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
   studentTurns: z.array(z.string()).min(1),
@@ -55,6 +59,8 @@ export const DrawRequestSchema = z.object({
   /** The board to edit. Null draws a new one. */
   previousImageUrl: z.url().nullable(),
   level: LevelSchema,
+  /** Picks the careful model for a dense final sheet. Basics never needs it. */
+  detail: DetailSchema,
 });
 export type DrawRequest = z.infer<typeof DrawRequestSchema>;
 
@@ -78,3 +84,23 @@ export type Frame = {
 };
 
 export type MiloStatus = "off" | "connecting" | "listening" | "thinking" | "drawing" | "speaking";
+
+/** What /api/topic returns for a topic the student typed. The same shape as a preset topic. */
+export const NewTopicSchema = z.object({
+  ok: z.boolean().describe("False when this is not something a school student would explain, or it is not safe to draw."),
+  title: z.string().describe("The topic as a short title in sentence case, at most six words. For example: How a volcano erupts."),
+  subject: z.string().describe("One word: the school subject."),
+  about: z.string().describe("Finishes Milo's sentence 'I know nothing about ...'. Lower case, a few words. For example: volcanoes."),
+  opener: z.string().describe("Milo's first question, lower case, easy to answer. For example: what even is a volcano?"),
+  keyIdeas: z
+    .array(
+      z.object({
+        id: z.string().describe("A short lower-case slug."),
+        idea: z.string().describe("One sentence a complete explanation says."),
+        gapLabel: z.string().describe("A short phrase naming the gap as a question, without the answer. For example: What lets things in."),
+        core: z.boolean().describe("True for the three most basic ideas."),
+      }),
+    )
+    .describe("Exactly five, from most basic to most detailed. Exactly three are core."),
+});
+export type NewTopic = z.infer<typeof NewTopicSchema>;

@@ -19,6 +19,14 @@ export async function POST() {
   const conversationConfig = {
     agent: {
       first_message: MILO_FIRST_MESSAGE,
+      // Defaults for the blanks in the prompt and first line. A live session always sends its own.
+      dynamic_variables: {
+        dynamic_variable_placeholders: {
+          topic_title: "How a cell works",
+          topic_about: "cells",
+          topic_opener: "what even is a cell?",
+        },
+      },
       language: "en",
       prompt: {
         prompt: MILO_AGENT_PROMPT,

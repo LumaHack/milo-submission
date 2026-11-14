@@ -3,11 +3,9 @@
 import Link from "next/link";
 
 import { DetailPicker } from "@/components/detail-picker";
+import { TopicPicker } from "@/components/topic-picker";
 import { MiloPic, Page, pill } from "@/components/ui";
-import { SUBJECTS, TOPICS } from "@/lib/topics";
-
-const topicCard =
-  "flex min-h-[190px] flex-[1_1_260px] flex-col justify-between gap-5 rounded-card bg-card p-6 text-ink no-underline";
+import { SUBJECTS } from "@/lib/topics";
 
 export default function StartPage() {
   return (
@@ -16,7 +14,7 @@ export default function StartPage() {
       header={
         <>
           <span className="text-xl font-semibold tracking-[-0.02em]">Milo</span>
-          <Link href="/sheet" className={pill.light}>
+          <Link href="/sheets" className={pill.light}>
             Your revision sheets
           </Link>
         </>
@@ -56,34 +54,7 @@ export default function StartPage() {
 
         <DetailPicker />
 
-        <div className="flex flex-col gap-3.5">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-            <span className="text-[15px] font-semibold">Four topics to choose from</span>
-            <button type="button" className={`${pill.light} !px-[18px] !text-sm`}>
-              Give me four others
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-3 rounded-panel bg-panel p-3">
-            {TOPICS.map((topic) => {
-              const body = (
-                <>
-                  <span className="text-[26px] leading-[1.15] font-medium tracking-[-0.03em]">{topic.title}</span>
-                  <span className="text-[15px] leading-normal text-muted">{topic.blurb}</span>
-                </>
-              );
-              // Only ready topics open a session. The others look the same but go nowhere yet.
-              return topic.ready ? (
-                <Link key={topic.id} href="/session" className={`press ${topicCard}`}>
-                  {body}
-                </Link>
-              ) : (
-                <div key={topic.id} className={topicCard}>
-                  {body}
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <TopicPicker />
       </main>
     </Page>
   );

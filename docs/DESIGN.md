@@ -80,6 +80,7 @@ Spacing: page padding 20px top, 28px sides, 24px bottom. Panel padding 12px, 12p
   - How the heart pumps blood. "Four chambers and two loops."
   - How a neuron fires. "From a touch to a signal in the brain."
   - Photosynthesis. "How a leaf turns light into sugar."
+- Under the four cards, inside the same grey panel, one white row: "Or your own", a text field and a dark pill "Explain this". Added after v3.
 - Content max width 1180px, centred.
 
 ### Session (`MainV3.dc.html`)
@@ -110,9 +111,12 @@ Footer: one small muted credits line.
 - A ring inside his picture thickens with the voice. Green (the ok colour) while he listens, black while he talks.
 - When he levels up he shrinks back, overshoots and lands, with a short white flash, and the age badge pops.
 - His line arrives word by word.
+- Reaction bursts pop out of his picture in a crayon hand (Gaegu, the only place that font is used): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
+- The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
+- When a new board lands he says what he drew without being asked, if nobody is talking.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
 - Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
-- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo" and the first tap starts it. The mic button only mutes. The mic bar stays pinned to the bottom of the column.
+- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo". The round button switches Milo off and on again. It is not a mute button: black with a mic while he is on, white with a struck-through mic while he is off. The bar stays pinned to the bottom of the column.
 
 **Status badge states**
 
@@ -135,6 +139,12 @@ The panel holds, on the left, one big white card: title "How a cell works", the 
 1. "In your words": a numbered list of the student's own sentences, one per key idea.
 2. "How you got here": one row per turn with a thin progress bar and the level name. Earlier turns use the faint colour. The last is black and bold.
 3. Milo aged 18 in a 52px circle, with: "Milo is 18 now. He has stopped asking the dumb questions."
+
+### History and slideshow (added after v3)
+
+- **History** (`/sheets`): heading "Everything you have explained", then the grey panel with one white card per session: the final board, the topic, the level reached, the number of turns and when.
+- **Revision sheet** gains two light pills beside the title: "Play slideshow" and "Make a film". A finished film sits under the board with a "Save film" link.
+- **Slideshow**: full screen on the page background. Title and turn count at the top, one thin progress bar per slide, the board on the grey panel, the student's words in a black bubble and Milo's question in a grey one, and Back, Pause and Next pills. Arrow keys step, space pauses, Escape closes.
 
 ### Replay (`EvolutionV3.dc.html`)
 

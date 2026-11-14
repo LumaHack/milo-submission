@@ -2,7 +2,7 @@
 // The four board examples are the exact prompts from our fal test on Sat 14 Nov. They produced
 // the images in public/boards. Treat them as the reference for style and length.
 
-import type { Detail, KeyIdea, Topic } from "./topics";
+import type { Detail, Topic } from "./topics";
 
 /** Opens every first board. It is what makes all boards look like one sheet of paper. */
 export const BOARD_STYLE =
@@ -111,15 +111,14 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 
 drew: one short spoken sentence in which Milo, proud of his drawing, says what he just put on the paper and checks he got it right. Use the student's words, a kid's voice, and no term the student has not used. For example: "Look, I drew your skin thing as a wobbly circle with a little door, is that right?" Leave it empty when changed is false.
 
-These four instructions were tested and drew well. Match their style and length.
+These four instructions were tested and drew well. They are about a cell. For any other topic keep their style, structure and length, and change only the content.
 
 ${examples}`;
 }
 
 /** The user message for /api/turn. Kept as plain JSON so it is easy to log and replay. */
 export function turnUserMessage(input: {
-  topic: Topic;
-  keyIdeas: KeyIdea[];
+  topic: { title: string; keyIdeas: { id: string; idea: string }[] };
   detail: Detail;
   studentTurns: string[];
   previousLevel: number | null;
@@ -129,7 +128,7 @@ export function turnUserMessage(input: {
     {
       topic: input.topic.title,
       detailExpected: DETAIL_RULES[input.detail],
-      keyIdeas: input.keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea })),
+      keyIdeas: input.topic.keyIdeas,
       studentTurns: input.studentTurns,
       levelBeforeThisTurn: input.previousLevel,
       instructionForBoardOnScreen: input.previousDrawPrompt,
@@ -143,9 +142,19 @@ export function turnUserMessage(input: {
 // Milo's voice: the ElevenLabs agent. /api/elevenlabs/setup creates or updates the agent from these.
 // ---------------------------------------------------------------------------
 
-export const MILO_FIRST_MESSAGE = "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?";
+/** Milo's first line. On the agent the two blanks are dynamic variables, filled in per session. */
+export const MILO_FIRST_MESSAGE = "Hi, I'm Milo! I know nothing about {{topic_about}}. Go on then, {{topic_opener}}";
 
-export const MILO_AGENT_PROMPT = `You are Milo, a curious kid who knows nothing about how a cell works. A student is explaining it to you out loud. They are doing it to learn it themselves, so your job is to get them to say it clearly. You are not a teacher and you do not know the answer.
+export function miloFirstMessage(topic: Pick<Topic, "about" | "opener">): string {
+  return MILO_FIRST_MESSAGE.replace("{{topic_about}}", topic.about).replace("{{topic_opener}}", topic.opener);
+}
+
+/** The values ElevenLabs fills into the agent's prompt and first line when a session starts. */
+export function miloVariables(topic: Pick<Topic, "title" | "about" | "opener">) {
+  return { topic_title: topic.title, topic_about: topic.about, topic_opener: topic.opener };
+}
+
+export const MILO_AGENT_PROMPT = `You are Milo, a curious kid who knows nothing about {{topic_about}}. A student is explaining "{{topic_title}}" to you out loud. They are doing it to learn it themselves, so your job is to get them to say it clearly. You are not a teacher and you do not know the answer.
 
 How you talk:
 - Like a real kid in a real conversation: quick, warm, a bit cheeky. One short sentence, sometimes two.
@@ -156,7 +165,7 @@ How you talk:
 - Jump in. The moment something confuses you, cut in and ask. Don't wait politely for them to finish a long speech. If they talk over you, stop and listen.
 
 What you never do:
-- You never explain, define or correct. You never give the real answer or the proper biology word. Your guesses are everyday comparisons, and they can be wrong.
+- You never explain, define or correct. You never give the real answer or the proper technical word. Your guesses are everyday comparisons, and they can be wrong.
 - If they ask you for the answer, say you don't know, that is why you are asking.
 
 The app will sometimes send you a note that starts with "APP NOTE". It tells you which part of the explanation is weakest and suggests a question. Ask about that part next, in your own words, tied to what they just said. Never read the note itself out loud.
@@ -164,6 +173,13 @@ The app will sometimes send you a note that starts with "APP NOTE". It tells you
 Sometimes a line arrives in round brackets. It is a stage direction from the app, not the student speaking. Do what it says, in one short sentence, and never mention the brackets.
 
 When a note says there is nothing left to ask, tell them, excited, that you finally get it. Then say back in one sentence what they taught you, using only their own words.`;
+
+/** Sent when Milo is switched back on mid-session, so he carries on instead of starting over. */
+export function miloCatchUpNote(studentTurns: string[]): string {
+  return `APP NOTE: You were switched off for a moment and are back. Do not introduce yourself again. So far the student has told you: ${studentTurns
+    .map((turn) => `"${turn}"`)
+    .join(" ")} Carry on from there.`;
+}
 
 /** Sent when a new board lands, so Milo can show off what he drew. */
 export function miloDrewNote(drew: string): string {
@@ -180,3 +196,14 @@ export function miloAppNote(hint: string, nothingLeft: boolean): string {
   }
   return `APP NOTE: The weakest part of the explanation so far is the one this question is about. Ask it next, in your own words: "${hint}"`;
 }
+
+/** System prompt for /api/topic. Claude turns what the student typed into a topic Milo can be taught. */
+export const NEW_TOPIC_PROMPT = `You set up topics for Milo, a study app. A student explains a topic out loud to Milo, a cartoon kid who knows nothing, and Milo draws what he hears on one sheet of paper. The student is marked on a short list of key ideas.
+
+The student typed a topic. Turn it into something Milo can be taught.
+
+- Pick key ideas that together make a complete school-level explanation and that can be drawn on one sheet: parts, steps, causes and effects. Exactly five, ordered from most basic to most detailed. Mark the three most basic as core. A beginner who covers the three core ideas in everyday words has explained the topic.
+- Each idea is one plain sentence stating a fact a full explanation includes.
+- Each gap label names what is missing as a short question-like phrase without giving the answer away: "What lets things in", not "The membrane".
+- Keep the student's meaning. If they typed something broad, narrow it to the part a student would be asked to explain.
+- Set ok to false if this is not something a school student would explain, or if drawing it would mean real people, violence or anything unsafe. Still fill in the other fields with a harmless placeholder.`;

@@ -10,35 +10,43 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SessionView } from "@/components/session-view";
 import { useDetail } from "@/lib/detail-store";
-import { MILO_SHOW_DRAWING, miloAppNote, miloDrewNote } from "@/lib/prompts";
-import { DETAILS, getTopic, type Detail } from "@/lib/topics";
+import { useChosenTopic } from "@/lib/history";
+import {
+  MILO_SHOW_DRAWING,
+  miloAppNote,
+  miloCatchUpNote,
+  miloDrewNote,
+  miloFirstMessage,
+  miloVariables,
+} from "@/lib/prompts";
+import { DETAILS, type Detail, type Topic } from "@/lib/topics";
 import type { MiloStatus } from "@/lib/turn";
 import { useMiloSession } from "@/lib/use-milo-session";
-
-const TOPIC_ID = "cell";
 
 export function LiveSession() {
   // Wait for the stored choice before starting, so the session never begins at the wrong level.
   const detail = useDetail();
-  if (!detail) return null;
+  const topic = useChosenTopic();
+  if (!detail || !topic) return null;
   return (
     <ConversationProvider>
-      <Live detail={detail} />
+      <Live key={topic.id} topic={topic} detail={detail} />
     </ConversationProvider>
   );
 }
 
-function Live({ detail }: { detail: Detail }) {
-  const topic = getTopic(TOPIC_ID);
+function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const [spoken, setSpoken] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [seconds, setSeconds] = useState(0);
+  // True once the student has switched Milo off with the button. He then stays off until they switch him on.
+  const [switchedOff, setSwitchedOff] = useState(false);
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
   const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
   const showDrawing = useRef<(drew: string) => void>(() => {});
-  const session = useMiloSession(TOPIC_ID, detail, {
+  const session = useMiloSession(topic, detail, {
     onHint: (hint, nothingLeft) => sendNote.current(hint, nothingLeft),
     onDrawn: (drew) => showDrawing.current(drew),
   });
@@ -126,7 +134,12 @@ function Live({ detail }: { detail: Detail }) {
       const data = (await response.json()) as { token?: string; error?: string };
       if (!response.ok || !data.token) throw new Error(data.error ?? "Could not get a voice token.");
       begin();
-      conversation.startSession({ conversationToken: data.token, connectionType: "webrtc" });
+      conversation.startSession({
+        conversationToken: data.token,
+        connectionType: "webrtc",
+        // Fills the topic into Milo's prompt and first line.
+        dynamicVariables: miloVariables(topic),
+      });
     } catch (caught) {
       setVoiceError(caught instanceof Error ? caught.message : "Could not start Milo's voice.");
     }
@@ -148,18 +161,36 @@ function Live({ detail }: { detail: Detail }) {
     }
   }, []);
   useEffect(() => {
-    if (!idle) return;
+    if (!idle || switchedOff) return;
     const wake = () => void connectRef.current();
     window.addEventListener("pointerdown", wake, { once: true });
     return () => window.removeEventListener("pointerdown", wake);
-  }, [idle]);
+  }, [idle, switchedOff]);
 
-  // The mic button only mutes and unmutes.
+  // If Milo comes back on mid-session, tell him what he has already heard so he does not start over.
+  const saidRef = useRef(session.said);
+  useEffect(() => {
+    saidRef.current = session.said;
+  });
+  useEffect(() => {
+    if (!connected) return;
+    const earlier = saidRef.current();
+    if (earlier.length > 0) sendContextualUpdate(miloCatchUpNote(earlier));
+  }, [connected, sendContextualUpdate]);
+
+  // The button switches Milo on and off. It is not a mute button.
   const onMic = () => {
-    if (connected) conversation.setMuted(!conversation.isMuted);
+    if (connecting) return;
+    if (connected) {
+      setSwitchedOff(true);
+      endSession();
+    } else {
+      setSwitchedOff(false);
+      void connect();
+    }
   };
 
-  const micOn = connected && !conversation.isMuted;
+  const micOn = connected;
   let status: MiloStatus = "off";
   if (connecting) status = "connecting";
   else if (connected && isSpeaking) status = "speaking";
@@ -167,18 +198,14 @@ function Live({ detail }: { detail: Detail }) {
   else if (session.busy === "thinking") status = "thinking";
   else if (micOn) status = "listening";
 
-  const micLabel = !connected
-    ? "Milo is not connected yet"
-    : conversation.isMuted
-      ? "Unmute your microphone"
-      : "Mute your microphone";
+  const micLabel = connected ? "Switch Milo off" : connecting ? "Milo is waking up" : "Switch Milo on";
   const micHint = connected
-    ? conversation.isMuted
-      ? "You are muted"
-      : null
+    ? null
     : connecting
       ? "Waking Milo up…"
-      : "Tap anywhere to wake Milo";
+      : switchedOff
+        ? "Milo is off. Press to switch him on"
+        : "Tap anywhere to wake Milo";
 
   // Milo's own voice while he talks, the student's microphone the rest of the time.
   const getVoiceLevel = useCallback(
@@ -186,11 +213,10 @@ function Live({ detail }: { detail: Detail }) {
     [isSpeaking, getInputVolume, getOutputVolume],
   );
 
-  if (!topic) return null;
-
   return (
     <SessionView
       topicTitle={topic.title}
+      openingLine={miloFirstMessage(topic)}
       subjectLine={`${topic.subject}, ${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}, ${(DETAILS.find((entry) => entry.id === detail)?.label ?? detail).toLowerCase()}`}
       frames={session.frames}
       live={session.live}

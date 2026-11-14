@@ -6,7 +6,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
 import { turnSystemPrompt, turnUserMessage } from "@/lib/prompts";
-import { getTopic, ideasFor } from "@/lib/topics";
 import { TurnRequestSchema, TurnResultSchema, type TurnResult } from "@/lib/turn";
 
 const DEFAULT_MODEL = "claude-opus-5-5";
@@ -21,12 +20,12 @@ export async function POST(request: Request) {
     return Response.json({ error: "The request does not match TurnRequest.", issues: body.error.issues }, { status: 400 });
   }
 
-  const topic = getTopic(body.data.topicId);
-  if (!topic || !topic.ready) {
-    return Response.json({ error: `Topic "${body.data.topicId}" has no key ideas yet.` }, { status: 404 });
-  }
-
-  const model = process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+  // In development a model can be tried with ?model=..., to compare speed without touching .env.local.
+  const trial = process.env.NODE_ENV !== "production" ? new URL(request.url).searchParams.get("model") : null;
+  const model = trial || process.env.ANTHROPIC_MODEL || DEFAULT_MODEL;
+  // Fast mode: the same model at a higher output speed, for a higher price. On by default because the
+  // student is waiting on this call. Set MILO_FAST=0 to turn it off.
+  const fast = model === DEFAULT_MODEL && process.env.MILO_FAST !== "0" && new URL(request.url).searchParams.get("speed") !== "standard";
   const client = new Anthropic();
   const started = Date.now();
 
@@ -36,6 +35,7 @@ export async function POST(request: Request) {
       max_tokens: 16000,
       // Low effort keeps the turn fast. Thinking cannot be switched off on this model.
       output_config: { effort: "low", format: betaZodOutputFormat(TurnResultSchema) },
+      ...(fast ? { speed: "fast" as const } : {}),
       // If a safety filter declines the request, the API retries it on a fallback model
       // inside the same call. Only sent for the default model, which supports it.
       ...(model === DEFAULT_MODEL
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       messages: [
         {
           role: "user",
-          content: turnUserMessage({ topic, keyIdeas: ideasFor(topic, body.data.detail), ...body.data }),
+          content: turnUserMessage(body.data),
         },
       ],
     });

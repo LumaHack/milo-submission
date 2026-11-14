@@ -1,5 +1,6 @@
 // Topics a student can explain to Milo, and the key ideas a full explanation covers.
 // The key ideas are the marking scheme: Claude scores each one every turn.
+// A topic is either one of the presets below or made on the spot by /api/topic from what the student typed.
 
 export type KeyIdea = {
   id: string;
@@ -16,6 +17,10 @@ export type Topic = {
   subject: string;
   title: string;
   blurb: string;
+  /** Finishes Milo's "I know nothing about ...". For example "cells". */
+  about: string;
+  /** Milo's first question, so the student knows where to start. For example "what even is a cell?". */
+  opener: string;
   /** Only ready topics have key ideas and can start a session. */
   ready: boolean;
   keyIdeas: KeyIdea[];
@@ -29,6 +34,8 @@ export const TOPICS: Topic[] = [
     subject: "Biology",
     title: "How a cell works",
     blurb: "Every part, and what each one does.",
+    about: "cells",
+    opener: "what even is a cell?",
     ready: true,
     keyIdeas: [
       {
@@ -68,6 +75,8 @@ export const TOPICS: Topic[] = [
     subject: "Biology",
     title: "How the heart pumps blood",
     blurb: "Four chambers and two loops.",
+    about: "hearts",
+    opener: "what does a heart actually do?",
     ready: false,
     keyIdeas: [],
   },
@@ -76,6 +85,8 @@ export const TOPICS: Topic[] = [
     subject: "Biology",
     title: "How a neuron fires",
     blurb: "From a touch to a signal in the brain.",
+    about: "neurons",
+    opener: "what even is a neuron?",
     ready: false,
     keyIdeas: [],
   },
@@ -84,10 +95,14 @@ export const TOPICS: Topic[] = [
     subject: "Biology",
     title: "Photosynthesis",
     blurb: "How a leaf turns light into sugar.",
+    about: "photosynthesis",
+    opener: "what is a leaf actually doing all day?",
     ready: false,
     keyIdeas: [],
   },
 ];
+
+export const DEFAULT_TOPIC = TOPICS[0];
 
 /** How much detail the student is asked for. Chosen on the Start screen. */
 export type Detail = "basics" | "exam" | "deep";

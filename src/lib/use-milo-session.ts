@@ -7,13 +7,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { saveSession } from "./history";
 import { levelInfo, type Level } from "./levels";
-import { getTopic, ideasFor, type Detail } from "./topics";
+import { ideasFor, type Detail, type Topic } from "./topics";
 import type { DrawRequest, DrawResult, Frame, IdeaStatus, TurnRequest, TurnResult } from "./turn";
-
-export const STORAGE_KEY = "milo.session";
-
-export type StoredSession = { topicId: string; frames: Frame[] };
 
 /** One line in the "What Milo is doing" feed. */
 export type Step = {
@@ -35,6 +32,16 @@ export type Live = {
   /** Status of each key idea, in topic order. Null until the first turn has been scored. */
   ideas: IdeaStatus[] | null;
 };
+
+export type MiloCallbacks = {
+  /** Milo's next question, after a turn is scored. Return true if it reached the voice agent. */
+  onHint?: (hint: string, nothingLeft: boolean) => boolean;
+  /** A new board is on screen. The text is what Milo can say about it. */
+  onDrawn?: (drew: string) => void;
+};
+
+/** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
+export type Reaction = { id: number; text: string };
 
 const MAX_STEPS = 3;
 
@@ -65,23 +72,8 @@ function shorten(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
-/**
- * onHint is called after each scored turn with Milo's next line. Return true if it was passed
- * on to the voice agent, so the feed can say so.
- */
-export type MiloCallbacks = {
-  /** Milo's next question, after a turn is scored. Return true if it reached the voice agent. */
-  onHint?: (hint: string, nothingLeft: boolean) => boolean;
-  /** A new board is on screen. The text is what Milo can say about it. */
-  onDrawn?: (drew: string) => void;
-};
-
-/** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
-export type Reaction = { id: number; text: string };
-
-export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloCallbacks = {}) {
-  const topic = getTopic(topicId);
-  const keyIdeas = topic ? ideasFor(topic, detail) : [];
+export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCallbacks = {}) {
+  const keyIdeas = ideasFor(topic, detail);
   const [frames, setFrames] = useState<Frame[]>([]);
   const [live, setLive] = useState<Live>({
     level: null,
@@ -102,6 +94,7 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
   const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
+  const sessionId = useRef<string | null>(null);
   const nextStepId = useRef(1);
   const callbacksRef = useRef(callbacks);
   const ideasBefore = useRef<IdeaStatus[] | null>(null);
@@ -113,31 +106,31 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
 
   const react = (text: string) => setReaction({ id: nextReactionId.current++, text });
 
-  const beginStep = (label: string, detail?: string): number => {
+  const beginStep = (label: string, detailText?: string): number => {
     const id = nextStepId.current++;
-    setSteps((list) => [...list, { id, label, detail, state: "active" as const, startedAt: Date.now() }].slice(-MAX_STEPS));
+    setSteps((list) =>
+      [...list, { id, label, detail: detailText, state: "active" as const, startedAt: Date.now() }].slice(-MAX_STEPS),
+    );
     return id;
   };
   const endStep = (id: number, patch: Partial<Step> = {}) => {
     setSteps((list) =>
       list.map((step) =>
-        step.id === id
-          ? { ...step, state: "done", seconds: (Date.now() - step.startedAt) / 1000, ...patch }
-          : step,
+        step.id === id ? { ...step, state: "done", seconds: (Date.now() - step.startedAt) / 1000, ...patch } : step,
       ),
     );
   };
-  const logStep = (label: string, detail?: string) => {
+  const logStep = (label: string, detailText?: string) => {
     const id = nextStepId.current++;
     setSteps((list) =>
-      [...list, { id, label, detail, state: "done" as const, startedAt: Date.now() }].slice(-MAX_STEPS),
+      [...list, { id, label, detail: detailText, state: "done" as const, startedAt: Date.now() }].slice(-MAX_STEPS),
     );
   };
 
   const run = async () => {
     // One run at a time. Turns that arrive meanwhile are scored together in the next pass,
     // so only one redraw is ever in flight and the newest explanation wins.
-    if (running.current || !topic) return;
+    if (running.current) return;
     running.current = true;
     let openStep: number | null = null;
     try {
@@ -150,7 +143,7 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
         const total = keyIdeas.length;
         openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
         const request: TurnRequest = {
-          topicId,
+          topic: { title: topic.title, keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea })) },
           detail,
           studentTurns,
           previousLevel: level.current,
@@ -198,11 +191,15 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
         }
 
         setBusy("drawing");
-        openStep = beginStep("Redrawing the board", result.level === 4 ? "fal, careful model" : "fal, fast model");
+        openStep = beginStep(
+          "Redrawing the board",
+          result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
+        );
         const draw: DrawRequest = {
           prompt: result.drawPrompt,
           previousImageUrl: board.current.url,
           level: result.level,
+          detail,
         };
         const drawn = await postJson<DrawResult>("/api/draw", draw);
         await preload(drawn.imageUrl);
@@ -222,12 +219,17 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
         if (result.drew) callbacksRef.current.onDrawn?.(result.drew);
-        try {
-          const stored: StoredSession = { topicId, frames: framesRef.current };
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-        } catch {
-          // Storage can be blocked. The session still works without it.
-        }
+
+        // Every new board updates this session's entry in the history.
+        sessionId.current ??= Date.now().toString(36);
+        saveSession({
+          id: sessionId.current,
+          topicTitle: topic.title,
+          subject: topic.subject,
+          detail,
+          frames: framesRef.current,
+          savedAt: Date.now(),
+        });
       }
     } catch (caught) {
       const reason = caught instanceof Error ? caught.message : "Something went wrong.";
@@ -255,5 +257,8 @@ export function useMiloSession(topicId: string, detail: Detail, callbacks: MiloC
     void run();
   };
 
-  return { frames, live, busy, error, steps, reaction, heard, addTurn, start };
+  /** Everything the student has said so far, oldest first. */
+  const said = () => turns.current.slice();
+
+  return { frames, live, busy, error, steps, reaction, heard, addTurn, start, said };
 }

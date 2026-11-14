@@ -25,8 +25,11 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 | Session | `/session` | Talk to Milo. Board on the right, Milo on the left |
 | Revision sheet | `/sheet` | The final board, the explanation in the student's words, how the level climbed |
 | Replay | inside Session | The history strip plays the boards in order, 1.4 s each |
+| History | `/sheets` | Every session saved in this browser, newest first. Pick one to open its sheet |
+| Slideshow | inside Revision sheet | Full screen. Each board with what the student said and what Milo asked. Advances by itself |
+| Film | inside Revision sheet | A fal video of the first board turning into the last. Made when the student presses "Make a film" |
 
-For the demo only one topic has to work: **Biology, "How a cell works"**. The other topics can be shown and do nothing.
+The preset that works is **Biology, "How a cell works"**. The other three presets are shown and do nothing. The student can also **type any topic**: `/api/topic` has Claude turn it into a title, Milo's opening question and five key ideas (three core), and refuses anything that is not a school topic or is not safe to draw.
 
 ## One turn, step by step
 
@@ -48,7 +51,10 @@ These shapes are shared by all three branches. Change them only together with th
 
 ```ts
 type TurnRequest = {
-  topicId: string;               // "cell"
+  topic: {                       // sent by the browser, so topics the student typed work too
+    title: string;
+    keyIdeas: { id: string; idea: string }[];   // the ideas marked at the chosen level of detail
+  };
   detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
   previousLevel: 1 | 2 | 3 | 4 | null;   // null on the first turn
@@ -67,6 +73,7 @@ type TurnResult = {
   said: string;                  // the latest turn as one sentence, max 20 words, in the student's words
   changed: boolean;              // false = nothing new to draw, leave the board alone
   drawPrompt: string;            // instruction for fal. Repeats the previous one when changed is false
+  drew: string;                  // one sentence Milo says about what he just drew. Empty when changed is false
 };
 ```
 
@@ -77,6 +84,7 @@ type DrawRequest = {
   prompt: string;
   previousImageUrl: string | null;   // null draws a new board. Otherwise this board is edited
   level: 1 | 2 | 3 | 4;              // picks the fal model
+  detail: "basics" | "exam" | "deep";   // the careful model is only used for a level 4 sheet above Basics
 };
 type DrawResult = { imageUrl: string; endpoint: string; seconds: number };
 ```
@@ -228,6 +236,19 @@ This is approach A. Two other live ways to do it are in [BACKLOG.md](BACKLOG.md)
 - Planned use: a fine-tuned grader that labels an explanation bad, mid or good.
 - **Not known:** training time. Nobody has started it. Treat it as a bonus.
 
+## Speed
+
+Measured on Sat 14 Nov. One turn is Claude then fal, one after the other.
+
+| Step | Time | Note |
+|---|---|---|
+| Claude scoring, fast mode | 1.9 to 2.9 s | `speed: "fast"` on `claude-opus-5-5`. Standard speed took 4.9 to 5.1 s. Fast mode costs about twice as much per token. Turn it off with `MILO_FAST=0` |
+| Claude scoring on `claude-haiku-5-5` | 6.3 to 7.5 s | Slower here, so we did not switch |
+| fal, first board | about 4 s | |
+| fal, edit with the fast model | 7 to 9 s | This is the floor for a redraw. The endpoint has no smaller or faster setting |
+| fal, final sheet with the careful model | about 20 s | Now only used above Basics. At Basics the final sheet uses the fast model |
+| fal film, first board to last | see docs/SUBMISSION.md | Only on request, from the revision sheet |
+
 ## Recommended stack
 
 Each branch may choose its own. This is what we checked installs and exists today (Sat 14 Nov):
@@ -251,14 +272,19 @@ Suggested server routes, all `POST`, all reading keys from the environment:
 | `/api/turn` | TurnRequest in, TurnResult out. Calls Claude |
 | `/api/draw` | DrawRequest in, DrawResult out. Calls fal |
 | `/api/elevenlabs/token` | Returns a conversation token for Milo's agent |
+| `/api/topic` | `{ title }` in, a Topic out. Claude writes the key ideas for a typed topic |
+| `/api/film` | `{ firstImageUrl, lastImageUrl }` in, `{ videoUrl }` out. fal `bytedance/seedance-2.0/fast/image-to-video` with a start and an end frame |
+| `/api/elevenlabs/setup` | Development. Creates Milo's agent, or updates it from `src/lib/prompts.ts` |
 | `/api/anam/token` | Optional. Returns an Anam session token |
 
-No database. The session lives in memory in the browser. Save the revision sheet to `localStorage`.
+No database. The session lives in memory in the browser. Finished boards, the chosen topic and the level of detail are kept in `localStorage` (`src/lib/history.ts`), up to 24 sessions.
+
+Milo's agent prompt and first line have blanks (`{{topic_about}}`, `{{topic_title}}`, `{{topic_opener}}`). The browser fills them per session with `dynamicVariables` in `startSession`, so one agent works for every topic.
 
 ## Out of scope
 
 - Nolan, the witness-interview mode.
 - Uploading slides or notes.
+- A moving Milo. We tried turning his picture into a video with fal. The video model refused it as a possible likeness of a real person.
 - Points, streaks, leaderboards.
 - Accounts and login.
-- Any topic other than "How a cell works" working end to end.

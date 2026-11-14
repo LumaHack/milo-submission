@@ -58,10 +58,11 @@ Then open http://localhost:3000.
 
 | Page | What it is |
 |---|---|
-| `/` | Start screen |
+| `/` | Start screen. Pick the cell topic or type your own, and how much detail |
 | `/session` | The live session. It connects by itself: allow the microphone and start explaining the cell to Milo. The mic button only mutes |
 | `/demo` | The scripted run from stored images. No keys or network. The header says "Scripted run" |
-| `/sheet` | The revision sheet from the last session in this browser |
+| `/sheet` | A session's revision sheet, with a slideshow and a fal film of the drawing growing up |
+| `/sheets` | Every session saved in this browser |
 
 It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env.local`. Milo's agent is created once with `curl -X POST http://localhost:3000/api/elevenlabs/setup`, which prints the id. For testing without a microphone, run `window.miloSay("...")` in the browser console on `/session` (development only).
 

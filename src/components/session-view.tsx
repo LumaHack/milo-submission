@@ -13,12 +13,11 @@ import { useEffect, useRef, useState } from "react";
 import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
 import { LEVELS, levelInfo, type Level } from "@/lib/levels";
-import { MILO_FIRST_MESSAGE } from "@/lib/prompts";
 import type { Frame, IdeaStatus, MiloStatus } from "@/lib/turn";
 import type { Reaction, Step } from "@/lib/use-milo-session";
 
 const STATUS: Record<MiloStatus, { text: string; dot: string; busy: boolean; motion: string; ring: string }> = {
-  off: { text: "Mic is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
+  off: { text: "Milo is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
   connecting: { text: "Waking Milo up", dot: "bg-faint", busy: true, motion: "animate-breathe", ring: "" },
   listening: { text: "Listening", dot: "bg-ok animate-pulse-dot", busy: false, motion: "animate-listen", ring: "var(--color-ok)" },
   thinking: { text: "Thinking", dot: "bg-faint", busy: true, motion: "animate-ponder", ring: "" },
@@ -38,6 +37,8 @@ const IDEA_COLOR: Record<IdeaStatus, string> = {
 export type SessionViewProps = {
   topicTitle: string;
   subjectLine: string;
+  /** Milo's first line, shown until he says something else. */
+  openingLine: string;
   frames: Frame[];
   /** State after the newest scored turn. Shown when the newest frame (or none) is selected. */
   live: { level: Level | null; hint: string | null; gaps: string[]; ideas?: IdeaStatus[] | null };
@@ -121,7 +122,7 @@ export function SessionView(props: SessionViewProps) {
   const level: Level = (onNewest ? live.level : null) ?? frame?.level ?? 1;
   const gaps = onNewest ? live.gaps : (frame?.gaps ?? []);
   const line =
-    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ?? MILO_FIRST_MESSAGE;
+    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ?? props.openingLine;
   const info = levelInfo(level);
   const status = STATUS[props.status];
   const scored = live.level !== null || frames.length > 0;
@@ -227,9 +228,9 @@ export function SessionView(props: SessionViewProps) {
               {props.heard && onNewest && (
                 <p
                   key={props.heard}
-                  className="m-0 ml-auto line-clamp-2 max-w-[88%] animate-rise rounded-[18px_18px_4px_18px] bg-ink px-4 py-2.5 text-[15px] leading-[1.4] text-white"
+                  className="m-0 ml-auto max-w-[88%] animate-rise rounded-[18px_18px_4px_18px] bg-ink px-4 py-2.5 text-[15px] leading-[1.4] text-white"
                 >
-                  {props.heard}
+                  <span className="line-clamp-2">{props.heard}</span>
                 </p>
               )}
               <p className="m-0 mr-auto rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium">

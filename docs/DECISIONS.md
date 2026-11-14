@@ -58,6 +58,16 @@ All dated Saturday 14 November 2026.
 
 **D22. Level of detail: Basics, Exam, Deep. Default Basics.** Reaching Mastered at exam strictness was too hard out loud. Basics marks the three core ideas and accepts everyday words. Exam and Deep are there for students who want to be pushed.
 
+**D23. The round button switches Milo on and off.** It is not a mute button. Switching him back on starts a new voice conversation, so the app tells him what he has already heard.
+
+**D24. Any topic.** The student can type a topic and Claude writes the key ideas. D3 still holds for the demo: we film "How a cell works", because that run is the one we have tested most.
+
+**D25. History, slideshow and film.** Sessions are kept in the browser. A session can be replayed as a slideshow, or turned into a short fal video of the first board becoming the last. The film is only made on request, because it is slow and costs more than a redraw.
+
+**D26. Fast mode for Claude.** The student is waiting on this call, and fast mode cut it from about 5 s to 2 to 3 s. It costs about twice as much per token. Haiku was tried and was slower.
+
+**D27. No moving Milo.** fal's video model refused his picture as a possible likeness of a real person. He stays a still picture animated in the browser.
+
 ## Still open
 
 | Question | Who can settle it |

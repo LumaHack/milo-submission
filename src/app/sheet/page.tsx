@@ -1,46 +1,54 @@
 "use client";
 
 // Revision sheet: the final board, the explanation in the student's words, and how the level climbed.
-// Port of design/claude-design/SheetV3.dc.html. It shows the last session saved in this browser.
+// From here the session can be played as a slideshow or turned into a short film by fal.
+// It shows the session last opened from the history, or the newest one.
 
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { useMemo, useSyncExternalStore } from "react";
+import { useState } from "react";
 
+import { Slideshow } from "@/components/slideshow";
 import { MiloPic, Page, pill } from "@/components/ui";
+import { saveSession, useOpenSession } from "@/lib/history";
 import { levelInfo } from "@/lib/levels";
-import { getTopic } from "@/lib/topics";
-import { STORAGE_KEY, type StoredSession } from "@/lib/use-milo-session";
-
-function subscribe(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
-}
-
-function readStored(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
 
 export default function SheetPage() {
-  const raw = useSyncExternalStore(subscribe, readStored, () => null);
-  const stored = useMemo<StoredSession | null>(() => {
-    if (!raw) return null;
-    try {
-      return JSON.parse(raw) as StoredSession;
-    } catch {
-      return null;
-    }
-  }, [raw]);
+  const session = useOpenSession();
+  const [playing, setPlaying] = useState(false);
+  const [filming, setFilming] = useState(false);
+  const [filmError, setFilmError] = useState<string | null>(null);
 
-  const frames = stored?.frames ?? [];
+  // Storage has not been read yet.
+  if (session === undefined) return null;
+
+  const frames = session?.frames ?? [];
   const final = frames[frames.length - 1];
-  const topic = getTopic(stored?.topicId ?? "cell");
   const milo = final ? levelInfo(final.level) : null;
+
+  const makeFilm = async () => {
+    if (!session || frames.length < 2 || filming) return;
+    setFilming(true);
+    setFilmError(null);
+    try {
+      const response = await fetch("/api/film", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstImageUrl: frames[0].imageUrl, lastImageUrl: final.imageUrl }),
+      });
+      const data = (await response.json().catch(() => null)) as { videoUrl?: string; error?: string } | null;
+      if (!response.ok || !data?.videoUrl) throw new Error(data?.error ?? "The film could not be made.");
+      saveSession({ ...session, filmUrl: data.videoUrl });
+    } catch (caught) {
+      setFilmError(caught instanceof Error ? caught.message : "The film could not be made.");
+    } finally {
+      setFilming(false);
+    }
+  };
+
+  // Films need boards that fal can fetch. The scripted run uses local files, so it only gets the slideshow.
+  const canFilm = frames.length >= 2 && frames.every((frame) => frame.imageUrl.startsWith("http"));
 
   return (
     <Page
@@ -50,16 +58,16 @@ export default function SheetPage() {
             <Link href="/" className="text-xl font-semibold tracking-[-0.02em] text-ink no-underline">
               Milo
             </Link>
-            <span className="text-[15px] text-muted">Revision sheets, biology</span>
+            <span className="text-[15px] text-muted">
+              Revision sheet{session ? `, ${session.subject.toLowerCase()}` : ""}
+            </span>
           </div>
           <div className="flex flex-wrap gap-2">
-            {final && (
-              <a href={final.imageUrl} download="milo-revision-sheet.jpg" target="_blank" rel="noreferrer" className={pill.light}>
-                Save sheet
-              </a>
-            )}
-            <Link href="/session" className={pill.dark}>
-              {final ? "Explain it again" : "Explain a topic"}
+            <Link href="/sheets" className={pill.light}>
+              All your sheets
+            </Link>
+            <Link href="/" className={pill.dark}>
+              Explain something
             </Link>
           </div>
         </>
@@ -67,20 +75,49 @@ export default function SheetPage() {
     >
       <main className="flex flex-1 flex-wrap gap-3 rounded-panel bg-panel p-3">
         <section aria-label="Your drawing" className="flex min-w-0 flex-[999_1_560px] flex-col gap-5 rounded-card bg-card p-7 max-sm:p-4">
-          <div className="flex flex-col gap-1.5">
-            <h1 className="m-0 text-[40px] leading-[1.08] font-medium tracking-[-0.035em]">{topic?.title ?? "Revision sheet"}</h1>
-            <p className="m-0 text-base text-muted">
-              {final
-                ? "Your revision sheet, built in the order you explained it."
-                : "You have not finished a session in this browser yet."}
-            </p>
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+            <div className="flex flex-col gap-1.5">
+              <h1 className="m-0 text-[40px] leading-[1.08] font-medium tracking-[-0.035em]">
+                {session?.topicTitle ?? "Revision sheet"}
+              </h1>
+              <p className="m-0 text-base text-muted">
+                {final
+                  ? "Your revision sheet, built in the order you explained it."
+                  : "You have not finished a session in this browser yet."}
+              </p>
+            </div>
+            {final && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => setPlaying(true)} disabled={frames.length < 2} className={`${pill.light} gap-2 disabled:opacity-40`}>
+                  <svg aria-hidden="true" width="12" height="14" viewBox="0 0 12 14">
+                    <path d="M1 1 L11 7 L1 13 Z" fill="currentColor" />
+                  </svg>
+                  Play slideshow
+                </button>
+                {canFilm && !session?.filmUrl && (
+                  <button type="button" onClick={makeFilm} disabled={filming} className={`${pill.light} disabled:opacity-60`}>
+                    {filming ? "Making the film, about a minute…" : "Make a film"}
+                  </button>
+                )}
+                <a href={final.imageUrl} download="milo-revision-sheet.jpg" target="_blank" rel="noreferrer" className={pill.light}>
+                  Save sheet
+                </a>
+              </div>
+            )}
           </div>
-          <div className="flex min-h-80 flex-1 items-center justify-center rounded-well bg-panel p-5">
+
+          {filmError && (
+            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
+              {filmError}
+            </p>
+          )}
+
+          <div className="flex min-h-80 flex-1 flex-col items-center justify-center gap-5 rounded-well bg-panel p-5">
             {final ? (
               <div className="w-full max-w-[820px] -rotate-[0.6deg] overflow-hidden rounded-[10px] shadow-paper">
                 <img
                   src={final.imageUrl}
-                  alt={`Your revision sheet for ${topic?.title ?? "this topic"}`}
+                  alt={`Your revision sheet for ${session?.topicTitle ?? "this topic"}`}
                   className="block aspect-video w-full bg-paper object-cover"
                 />
               </div>
@@ -88,6 +125,17 @@ export default function SheetPage() {
               <p className="m-0 max-w-[36ch] text-center text-[15px] text-muted">
                 Explain a topic to Milo and the last drawing lands here.
               </p>
+            )}
+            {session?.filmUrl && (
+              <figure className="m-0 flex w-full max-w-[820px] animate-rise flex-col gap-2">
+                <video src={session.filmUrl} controls loop playsInline className="block aspect-video w-full rounded-[10px] bg-ink" />
+                <figcaption className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted">
+                  <span>Your first drawing turning into your last. Made by fal from the two boards.</span>
+                  <a href={session.filmUrl} download="milo-film.mp4" target="_blank" rel="noreferrer" className="text-ink">
+                    Save film
+                  </a>
+                </figcaption>
+              </figure>
             )}
           </div>
         </section>
@@ -112,10 +160,7 @@ export default function SheetPage() {
                     <div key={frame.turn} className="contents">
                       <span className="text-muted">Turn {frame.turn}</span>
                       <span className="h-1.5 rounded bg-panel">
-                        <span
-                          className={`block h-full rounded ${last ? "bg-ink" : "bg-faint"}`}
-                          style={{ width: `${frame.level * 25}%` }}
-                        />
+                        <span className={`block h-full rounded ${last ? "bg-ink" : "bg-faint"}`} style={{ width: `${frame.level * 25}%` }} />
                       </span>
                       <span className={last ? "font-semibold" : ""}>{levelInfo(frame.level).label}</span>
                     </div>
@@ -137,6 +182,8 @@ export default function SheetPage() {
           </section>
         )}
       </main>
+
+      {playing && session && <Slideshow title={session.topicTitle} frames={frames} onClose={() => setPlaying(false)} />}
     </Page>
   );
 }

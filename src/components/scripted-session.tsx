@@ -9,7 +9,9 @@ import { SessionView } from "@/components/session-view";
 import { DEMO_FRAMES, DEMO_TOPIC_ID } from "@/lib/demo";
 import { getTopic } from "@/lib/topics";
 import type { MiloStatus } from "@/lib/turn";
-import { STORAGE_KEY, type Step, type StoredSession } from "@/lib/use-milo-session";
+import { saveSession } from "@/lib/history";
+import { miloFirstMessage } from "@/lib/prompts";
+import type { Step } from "@/lib/use-milo-session";
 
 export function ScriptedSession() {
   const topic = getTopic(DEMO_TOPIC_ID);
@@ -34,12 +36,14 @@ export function ScriptedSession() {
       const count = shown + 1;
       setShown(count);
       setDrawingSince(null);
-      try {
-        const stored: StoredSession = { topicId: DEMO_TOPIC_ID, frames: DEMO_FRAMES.slice(0, count) };
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-      } catch {
-        // Storage can be blocked. The run still plays.
-      }
+      saveSession({
+        id: "scripted",
+        topicTitle: "How a cell works (scripted run)",
+        subject: "Biology",
+        detail: "exam",
+        frames: DEMO_FRAMES.slice(0, count),
+        savedAt: Date.now(),
+      });
     }, 1600);
   };
 
@@ -63,6 +67,7 @@ export function ScriptedSession() {
   return (
     <SessionView
       topicTitle={topic.title}
+      openingLine={miloFirstMessage(topic)}
       subjectLine="Biology, how a cell works. Scripted run"
       frames={frames}
       live={{
