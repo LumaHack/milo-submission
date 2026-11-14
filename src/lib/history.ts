@@ -18,6 +18,8 @@ export type StoredSession = {
   savedAt: number;
   /** A fal video of the first board turning into the last one, once the student has made it. */
   filmUrl?: string;
+  /** A film that fal is still making. The sheet keeps checking on it, even after a reload. */
+  filmJob?: { requestId: string; startedAt: number };
 };
 
 const HISTORY_KEY = "milo.history";

@@ -247,7 +247,7 @@ Measured on Sat 14 Nov. One turn is Claude then fal, one after the other.
 | fal, first board | about 4 s | |
 | fal, edit with the fast model | 7 to 9 s | This is the floor for a redraw. The endpoint has no smaller or faster setting |
 | fal, final sheet with the careful model | about 20 s | Now only used above Basics. At Basics the final sheet uses the fast model |
-| fal film, first board to last | see docs/SUBMISSION.md | Only on request, from the revision sheet |
+| fal film, first board to last | 214 s, one run | Only on request, from the revision sheet. The browser starts the job and checks on it every 5 s |
 
 ## Recommended stack
 
@@ -273,7 +273,7 @@ Suggested server routes, all `POST`, all reading keys from the environment:
 | `/api/draw` | DrawRequest in, DrawResult out. Calls fal |
 | `/api/elevenlabs/token` | Returns a conversation token for Milo's agent |
 | `/api/topic` | `{ title }` in, a Topic out. Claude writes the key ideas for a typed topic |
-| `/api/film` | `{ firstImageUrl, lastImageUrl }` in, `{ videoUrl }` out. fal `bytedance/seedance-2.0/fast/image-to-video` with a start and an end frame |
+| `/api/film` | `POST { firstImageUrl, lastImageUrl }` starts a film and returns `{ requestId }`. `GET ?id=` returns `{ status: "working" }` or `{ status: "done", videoUrl }`. fal `bytedance/seedance-2.0/fast/image-to-video` with a start and an end frame |
 | `/api/elevenlabs/setup` | Development. Creates Milo's agent, or updates it from `src/lib/prompts.ts` |
 | `/api/anam/token` | Optional. Returns an Anam session token |
 

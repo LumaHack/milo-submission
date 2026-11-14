@@ -82,6 +82,7 @@ Fill in from your own runs.
 | fal, final sheet (careful model) | 19.6 s, one run |
 | End of speech to new board, levels 1 to 3 | not measured with voice. Typed: about 11 to 14 s (Claude plus fal) |
 | End of speech to final sheet | not measured with voice. Typed: about 28 s |
+| fal film of the first board becoming the last | 214 s, one run on Sat 14 Nov |
 | Cost of one session | |
 
 ## Likely questions

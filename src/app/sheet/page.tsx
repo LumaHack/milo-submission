@@ -7,7 +7,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Slideshow } from "@/components/slideshow";
 import { MiloPic, Page, pill } from "@/components/ui";
@@ -17,8 +17,39 @@ import { levelInfo } from "@/lib/levels";
 export default function SheetPage() {
   const session = useOpenSession();
   const [playing, setPlaying] = useState(false);
-  const [filming, setFilming] = useState(false);
   const [filmError, setFilmError] = useState<string | null>(null);
+  const [now, setNow] = useState(0);
+
+  // A film takes a few minutes. While one is being made, check on it every five seconds.
+  // The job is stored with the session, so this carries on after a reload.
+  const job = session?.filmJob;
+  useEffect(() => {
+    if (!session || !job) return;
+    let stopped = false;
+    const check = async () => {
+      setNow(Date.now());
+      try {
+        const response = await fetch(`/api/film?id=${encodeURIComponent(job.requestId)}`);
+        const data = (await response.json().catch(() => null)) as { status?: string; videoUrl?: string; error?: string } | null;
+        if (stopped) return;
+        if (!response.ok || !data) throw new Error(data?.error ?? "The film could not be made.");
+        if (data.status === "done" && data.videoUrl) {
+          saveSession({ ...session, filmJob: undefined, filmUrl: data.videoUrl });
+        }
+      } catch (caught) {
+        if (stopped) return;
+        setFilmError(caught instanceof Error ? caught.message : "The film could not be made.");
+        saveSession({ ...session, filmJob: undefined });
+      }
+    };
+    const timer = setInterval(check, 5000);
+    const clock = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      clearInterval(clock);
+    };
+  }, [session, job]);
 
   // Storage has not been read yet.
   if (session === undefined) return null;
@@ -26,10 +57,11 @@ export default function SheetPage() {
   const frames = session?.frames ?? [];
   const final = frames[frames.length - 1];
   const milo = final ? levelInfo(final.level) : null;
+  const filming = Boolean(job);
+  const waited = job && now > job.startedAt ? Math.floor((now - job.startedAt) / 1000) : 0;
 
   const makeFilm = async () => {
     if (!session || frames.length < 2 || filming) return;
-    setFilming(true);
     setFilmError(null);
     try {
       const response = await fetch("/api/film", {
@@ -37,13 +69,11 @@ export default function SheetPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firstImageUrl: frames[0].imageUrl, lastImageUrl: final.imageUrl }),
       });
-      const data = (await response.json().catch(() => null)) as { videoUrl?: string; error?: string } | null;
-      if (!response.ok || !data?.videoUrl) throw new Error(data?.error ?? "The film could not be made.");
-      saveSession({ ...session, filmUrl: data.videoUrl });
+      const data = (await response.json().catch(() => null)) as { requestId?: string; error?: string } | null;
+      if (!response.ok || !data?.requestId) throw new Error(data?.error ?? "The film could not be started.");
+      saveSession({ ...session, filmJob: { requestId: data.requestId, startedAt: Date.now() } });
     } catch (caught) {
-      setFilmError(caught instanceof Error ? caught.message : "The film could not be made.");
-    } finally {
-      setFilming(false);
+      setFilmError(caught instanceof Error ? caught.message : "The film could not be started.");
     }
   };
 
@@ -96,7 +126,9 @@ export default function SheetPage() {
                 </button>
                 {canFilm && !session?.filmUrl && (
                   <button type="button" onClick={makeFilm} disabled={filming} className={`${pill.light} disabled:opacity-60`}>
-                    {filming ? "Making the film, about a minute…" : "Make a film"}
+                    {filming
+                      ? `Making the film, ${Math.floor(waited / 60)}:${String(waited % 60).padStart(2, "0")} of about 4 minutes`
+                      : "Make a film"}
                   </button>
                 )}
                 <a href={final.imageUrl} download="milo-revision-sheet.jpg" target="_blank" rel="noreferrer" className={pill.light}>
