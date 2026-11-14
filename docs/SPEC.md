@@ -174,7 +174,8 @@ Checked against the ElevenLabs docs and the installed SDK types on Sat 14 Nov.
 - `sendContextualUpdate(text)` gives the agent information without making it speak. `sendUserMessage(text)` makes it reply.
 - `isSpeaking` and `onModeChange` tell you when Milo is talking or listening. Use them for the status badge.
 - Agent settings: interruptions on, turn eagerness Eager / Normal / Patient (use Patient), turn timeout 1 to 30 s.
-- Client tools exist: the agent can call a function in the browser. Names must match the dashboard exactly.
+- Client tools exist: the agent can call a function in the browser. Names must match the dashboard exactly. Tick "Wait for response" on the tool if the agent should get the return value.
+- The agent's LLM can be set to "Custom LLM": ElevenLabs then calls our own server for every reply. The server must expose an OpenAI-style `/v1/chat/completions` endpoint, answer as a server-sent event stream, and be reachable from the internet (a tunnel such as ngrok during development).
 
 Not available, so do not promise it:
 
@@ -189,7 +190,7 @@ The ElevenLabs agent replies as soon as the student stops. Claude's scored hint 
 - Milo's own agent prompt ([PROMPTS.md](PROMPTS.md)) makes him a confused kid who asks about the weakest part and never explains. That covers the reply he gives straight away.
 - After each scored turn, send Claude's hint to the agent with `sendContextualUpdate`. Milo uses it the next time the student stops. This keeps Milo's question in line with the gap shown on screen.
 
-This is approach A. Two other ways to do it are in [BACKLOG.md](BACKLOG.md), one per branch.
+This is approach A. Two other live ways to do it are in [BACKLOG.md](BACKLOG.md), one per branch: the agent calls a browser tool and waits for the hint (B), or Claude is the agent's own LLM so one call writes both Milo's line and the score (C). All three are live conversations. None is hold-to-talk.
 
 ### Claude: how to call it
 
