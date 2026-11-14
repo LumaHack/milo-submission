@@ -81,18 +81,22 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     for (let quiet = 0, i = 0; i < 240 && quiet < 8; i++) { quiet = (await badge()) === "Listening" ? quiet + 1 : 0; await wait(250); }
   };
 
-  if (run === "hint") {
-    await say("h1");
-    await settle("waiting for Milo");
-    await say("h2"); // first wrong try at the energy
-    await settle("waiting for Milo");
-    await say("h3"); // second wrong try: Milo should sketch a hint and say his teacher line
-    await wait(4000);
-    await settle("waiting for the hint");
-    await wait(6000);
+  // Say something, then wait for Milo to answer it and fall quiet, so each sentence is its own turn.
+  const agentLines = () => page.evaluate(() => (window.miloLog || []).filter((m) => m.who === "agent").length);
+  const sayAndWait = async (name) => {
+    const before = await agentLines();
+    await say(name);
+    for (let i = 0; i < 80 && (await agentLines()) === before; i++) await wait(250);
     await settle("waiting for Milo to finish");
-    await say("h4"); // building on the hint
-    await settle("waiting for Milo");
+  };
+
+  if (run === "hint") {
+    await sayAndWait("h1");
+    await sayAndWait("h2"); // first wrong try at the energy
+    await sayAndWait("h3"); // second wrong try: Milo should sketch a hint and say his teacher line
+    await wait(12000); // the hint sketch takes a few seconds to draw, then he points at it
+    await settle("waiting for the hint");
+    await sayAndWait("h4"); // building on the hint
     await say("h5");
     await quietFor(24000, "student goes quiet");
   } else {
