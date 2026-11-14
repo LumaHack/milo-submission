@@ -104,7 +104,7 @@ Ali ran the cell at Basics by voice and nine boards came out. What went wrong, a
 
 **D39. No repeated questions and no "You said".** The app note now lists what is already clear, and Milo may not ask about it again. Opening with "You said…" or "The … you mentioned" is out.
 
-**D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, restate labels when the board is crowded, and draw the hint a quarter of the sheet tall.
+**D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, and draw the hint a quarter of the sheet tall. Whenever a label changes, the instruction says to erase every word on the paper and lists all the labels again, because the fast fal model leaves old writing behind otherwise. Checked by eye on two replays of Ali's words: names kept and nothing garbled in both. Duplicates were gone in one and reduced in the other, so this is better, not guaranteed. The careful model was tried for the final sheet again: cleaner, but 20 s and it redraws the whole picture in another style, so Basics keeps the fast one.
 
 ## Still open
 

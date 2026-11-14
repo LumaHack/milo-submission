@@ -42,7 +42,7 @@ Add "Remove the old labels and highlighter patches." to the end of level 4. The 
 
 - Start every edit with "Keep the same drawing and style". Without it the model starts a new picture.
 - Put every word that should appear on the paper in single quotes after "spelled exactly:". That is what got the spelling right.
-- Say what to remove. The model does not remove old question marks or labels unless told.
+- Old writing does not go away by itself. Whenever a label is added or changed, tell the model to erase every word on the paper and then list every label that should be there. Otherwise labels pile up and repeat.
 - Name colours and positions. "A pink nucleus top right" works. "Add the nucleus" gives a random result.
 - Six labels at most, a few words each. More than that and the lettering breaks down.
 - The fast model is fine up to level 3. It mislabelled the dense final sheet. The careful model got it right.
