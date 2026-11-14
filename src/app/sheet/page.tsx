@@ -212,6 +212,20 @@ export default function SheetPage() {
               </div>
             </div>
 
+            {final.gaps.length > 0 && (
+              <div className="flex flex-col gap-3 rounded-card bg-card p-6">
+                <h2 className="m-0 text-lg font-semibold tracking-[-0.01em]">Look these up next</h2>
+                <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[15px] leading-normal">
+                  {final.gaps.map((gap, i) => (
+                    <li key={gap} className="flex items-center gap-2.5">
+                      <span aria-hidden="true" className={`h-2 w-2 flex-none rounded-full ${i === 0 ? "bg-miss" : "bg-faint"}`} />
+                      {gap}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             <div className="mt-auto flex items-center gap-4 rounded-card bg-card px-6 py-5">
               <div aria-hidden="true" className="h-[52px] w-[52px] flex-none overflow-hidden rounded-full bg-milo">
                 <MiloPic level={final.level} />

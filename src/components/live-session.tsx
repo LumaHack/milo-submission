@@ -12,12 +12,13 @@ import { SessionView } from "@/components/session-view";
 import { useDetail } from "@/lib/detail-store";
 import { useChosenTopic } from "@/lib/history";
 import {
-  MILO_SHOW_DRAWING,
   MILO_SHOW_FINAL,
+  MILO_SHOW_HINT,
   isStageDirection,
   miloAppNote,
   miloCatchUpNote,
-  miloDrewNote,
+  miloFinalNote,
+  miloHelpNote,
   miloFirstMessage,
   miloVariables,
 } from "@/lib/prompts";
@@ -49,15 +50,17 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const [switchedOff, setSwitchedOff] = useState(false);
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
-  const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
-  const showDrawing = useRef<(drew: string, finished: boolean) => void>(() => {});
+  const sendNote = useRef<(hint: string, over: boolean) => boolean>(() => false);
+  const showFinal = useRef<(drew: string) => void>(() => {});
+  const showHelp = useRef<(line: string) => void>(() => {});
   const session = useMiloSession(topic, detail, {
-    onHint: (hint, nothingLeft) => sendNote.current(hint, nothingLeft),
-    onDrawn: (drew, finished) => showDrawing.current(drew, finished),
+    onHint: (hint, over) => sendNote.current(hint, over),
+    onFinalBoard: (drew) => showFinal.current(drew),
+    onHelpBoard: (line) => showHelp.current(line),
   });
   const { addTurn } = session;
 
-  // When the student was last heard speaking, so Milo does not talk over them to show a drawing.
+  // When the student was last heard speaking, so the wrap-up cue does not land on top of them.
   const lastSpeech = useRef(0);
   const pendingShow = useRef<{ since: number; cue: string } | null>(null);
 
@@ -86,9 +89,6 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
         setVoiceError("Milo dropped out. Press the button under him to bring him back.");
       }
     },
-    onVadScore: ({ vadScore }) => {
-      if (vadScore > 0.6) lastSpeech.current = Date.now();
-    },
     onError: (message) => {
       log.current.push({ who: "error", text: String(message) });
       setVoiceError(
@@ -103,22 +103,29 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
-    sendNote.current = (hint, nothingLeft) => {
+    sendNote.current = (hint, over) => {
       if (!connected) return false;
-      sendContextualUpdate(miloAppNote(hint, nothingLeft));
+      sendContextualUpdate(miloAppNote(hint, over));
       return true;
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
     // himself instead of waiting to be asked.
-    showDrawing.current = (drew, finished) => {
+    // Milo speaks once per student turn. The one exception is the last board: the student has stopped
+    // talking, so he gets a cue to show it and wrap up.
+    showFinal.current = (drew) => {
       if (!connected) return;
-      sendContextualUpdate(miloDrewNote(drew, finished));
-      // He is often still mid-sentence when the board lands, so the cue to show it waits for a gap.
-      pendingShow.current = { since: Date.now(), cue: finished ? MILO_SHOW_FINAL : MILO_SHOW_DRAWING };
+      sendContextualUpdate(miloFinalNote(drew));
+      pendingShow.current = { since: Date.now(), cue: MILO_SHOW_FINAL };
+    };
+    // The other exception: his hint sketch has landed, so he gets a cue to point at it and teach a little.
+    showHelp.current = (line) => {
+      if (!connected) return;
+      sendContextualUpdate(miloHelpNote(line));
+      pendingShow.current = { since: Date.now(), cue: MILO_SHOW_HINT };
     };
   }, [connected, sendContextualUpdate]);
 
-  // Give the cue once Milo has stopped talking and the student is quiet. Drop it if no gap comes.
+  // Give the wrap-up cue once Milo has stopped talking and the student is quiet. Drop it if no gap comes.
   useEffect(() => {
     if (!connected) return;
     const timer = setInterval(() => {
@@ -128,6 +135,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
         pendingShow.current = null;
         return;
       }
+      // The microphone level is the reliable sign that the student is talking.
+      if (getInputVolume() > 0.04) lastSpeech.current = Date.now();
       const quiet = Date.now() - lastSpeech.current > 1500;
       if (quiet && !isSpeaking) {
         pendingShow.current = null;
@@ -139,7 +148,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       }
     }, 400);
     return () => clearInterval(timer);
-  }, [connected, isSpeaking, sendUserMessage]);
+  }, [connected, isSpeaking, sendUserMessage, getInputVolume]);
 
   // Hang up when the student leaves the page.
   const endRef = useRef(endSession);
@@ -323,6 +332,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       drawing={session.busy === "drawing"}
       error={voiceError ?? session.error}
       seconds={seconds}
+      over={session.live.stuck || (session.live.level !== null && session.live.gaps.length === 0)}
       steps={session.steps}
       reaction={session.reaction}
       heard={session.heard}

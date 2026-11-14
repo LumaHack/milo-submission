@@ -56,7 +56,9 @@ One call per student turn. It returns the `TurnResult` from [SPEC.md](SPEC.md) a
 - **Scoring.** Each key idea is missing, vague, clear or wrong, judged across everything said so far. What counts as clear depends on the level of detail (below).
 - **Level.** 1 no idea clear. 2 ideas vague, or one clear. 3 at least two clear and none wrong. 4 every idea clear.
 - **Biggest gap.** Wrong before vague before missing, because that is closest to what the student is already thinking about.
-- **Milo's line.** One or two short spoken sentences. First react to something the student said, in their words. Then one small, concrete question about the biggest gap that can be answered in a sentence. Never a big vague question. Never the missing term or fact. If the student is stuck for two turns or says they do not know, make it easier: narrow the question, or give Milo a naive everyday guess to correct ("Is it like a wall, or more like a door?"). Never open with "Mmhh" or "Hmm". When everything is clear, Milo says he gets it and says it back in the student's own words.
+- **Milo's line.** At most 20 words and one question. He repeats back a few of the student's words, then asks one small open question about the biggest gap. Never a question with the answer inside it ("is it X or Y?", "…, right?"), never the missing term, never his drawing. On a wrong idea he says what it made him picture, says it looks odd, and asks them to check.
+- **Help.** After two failed tries at the same gap (once per gap): his line becomes a teacher line of up to 40 words, and the drawing gains a small hint sketch in blue dashed pencil marked 'hint'. No technical term. The idea still only counts when the student says it.
+- **Stuck.** Still not clear after the hint: he wraps up and names the gap to look up.
 - **Drawing instruction.** Only what the student said. Vague ideas drawn vaguely, wrong ideas drawn literally. Starts with "Keep the same drawing and style" on edits. Words on the paper in single quotes after "spelled exactly:". Says what to remove. Ends with "Do not add any other parts, shapes or words."
 
 ### Level of detail
@@ -107,7 +109,7 @@ That creates the agent the first time and updates it afterwards.
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
 | Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
 
-**Who Milo is.** A quick, warm, cheeky kid in a real back-and-forth. He reacts to what was just said in the student's words, asks one small answerable question, makes silly guesses when the student is stuck, and cuts in when he is confused. He never explains, never gives the proper term, and never says "Mmhh".
+**Who Milo is.** A warm, curious kid who follows the student. At most 20 words and exactly one question per reply. He repeats back their words and asks one small open question. He never puts an answer in a question, never uses a name, and never opens with his drawing. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
 
 **Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.
 

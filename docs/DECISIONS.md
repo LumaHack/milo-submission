@@ -52,7 +52,7 @@ All dated Saturday 14 November 2026.
 
 ## After the first spoken test
 
-**D20. Milo is a conversation partner, not a "Mmhh… but" machine.** Ali spoke to the first version on Sat 14 Nov: the repeated "Mmhh… but" opener was annoying, and the vague questions left him not knowing what to say. Milo now reacts to what was said, asks one small concrete question, guesses wildly when the student is stuck, and never opens the same way twice. D4 still holds: he never explains and never gives the proper term.
+**D20. Milo is a conversation partner, not a "Mmhh… but" machine.** *(The "guesses wildly" part was dropped in D28.)* Ali spoke to the first version on Sat 14 Nov: the repeated "Mmhh… but" opener was annoying, and the vague questions left him not knowing what to say. Milo now reacts to what was said, asks one small concrete question, guesses wildly when the student is stuck, and never opens the same way twice. D4 still holds: he never explains and never gives the proper term.
 
 **D21. Milo answers fast.** Turn-taking is Eager with speculative turn on, replacing Patient. Measured in a spoken test: he replies 1 to 2 seconds after the student stops. He does not jump in at a short pause mid-sentence (0.9 s was tried), and ElevenLabs has no setting to talk over someone. So we say "he answers fast", not "he interrupts". If the student goes quiet for 8 seconds he helps once, then waits.
 
@@ -67,6 +67,20 @@ All dated Saturday 14 November 2026.
 **D26. Fast mode for Claude.** The student is waiting on this call, and fast mode cut it from about 5 s to 2 to 3 s. It costs about twice as much per token. Haiku was tried and was slower.
 
 **D27. No moving Milo.** fal's video model refused his picture as a possible likeness of a real person. He stays a still picture animated in the browser.
+
+## After the stochastic calculus call
+
+Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipeline held up (15 turns scored, 11 redraws, no errors). Milo's behaviour did not: he spoke 18 times to the student's 13, averaged 29 words a reply, opened 9 replies with his drawing, asked up to three questions at once, hid answers inside his questions, called the student by a misheard name, and had no way to finish.
+
+**D28. Milo follows, he does not lead.** At most 20 words and one question per reply. He repeats back a few of the student's words and asks one small open question about them. No "is it X or Y?", no "…, right?", no numbers or ideas of his own. Only what the student says in their own words is scored, so a leading question only wastes time. This replaces the "silly guess" idea from D20.
+
+**D29. One Milo turn per student turn.** He no longer announces every drawing. The board speaks for itself. He gets a cue to speak unprompted only on the final board and when he has sketched a hint.
+
+**D30. Milo is also a teacher, at one moment.** Ali's call: when the student has tried the same gap twice and is still not there, Milo does not give up. He says they are not quite there but onto something, sketches a small hint on the paper in blue dashed pencil marked "hint", and asks them to build on it. This is a deliberate exception to D4 and D5. He helps once per gap, the hint never uses the technical term, and the idea only counts when the student says it themselves.
+
+**D31. A way to finish.** If the student is still stuck on a gap after its hint, Milo wraps up: this is as far as we got, here is the bit to look up, your sheet is ready. The revision sheet lists what is still open under "Look these up next".
+
+**D32. No names, no mumbles.** Milo never calls the student by a name. Turns of one or two words are not scored.
 
 ## Still open
 

@@ -41,7 +41,9 @@ export type SessionViewProps = {
   openingLine: string;
   frames: Frame[];
   /** State after the newest scored turn. Shown when the newest frame (or none) is selected. */
-  live: { level: Level | null; hint: string | null; gaps: string[]; ideas?: IdeaStatus[] | null };
+  live: { level: Level | null; hint: string | null; gaps: string[]; ideas?: IdeaStatus[] | null; stuck?: boolean };
+  /** The lesson has ended: everything is clear, or the student has run out. The sheet becomes the next step. */
+  over?: boolean;
   /** What Milo is saying or last said, when it comes from the voice agent. Overrides the hint. */
   spokenLine?: string | null;
   status: MiloStatus;
@@ -177,11 +179,16 @@ export function SessionView(props: SessionViewProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             {frames.length > 0 && (
-              <Link href="/sheet" className={pill.light} onClick={props.onEnd}>
+              <Link
+                key={String(props.over)}
+                href="/sheet"
+                className={props.over ? `${pill.dark} animate-pop` : pill.light}
+                onClick={props.onEnd}
+              >
                 Open revision sheet
               </Link>
             )}
-            <Link href="/" className={pill.dark} onClick={props.onEnd}>
+            <Link href="/" className={props.over ? pill.light : pill.dark} onClick={props.onEnd}>
               End session
             </Link>
           </div>
@@ -411,7 +418,7 @@ export function SessionView(props: SessionViewProps) {
                         <img src={entry.imageUrl} alt="" className="block aspect-video w-full object-cover" />
                       </span>
                       <span className="flex justify-between gap-2 text-[13px]">
-                        <span className="font-semibold">{last ? "Final sheet" : `Turn ${entry.turn}`}</span>
+                        <span className="font-semibold">{last ? "Final sheet" : entry.hinted ? "Milo's hint" : `Turn ${entry.turn}`}</span>
                         <span className="text-muted tabular-nums">{formatClock(entry.at)}</span>
                       </span>
                       <span className="text-[13px] leading-[1.4] text-muted">“{entry.said}”</span>
@@ -426,7 +433,7 @@ export function SessionView(props: SessionViewProps) {
 
           <div className="flex flex-col gap-2.5">
             <span className="text-[15px] font-semibold">
-              {gaps.length === 0 && scored ? "No gaps left" : "Gaps Milo still hears"}
+              {gaps.length === 0 && scored ? "No gaps left" : live.stuck && onNewest ? "Look these up next" : "Gaps Milo still hears"}
             </span>
             {gaps.length > 0 && (
               <div className="flex flex-wrap gap-2">

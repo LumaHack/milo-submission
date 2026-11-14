@@ -115,7 +115,9 @@ Footer: one small muted credits line.
 - His line arrives word by word.
 - Reaction bursts pop out of his picture in a crayon hand (Gaegu, the only place that font is used): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
 - The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
-- When a new board lands he says what he drew without being asked, if nobody is talking.
+- He speaks once per student turn. He only speaks unprompted when the final board lands, or when he has sketched a hint.
+- A hint sketch is blue dashed pencil with the handwritten word "hint". Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
+- When the lesson is over (everything clear, or the student still stuck after a hint) the "Open revision sheet" pill turns black and pops, and "End session" turns light.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
 - Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
 - Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo". The round button switches Milo off and on again. It is not a mute button: black with a mic while he is on, white with a struck-through mic while he is off. The bar sits at the bottom of the column, under the crayon level card and the feed.

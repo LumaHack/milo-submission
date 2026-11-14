@@ -6,7 +6,8 @@ A study tool built on one idea: you only understand something if you can explain
 
 - A weak explanation gets a messy crayon scribble with question marks.
 - A good explanation gets a clean, labelled revision sheet.
-- Milo never explains. He is a quick, cheeky kid in a real back-and-forth: he reacts to what you said, asks one small question about your biggest gap, guesses wildly when you are stuck, and cuts in when he is confused.
+- Milo follows, he does not lead. He repeats back a few of your words and asks one small question about your biggest gap, in at most 20 words. He speaks once per turn.
+- He is also a bit of a teacher, at one moment: after two failed tries at the same gap he says you are onto something, sketches a small hint on the paper, and asks you to build on it. If you are still stuck after that, he wraps up and tells you what to look up.
 - The student picks how much detail Milo holds them to: Basics, Exam or Deep.
 - Milo grows up as the explanation improves: age 4, 7, 11, 18.
 - Every board is kept. The session can be replayed, and the last board is saved as a revision sheet.
@@ -39,6 +40,8 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet.
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
 6. **Milo speaks.** Milo asks about the biggest gap. See "Who writes Milo's line" below.
+   - **Two failed tries at the same gap:** the brain sets `help`. The redraw adds a small blue dashed hint sketch, and when it lands Milo gets a cue to say his teacher line. The frame is labelled "Milo's hint".
+   - **Still stuck after the hint:** the brain sets `stuck`. Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black.
 7. Repeat until every key idea is clear. Then Milo says he gets it, and the revision sheet is offered.
 
 While step 3 and 4 run, the old board stays visible and the board shows "Milo is drawing…". The student can keep talking.
@@ -57,6 +60,7 @@ type TurnRequest = {
   };
   detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
+  helpedGapIds: string[];        // gaps Milo has already sketched a hint for. He helps once per gap
   previousLevel: 1 | 2 | 3 | 4 | null;   // null on the first turn
   previousDrawPrompt: string | null;     // the instruction that made the board on screen. null if no board yet
 };
@@ -69,7 +73,9 @@ type TurnResult = {
   ideas: { id: string; status: "missing" | "vague" | "clear" | "wrong" }[];  // one per key idea
   level: 1 | 2 | 3 | 4;
   biggestGapId: string | null;   // null when every idea is clear
-  hint: string;                  // Milo's next line. One short sentence. Never the answer
+  hint: string;                  // Milo's next line. At most 20 words, one question. On a help turn: his teacher line
+  help: boolean;                 // true after two failed tries at the same gap: Milo sketches a hint
+  stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up
   said: string;                  // the latest turn as one sentence, max 20 words, in the student's words
   changed: boolean;              // false = nothing new to draw, leave the board alone
   drawPrompt: string;            // instruction for fal. Repeats the previous one when changed is false
@@ -100,6 +106,7 @@ type Frame = {
   at: number;        // seconds since the session started
   hint: string;
   gaps: string[];    // gap labels still open after this turn, biggest first
+  hinted?: boolean;  // this board carries Milo's hint sketch
 };
 ```
 

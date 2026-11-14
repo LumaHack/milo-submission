@@ -31,13 +31,17 @@ export type Live = {
   gaps: string[];
   /** Status of each key idea, in topic order. Null until the first turn has been scored. */
   ideas: IdeaStatus[] | null;
+  /** The student has run out of things to say. Milo has wrapped up and named what to look up. */
+  stuck: boolean;
 };
 
 export type MiloCallbacks = {
-  /** Milo's next question, after a turn is scored. Return true if it reached the voice agent. */
-  onHint?: (hint: string, nothingLeft: boolean) => boolean;
-  /** A new board is on screen. The text is what Milo can say about it. Finished means nothing is left to ask. */
-  onDrawn?: (drew: string, finished: boolean) => void;
+  /** Milo's next line, after a turn is scored. Over means the lesson has ended. Return true if it reached the voice agent. */
+  onHint?: (hint: string, over: boolean) => boolean;
+  /** The final board is on screen. The text is what Milo can say about it. */
+  onFinalBoard?: (drew: string) => void;
+  /** A board with Milo's hint sketch is on screen. The text is his teacher line. */
+  onHelpBoard?: (line: string) => void;
 };
 
 /** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
@@ -89,6 +93,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
     hint: null,
     gaps: keyIdeas.map((idea) => idea.gapLabel),
     ideas: null,
+    stuck: false,
   });
   const [busy, setBusy] = useState<"idle" | "thinking" | "drawing">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -102,7 +107,9 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   const level = useRef<Level | null>(null);
   const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
   // The newest drawing the brain asked for. If it differs from the board on screen, a redraw is owed.
-  const wanted = useRef<{ prompt: string; said: string; drew: string } | null>(null);
+  const wanted = useRef<{ prompt: string; said: string; drew: string; help: string | null } | null>(null);
+  // Gaps Milo has already sketched a hint for. He helps once per gap.
+  const helped = useRef<string[]>([]);
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -156,9 +163,13 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         const total = keyIdeas.length;
         openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
         const request: TurnRequest = {
-          topic: { title: topic.title, keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea })) },
+          topic: {
+            title: topic.title,
+            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel })),
+          },
           detail,
           studentTurns,
+          helpedGapIds: helped.current,
           previousLevel: level.current,
           previousDrawPrompt: board.current.prompt,
         };
@@ -185,7 +196,10 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         const before = ideasBefore.current;
         const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
         const grewUp = level.current !== null && result.level > level.current;
+        const helping = result.help && gaps.length > 0 && Boolean(result.biggestGapId);
+        if (helping && result.biggestGapId) helped.current = [...helped.current, result.biggestGapId];
         if (gaps.length === 0) react("I get it!");
+        else if (helping) react("A hint!");
         else if (grewUp) react("I'm growing!");
         else if (ideas.includes("wrong")) react("Huh?!");
         else if (clicked) react("Ohh!");
@@ -193,17 +207,21 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         ideasBefore.current = ideas;
 
         level.current = result.level;
-        setLive({ level: result.level, hint: result.hint, gaps, ideas });
+        const stuck = result.stuck && gaps.length > 0 && !helping;
+        setLive({ level: result.level, hint: result.hint, gaps, ideas, stuck });
         // The voice side can drop at any moment. A failed note must never stop the drawing.
         try {
-          if (callbacksRef.current.onHint?.(result.hint, gaps.length === 0)) {
-            logStep("Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
+          // On a helping turn Milo's line waits for the hint sketch, so he speaks when it is on the paper.
+          if (!helping && callbacksRef.current.onHint?.(result.hint, gaps.length === 0 || stuck)) {
+            logStep(stuck ? "Told Milo to wrap up" : "Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
           }
         } catch {
           // Milo misses this hint. The next turn sends a fresh one.
         }
 
-        if (result.changed) wanted.current = { prompt: result.drawPrompt, said: result.said, drew: result.drew };
+        if (result.changed || helping) {
+          wanted.current = { prompt: result.drawPrompt, said: result.said, drew: result.drew, help: helping ? result.hint : null };
+        }
         const owed = wanted.current;
         // Draw when there is something new, or when an earlier redraw failed and the board is behind.
         if (!owed || owed.prompt === board.current.prompt) {
@@ -214,7 +232,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         drawing = true;
         setBusy("drawing");
         openStep = beginStep(
-          "Redrawing the board",
+          owed.help ? "Sketching a hint for you" : "Redrawing the board",
           result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
         );
         const draw: DrawRequest = {
@@ -235,7 +253,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           }
         }
         if (!drawn) continue;
-        endStep(openStep, { label: "Board redrawn" });
+        endStep(openStep, { label: owed.help ? "Hint sketched" : "Board redrawn" });
         openStep = null;
 
         board.current = { url: drawn.imageUrl, prompt: owed.prompt };
@@ -247,6 +265,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           at: startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0,
           hint: result.hint,
           gaps,
+          hinted: Boolean(owed.help),
         };
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
@@ -263,9 +282,10 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           savedAt: Date.now(),
         });
         try {
-          if (owed.drew) callbacksRef.current.onDrawn?.(owed.drew, gaps.length === 0);
+          if (owed.help) callbacksRef.current.onHelpBoard?.(owed.help);
+          else if (owed.drew && gaps.length === 0) callbacksRef.current.onFinalBoard?.(owed.drew);
         } catch {
-          // Milo does not announce this drawing. It is still on screen.
+          // Milo does not wrap up out loud. The final board is still on screen.
         }
       }
     } catch (caught) {
@@ -291,7 +311,8 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   /** Add what the student just said. */
   const addTurn = (text: string) => {
     const said = text.trim();
-    if (!said) return;
+    // One or two stray words ("Uh", a misheard name) are not an explanation. Scoring them wastes a turn.
+    if (said.split(/\s+/).length < 3) return;
     start();
     turns.current = [...turns.current, said];
     setHeard(said);

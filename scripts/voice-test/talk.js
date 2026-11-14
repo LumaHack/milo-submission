@@ -43,7 +43,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     };
 
   });
-  await page.goto("http://localhost:3000/", { waitUntil: "networkidle2" });
+  await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
   for (const name of ["a1", "a2", "b"]) {
     await page.evaluate((n, b64) => window.__load(n, b64), name, fs.readFileSync(`${__dirname}/out/${name}.wav`).toString("base64"));

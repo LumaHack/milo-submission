@@ -19,11 +19,16 @@ export const TurnRequestSchema = z.object({
   /** The topic and the key ideas to mark at the chosen level of detail. Sent by the browser, so topics the student typed work too. */
   topic: z.object({
     title: z.string().min(1).max(120),
-    keyIdeas: z.array(z.object({ id: z.string(), idea: z.string() })).min(1).max(8),
+    keyIdeas: z
+      .array(z.object({ id: z.string(), idea: z.string(), gap: z.string().optional() }))
+      .min(1)
+      .max(8),
   }),
   detail: DetailSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
   studentTurns: z.array(z.string()).min(1),
+  /** Gaps Milo has already sketched a hint for. He helps once per gap. */
+  helpedGapIds: z.array(z.string()),
   /** The level before this turn. Null on the first turn. */
   previousLevel: LevelSchema.nullable(),
   /** The instruction that produced the board now on screen. Null if there is no board yet. */
@@ -42,6 +47,10 @@ export const TurnResultSchema = z.object({
     .nullable()
     .describe("Id of the most important key idea that is not clear yet. Null when nothing is left."),
   hint: z.string().describe("Milo's next spoken line. One short sentence. Never contains the answer."),
+  help: z
+    .boolean()
+    .describe("True when the student has tried the biggest gap twice without getting there, so Milo sketches a hint and teaches a little."),
+  stuck: z.boolean().describe("True when the student has run out of things to say and the session should wrap up."),
   said: z.string().describe("The student's latest turn as one sentence of at most 20 words, in their own words."),
   changed: z
     .boolean()
@@ -81,6 +90,8 @@ export type Frame = {
   hint: string;
   /** Gap labels still open after this turn, biggest first. */
   gaps: string[];
+  /** True when this board carries a hint sketch from Milo, not only what the student said. */
+  hinted?: boolean;
 };
 
 export type MiloStatus = "off" | "connecting" | "listening" | "thinking" | "drawing" | "speaking";
