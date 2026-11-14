@@ -10,3 +10,9 @@ build/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# cases on file: witness accounts, never committed
+.data/
+
+# output of the spoken test
+scripts/voice-test/out/

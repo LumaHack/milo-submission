@@ -65,7 +65,7 @@ function Report({ file }: { file: CaseFile }) {
               <h2 className="h3">{witnessLabel(file, witness.id)}</h2>
               <span className="meta">{witness.where}</span>
             </div>
-            <Notes file={file} facts={witness.facts} />
+            <Notes details={file.details} facts={witness.facts} />
           </section>
         ))}
         {comparison && (

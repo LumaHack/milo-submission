@@ -7,10 +7,13 @@ import { z } from "zod";
 import { askClaude } from "@/lib/brain";
 import { NewCaseSchema } from "@/lib/nolan";
 import { NEW_CASE_PROMPT } from "@/lib/prompts";
+import { investigatorOnly } from "@/lib/server-store";
 
 const BodySchema = z.object({ incident: z.string().trim().min(3).max(160) });
 
 export async function POST(request: Request) {
+  const refused = investigatorOnly(request);
+  if (refused) return refused;
   const body = BodySchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return Response.json({ error: "Say what happened in a few words." }, { status: 400 });

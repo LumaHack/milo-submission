@@ -73,7 +73,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [ ] **"Mm-hm" while the student talks.** ElevenLabs has no setting for it. Play a short clip ourselves during long student turns.
 - [ ] **Figma.** Put the v3 screens in a Figma file for the Figma prize. The existing file has older screens.
 - [ ] **A second topic.** Key ideas and a test run for "Photosynthesis".
-- [x] **Nolan.** Built as its own product in `nolan/` on Ali's say-so (D33). Run end to end with typed turns. *A human must check:* one spoken interview, with a microphone. See `nolan/README.md`.
+- [x] **Nolan.** Built as its own product in `nolan/` on Ali's say-so (D33). Run end to end, including one spoken interview with generated speech through a simulated microphone. *A human must check:* talking to Nolan through a real microphone, and an interview link opened on a phone over https. See `nolan/README.md`.
 
 ## Not doing
 

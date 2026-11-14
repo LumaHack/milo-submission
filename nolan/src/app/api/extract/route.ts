@@ -6,8 +6,11 @@
 import { askClaude } from "@/lib/brain";
 import { ExtractRequestSchema, ExtractResultSchema, type ExtractResult } from "@/lib/nolan";
 import { EXTRACT_PROMPT, asJson } from "@/lib/prompts";
+import { witnessOnly } from "@/lib/server-store";
 
 export async function POST(request: Request) {
+  const refused = witnessOnly(request);
+  if (refused) return refused;
   const body = ExtractRequestSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return Response.json({ error: "The request does not match ExtractRequest.", issues: body.error.issues }, { status: 400 });

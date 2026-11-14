@@ -19,7 +19,7 @@ import {
   type Detail,
   type Witness,
 } from "@/lib/nolan";
-import { deleteCase, newId, openCase, saveCase, updateCase, useCases, useOpenCase } from "@/lib/store";
+import { deleteCase, newId, newToken, openCase, saveCase, updateCase, useCases, useInterviewLink, useOpenCase, useRefused } from "@/lib/store";
 
 const PROTECTS = [
   "Each witness is interviewed alone.",
@@ -31,7 +31,9 @@ const PROTECTS = [
 export function CaseFileScreen() {
   const file = useOpenCase();
   const cases = useCases();
+  const refused = useRefused();
   if (file === undefined || cases === undefined) return null;
+  if (refused) return <NotHere />;
   return file ? <OpenCase file={file} /> : <NewCase cases={cases} />;
 }
 
@@ -52,6 +54,8 @@ function minutes(seconds: number): string {
 function OpenCase({ file }: { file: CaseFile }) {
   const router = useRouter();
   const [where, setWhere] = useState("");
+  const [sent, setSent] = useState<{ id: string; link: string; copied: boolean } | null>(null);
+  const linkFor = useInterviewLink();
   const done = finished(file);
   const underway = file.witnesses.filter((witness) => witness.status === "underway").length;
   const comparison = currentComparison(file);
@@ -62,21 +66,42 @@ function OpenCase({ file }: { file: CaseFile }) {
     event.preventDefault();
     const text = where.trim();
     if (!text || file.witnesses.length >= 6) return;
-    const witness: Witness = { id: newId("w"), where: text, status: "waiting", turns: [], facts: [], seconds: 0 };
+    const witness: Witness = { id: newId("w"), token: newToken(), where: text, status: "waiting", turns: [], facts: [], seconds: 0 };
     updateCase(file.id, (current) => ({ ...current, witnesses: [...current.witnesses, witness] }));
     setWhere("");
   };
 
+  // The interview opens on this device. The flag lets it offer a way back here when it ends.
   const interview = (witness: Witness) => {
-    updateCase(file.id, (current) => ({ ...current, interviewingId: witness.id }));
-    router.push("/interview");
+    try {
+      window.sessionStorage.setItem("nolan.investigator", "1");
+    } catch {
+      // Without it the interview simply ends on its thank-you screen.
+    }
+    router.push(`/interview/${witness.token}`);
+  };
+
+  // The link opens this witness's interview on their own device, and nothing else.
+  const send = async (witness: Witness, position: number) => {
+    const link = linkFor(witness.token);
+    let copied = false;
+    try {
+      if (navigator.share && /Mobi|Android/i.test(navigator.userAgent)) {
+        await navigator.share({ title: "Nolan interview", text: `Your interview link, witness ${position}`, url: link });
+      } else {
+        await navigator.clipboard.writeText(link);
+        copied = true;
+      }
+    } catch {
+      // Sharing was cancelled or the clipboard is blocked. The link is shown so it can be copied by hand.
+    }
+    setSent({ id: witness.id, link, copied });
   };
 
   const remove = (witness: Witness) => {
     updateCase(file.id, (current) => ({
       ...current,
       witnesses: current.witnesses.filter((entry) => entry.id !== witness.id),
-      interviewingId: current.interviewingId === witness.id ? null : current.interviewingId,
     }));
   };
 
@@ -129,9 +154,14 @@ function OpenCase({ file }: { file: CaseFile }) {
                   </button>
                 )}
                 {witness.status === "waiting" && (
-                  <button type="button" className="pill small" onClick={() => interview(witness)}>
-                    Start interview
-                  </button>
+                  <>
+                    <button type="button" className="pill small" onClick={() => void send(witness, i + 1)}>
+                      {sent?.id === witness.id && sent.copied ? "Link copied" : "Send interview link"}
+                    </button>
+                    <button type="button" className="link-button" onClick={() => interview(witness)}>
+                      Interview here
+                    </button>
+                  </>
                 )}
                 {witness.status !== "done" && (
                   <button type="button" className="link-button" onClick={() => remove(witness)} aria-label={`Remove witness ${i + 1}`}>
@@ -139,6 +169,16 @@ function OpenCase({ file }: { file: CaseFile }) {
                   </button>
                 )}
               </div>
+              {sent?.id === witness.id && witness.status === "waiting" && (
+                <p className="tiny" style={{ flexBasis: "100%", wordBreak: "break-all" }}>
+                  {sent.link}
+                  {sent.link.startsWith("http://") && !sent.link.includes("//localhost") && (
+                    <>
+                      <br />This link is not https, so the witness&rsquo;s browser will refuse the microphone. Set NOLAN_PUBLIC_URL to an https address for this machine (see the README), or use Interview here.
+                    </>
+                  )}
+                </p>
+              )}
             </div>
           ))}
           </div>
@@ -159,7 +199,7 @@ function OpenCase({ file }: { file: CaseFile }) {
             </form>
           )}
           <p className="tiny" style={{ paddingTop: 6 }}>
-            Hand this device to one witness at a time. Accounts carry no names.
+            Send each witness their own link, or hand them this device one at a time. A link opens that interview and nothing else. Accounts carry no names.
           </p>
         </section>
 
@@ -198,6 +238,18 @@ function OpenCase({ file }: { file: CaseFile }) {
   );
 }
 
+/** A witness's device that wanders off its interview link lands here. The case file is not served to it. */
+function NotHere() {
+  return (
+    <Page sub="Interviews">
+      <div className="hero">
+        <h1 className="big">This device is for the interview</h1>
+        <p>Open the interview link you were sent. The case file is only shown to the investigator.</p>
+      </div>
+    </Page>
+  );
+}
+
 function NewCase({ cases }: { cases: CaseFile[] }) {
   const [incident, setIncident] = useState("");
   const [busy, setBusy] = useState(false);
@@ -228,7 +280,6 @@ function NewCase({ cases }: { cases: CaseFile[] }) {
         opener: data.opener,
         details: data.details,
         witnesses: [],
-        interviewingId: null,
         comparison: null,
         createdAt: now.getTime(),
       };

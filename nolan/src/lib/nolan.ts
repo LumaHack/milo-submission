@@ -100,11 +100,13 @@ export const CompareResultSchema = z.object({
 export type CompareResult = z.infer<typeof CompareResultSchema>;
 
 // ---------------------------------------------------------------------------
-// What the browser keeps. There is no database: cases live in localStorage.
+// What is kept on file. There is no database: cases live in one JSON file on the server, see server-store.ts.
 // ---------------------------------------------------------------------------
 
 export type Witness = {
   id: string;
+  /** The secret in this witness's interview link. It opens their own interview and nothing else. */
+  token: string;
   /** Where they were, as the investigator noted it. For example: Was across the road. */
   where: string;
   status: "waiting" | "underway" | "done";
@@ -130,10 +132,21 @@ export type CaseFile = {
   opener: string;
   details: Detail[];
   witnesses: Witness[];
-  /** The witness whose interview is open on this device. */
-  interviewingId: string | null;
   comparison: Comparison | null;
   createdAt: number;
+};
+
+/** What an interview link gives the witness's device: the questions and their own account. Never anyone else's. */
+export type Invite = {
+  token: string;
+  caseNumber: string;
+  title: string;
+  opener: string;
+  details: Detail[];
+  /** "witness 3 of 4" */
+  position: number;
+  total: number;
+  witness: Pick<Witness, "where" | "status" | "turns" | "facts" | "seconds">;
 };
 
 /** "Witness 3". Accounts carry no names. */

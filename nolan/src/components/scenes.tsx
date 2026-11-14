@@ -106,7 +106,7 @@ export function SceneGrid({ file, comparison, working }: { file: CaseFile; compa
                 <p className="small">{witness.where}</p>
                 {version && <p className="small" style={{ color: "var(--ink)" }}>{version.caption}</p>}
               </div>
-              {version && <Standing version={version} />}
+              {version && <Standing version={version} disputed={comparison?.rows.some((row) => row.result === "differ") ?? false} />}
             </article>
           );
         })}
@@ -115,7 +115,7 @@ export function SceneGrid({ file, comparison, working }: { file: CaseFile; compa
   );
 }
 
-function Standing({ version }: { version: Comparison["versions"][number] }) {
+function Standing({ version, disputed }: { version: Comparison["versions"][number]; disputed: boolean }) {
   if (version.differsOn.length > 0) {
     return (
       <span className="status differ">
@@ -135,7 +135,7 @@ function Standing({ version }: { version: Comparison["versions"][number] }) {
   return (
     <span className="status">
       <span aria-hidden="true" className="dot" />
-      Nothing disputed
+      {disputed ? "Did not cover what is disputed" : "Nothing disputed"}
     </span>
   );
 }

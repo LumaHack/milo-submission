@@ -8,31 +8,57 @@ import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Dots, Empty, Page } from "@/components/ui";
-import { formatClock, witnessLabel, type CaseFile, type Fact, type Turn, type Witness } from "@/lib/nolan";
+import { Dots, Page } from "@/components/ui";
+import { formatClock, type Detail, type Fact, type Invite, type Turn, type Witness } from "@/lib/nolan";
 import { NOLAN_COVERED_NOTE, nolanCatchUpNote, nolanFirstMessage, nolanVariables } from "@/lib/prompts";
-import { updateCase, updateWitness, useOpenCase } from "@/lib/store";
 
 const BAR_HEIGHTS = [10, 18, 28, 38, 22, 12, 30, 40, 24, 14, 32, 20, 10, 26, 36, 16, 28, 12, 22, 34];
 
-export function InterviewScreen() {
-  const file = useOpenCase();
-  if (file === undefined) return null;
-  const witness = file?.witnesses.find((entry) => entry.id === file.interviewingId);
-  if (!file || !witness) {
-    return <Empty title="No interview is open" text="Start an interview from the case file." />;
+/** Loads the one account an interview link opens. A witness's device never asks for anything else. */
+export function InterviewScreen({ token }: { token: string }) {
+  const [invite, setInvite] = useState<Invite | null>(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/witness/${encodeURIComponent(token)}`, { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as Invite | null;
+        if (cancelled) return;
+        if (!response.ok || !data?.token) setMissing(true);
+        else setInvite(data);
+      } catch {
+        if (!cancelled) setMissing(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (missing) {
+    return (
+      <Page sub="Interviews">
+        <div className="hero">
+          <h1 className="big">This interview link is not on file</h1>
+          <p>Ask the investigator to send you the link again.</p>
+        </div>
+      </Page>
+    );
   }
+  if (!invite) return null;
   return (
     <ConversationProvider>
-      <Interview key={witness.id} file={file} witness={witness} />
+      <Interview key={invite.token} invite={invite} />
     </ConversationProvider>
   );
 }
 
-type Phase = "consent" | "live" | "break";
+type Phase = "consent" | "live" | "break" | "done";
 
-function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
+function Interview({ invite }: { invite: Invite }) {
   const router = useRouter();
+  const { witness } = invite;
   // A witness who has already said something is coming back, so they are not asked for consent twice.
   const [phase, setPhase] = useState<Phase>(witness.turns.length > 0 ? "break" : "consent");
   const [facts, setFacts] = useState<Fact[]>(witness.facts);
@@ -50,17 +76,22 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
   const textMode = useRef(false);
   const typedByUs = useRef<string | null>(null);
 
+  // What this witness has said goes to the case file through their own link. Saves go one after another,
+  // so an older one can never land on top of a newer one.
+  const factsRef = useRef<Fact[]>(witness.facts);
+  const statusRef = useRef<Witness["status"]>(witness.status);
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
   const persist = useCallback(
-    (next: Partial<Witness>) => {
-      updateWitness(file.id, witness.id, (current) => ({
-        ...current,
-        turns: turns.current,
-        seconds: secondsRef.current,
-        status: current.status === "done" ? "done" : turns.current.some((turn) => turn.who === "witness") ? "underway" : current.status,
-        ...next,
-      }));
+    (next: { facts?: Fact[]; status?: Witness["status"] }) => {
+      if (next.facts) factsRef.current = next.facts;
+      if (next.status) statusRef.current = next.status;
+      else if (statusRef.current === "waiting" && turns.current.some((turn) => turn.who === "witness")) statusRef.current = "underway";
+      const body = JSON.stringify({ turns: turns.current, facts: factsRef.current, seconds: secondsRef.current, status: statusRef.current });
+      saving.current = saving.current
+        .then(() => fetch(`/api/witness/${encodeURIComponent(invite.token)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body }))
+        .catch((caught) => console.error("Saving the account:", caught));
     },
-    [file.id, witness.id],
+    [invite.token],
   );
 
   // The notes: one extraction in flight. If the witness says more meanwhile, run once more with everything.
@@ -79,8 +110,8 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
         extractAgain.current = false;
         const response = await fetch("/api/extract", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: file.title, details: file.details, turns: turns.current }),
+          headers: { "Content-Type": "application/json", "x-nolan-witness": invite.token },
+          body: JSON.stringify({ title: invite.title, details: invite.details, turns: turns.current }),
         });
         const data = (await response.json().catch(() => null)) as { facts?: Fact[]; error?: string } | null;
         if (!response.ok || !data?.facts) {
@@ -91,7 +122,7 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
         setError(null);
         setFacts(data.facts);
         persist({ facts: data.facts });
-        if (!coveredSent.current && file.details.every((detail) => data.facts?.some((fact) => fact.detailId === detail.id))) {
+        if (!coveredSent.current && invite.details.every((detail) => data.facts?.some((fact) => fact.detailId === detail.id))) {
           coveredSent.current = true;
           sendNote.current(NOLAN_COVERED_NOTE);
         }
@@ -103,7 +134,7 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
       extracting.current = false;
       setNoting(false);
     }
-  }, [file.title, file.details, persist]);
+  }, [invite.title, invite.details, invite.token, persist]);
 
   const addTurn = useCallback(
     (who: Turn["who"], text: string) => {
@@ -143,7 +174,7 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
     onError: (message) => {
       console.error("Nolan's voice:", message);
       setError(
-        /permission|notallowed/i.test(String(message))
+        /permission|notallowed|getUserMedia|mediaDevices/i.test(String(message))
           ? "Nolan needs the microphone. Allow it in the browser, then press Carry on."
           : "Nolan's voice hit a problem. Press Carry on to try again.",
       );
@@ -189,17 +220,24 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
   const connect = async () => {
     // One attempt at a time, and never after the witness has left the page.
     if (connectingNow.current || !alive.current) return;
+    const text = textMode.current;
+    // Browsers only give a page the microphone on https or on localhost. Say so before anything else fails.
+    if (!text && (!window.isSecureContext || !navigator.mediaDevices)) {
+      setError(
+        "This address cannot use the microphone. Browsers only allow it on an https address or on localhost. Ask the investigator for an https link, or do the interview on their device.",
+      );
+      return;
+    }
     connectingNow.current = true;
     setError(null);
     setPhase("live");
     try {
-      const text = textMode.current;
-      const response = await fetch(`/api/token${text ? "?text=1" : ""}`, { method: "POST" });
+      const response = await fetch(`/api/token${text ? "?text=1" : ""}`, { method: "POST", headers: { "x-nolan-witness": invite.token } });
       const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
       if (!response.ok || !(data.token || data.signedUrl)) throw new Error(data.error ?? "Could not reach Nolan.");
       if (!alive.current) return;
       const resuming = turns.current.length > 0;
-      const dynamicVariables = nolanVariables(file.title, witness.where, file.opener, file.details, resuming);
+      const dynamicVariables = nolanVariables(invite.title, witness.where, invite.opener, invite.details, resuming);
       if (text && data.signedUrl) {
         conversation.startSession({ signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true, dynamicVariables });
       } else if (data.token) {
@@ -214,21 +252,17 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
   };
 
   // When the witness comes back from a break, tell Nolan where they were, so he does not start over.
-  const factsRef = useRef(facts);
-  useEffect(() => {
-    factsRef.current = facts;
-  }, [facts]);
   useEffect(() => {
     if (!connected || !turns.current.some((turn) => turn.who === "witness")) return;
-    const covered = file.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
-    const open = file.details.filter((detail) => !covered.includes(detail));
+    const covered = invite.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
+    const open = invite.details.filter((detail) => !covered.includes(detail));
     sendContextualUpdate(
       nolanCatchUpNote(
         covered.map((detail) => detail.label),
         open.map((detail) => detail.label),
       ),
     );
-  }, [connected, sendContextualUpdate, file.details]);
+  }, [connected, sendContextualUpdate, invite.details]);
 
   const takeBreak = () => {
     endSession();
@@ -236,11 +270,29 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
     setPhase("break");
   };
 
+  // Only the investigator's own device is offered a way back to the case file.
+  const [investigator, setInvestigator] = useState(false);
+  useEffect(() => {
+    try {
+      // Read after the first paint, because the server cannot know this.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInvestigator(window.sessionStorage.getItem("nolan.investigator") === "1");
+    } catch {
+      // Storage is blocked. The interview then ends on its thank-you screen.
+    }
+  }, []);
+
   const end = () => {
     endSession();
     const said = turns.current.some((turn) => turn.who === "witness");
     persist({ status: said ? "done" : "waiting" });
-    updateCase(file.id, (current) => ({ ...current, interviewingId: null }));
+    if (said) setPhase("done");
+    else if (investigator) router.push("/");
+    else setPhase("consent");
+  };
+  const backToCase = async () => {
+    // Let the last save land first, so the case file opens with this account on it.
+    await saving.current;
     router.push("/");
   };
 
@@ -309,16 +361,16 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
     else status = { text: "Listening", dot: "ok pulse", busy: false, ring: "var(--ok)" };
   }
 
-  const position = file.witnesses.findIndex((entry) => entry.id === witness.id) + 1;
-  const question = phase === "consent" ? "Before we start" : (spoken ?? nolanFirstMessage(file.opener));
+  const question =
+    phase === "consent" ? "Before we start" : phase === "done" ? "Thank you. Your account is on file." : (spoken ?? nolanFirstMessage(invite.opener));
 
   return (
     <Page
-      sub={`Case ${file.number}, witness ${position} of ${file.witnesses.length}`}
+      sub={`Case ${invite.caseNumber}, witness ${invite.position} of ${invite.total}`}
       footer="Voice by ElevenLabs. Notes by Claude."
       actions={
         <>
-          {phase !== "consent" && (
+          {(phase === "live" || phase === "break") && (
             <span className="status" style={{ minHeight: 44, padding: "0 16px", color: "var(--muted)" }}>
               <span aria-hidden="true" className="dot miss" />
               Transcribed with your consent
@@ -334,9 +386,16 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
               Carry on
             </button>
           )}
-          <button type="button" className="pill dark" onClick={end}>
-            {phase === "consent" ? "Back to the case file" : "End interview"}
-          </button>
+          {(phase === "live" || phase === "break") && (
+            <button type="button" className="pill dark" onClick={end}>
+              End interview
+            </button>
+          )}
+          {investigator && (phase === "consent" || phase === "done") && (
+            <button type="button" className="pill dark" onClick={() => void backToCase()}>
+              Back to the case file
+            </button>
+          )}
         </>
       }
     >
@@ -378,6 +437,10 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
                 I agree, start the interview
               </button>
             </>
+          ) : phase === "done" ? (
+            <p className="body" style={{ color: "var(--muted)", maxWidth: 520 }}>
+              The investigator will read what you said. {investigator ? "Please hand this device back." : "You can close this page now."}
+            </p>
           ) : (
             <>
               <p className="body" style={{ color: "var(--muted)" }}>
@@ -404,7 +467,7 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
         <section aria-label="Notes" className="side-col">
           <div className="card stack" style={{ flex: 1, padding: 24, gap: 16 }}>
             <h2 className="h3">What Nolan has written down</h2>
-            <Notes file={file} facts={facts} />
+            <Notes details={invite.details} facts={facts} />
             <p className="meta">Say “that is wrong” and Nolan crosses the note out.</p>
           </div>
           <div className="card" style={{ padding: "20px 24px" }}>
@@ -414,20 +477,17 @@ function Interview({ file, witness }: { file: CaseFile; witness: Witness }) {
           </div>
         </section>
       </main>
-      <span className="tiny no-print" style={{ display: "none" }}>
-        {witnessLabel(file, witness.id)}
-      </span>
     </Page>
   );
 }
 
 /** Nolan's notes in his own hand: what the witness said, what they took back, and where they were not sure. */
-export function Notes({ file, facts }: { file: CaseFile; facts: Fact[] }) {
+export function Notes({ details, facts }: { details: Detail[]; facts: Fact[] }) {
   return (
     <div className="notes" aria-live="polite">
       {facts.length === 0 && <span className="empty">Nothing written yet</span>}
       {facts.map((fact) => {
-        const detail = file.details.find((entry) => entry.id === fact.detailId);
+        const detail = details.find((entry) => entry.id === fact.detailId);
         return (
           <span key={`${fact.detailId}-${fact.value}`} className="stack" style={{ gap: 2 }}>
             <span className="line">

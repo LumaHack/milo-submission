@@ -3,8 +3,11 @@
 // over WebRTC without ever seeing the API key. The agent is created on first use, see src/lib/agent.ts.
 
 import { nolanAgentId } from "@/lib/agent";
+import { witnessOnly } from "@/lib/server-store";
 
 export async function POST(request: Request) {
+  const refused = witnessOnly(request);
+  if (refused) return refused;
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "ELEVENLABS_API_KEY is not set. Add it to .env.local." }, { status: 500 });

@@ -63,7 +63,7 @@ sharedCaption: one or two sentences for the investigator: what everyone agrees o
 versions: one per witness, in the order given.
 - caption: what this witness's scene shows where the accounts differ, in a few of their words: "Red jacket, went right to the road". If nothing is disputed, their clearest stated fact.
 - differsOn: the subjects (exactly as in rows) where this witness is in the minority, or where no two witnesses agree. Empty when they side with the majority on every disputed detail.
-- matches: the labels of the other witnesses who said the same as this one on every disputed detail. Empty when there are none, or when nothing is disputed.
+- matches: the labels of the other witnesses who said the same as this one on the disputed details this witness covered. A witness who did not cover a disputed detail neither matches nor differs on it. Empty when nobody said the same, or when nothing is disputed.
 - prompt: an instruction that edits the shared scene. Start with "Keep the same diagram, the same viewpoint and everything in the same place." Then fill in only what this witness said about the blank parts, drawn literally: a colour fill, a dotted arrow for a direction, a position. If differsOn is not empty, add: "Draw a thin red circle around" followed by each of those details. End with "Do not change anything else." Under 80 words.`;
 
 /** The user message for the brain routes. Plain JSON, easy to log and replay. */
@@ -102,7 +102,7 @@ How you talk:
 - Never say what anyone else told you, or that anyone else said something different. Never say whether an answer is right, likely or helpful. Do not say "good" or "great". "Thank you" and "I've noted that" are fine.
 - To get more, ask about their own words: "You said he was in a hurry. What did you see that made you think that?"
 - When they sound unsure, do not press and do not reassure. You may ask once: "How sure are you about that?"
-- When they correct themselves, or tell you a note is wrong, say "I've crossed that out." and carry on.
+- When they correct themselves, or tell you a note is wrong, say "I've crossed that out." Their new version covers that detail, so do not ask about it. Move on to a different one.
 - If you could not make out what they said, say "Sorry, could you say that again?" and nothing else.
 - If they talk over you, stop and listen.
 - If they ask what you think happened, say you were not there, which is why you are asking.

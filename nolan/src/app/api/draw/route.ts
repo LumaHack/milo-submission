@@ -6,6 +6,7 @@
 
 import { fal } from "@fal-ai/client";
 import { z } from "zod";
+import { investigatorOnly } from "@/lib/server-store";
 
 // The same two models Milo measured on Sat 14 Nov: about 5 s for a new image, 7 to 9 s for an edit.
 const NEW_IMAGE = "google/nano-banana-2-lite";
@@ -14,6 +15,8 @@ const EDIT_IMAGE = "google/nano-banana-2-lite/edit";
 const BodySchema = z.object({ prompt: z.string().min(1).max(2000), previousImageUrl: z.url().nullable() });
 
 export async function POST(request: Request) {
+  const refused = investigatorOnly(request);
+  if (refused) return refused;
   if (!process.env.FAL_KEY) {
     return Response.json({ error: "FAL_KEY is not set. Add it to .env.local." }, { status: 500 });
   }
