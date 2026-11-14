@@ -122,7 +122,7 @@ Other topics shown on the Start screen, not built: How the heart pumps blood, Ho
 |---|---|---|---|---|
 | 1 | Crayon | No key idea is clear | Very messy childish crayon, question marks | 4 |
 | 2 | Sketching | Ideas are there but vague, or only one is clear | Rough crayon outline, question marks where vague | 7 |
-| 3 | Clearer | At least half the key ideas are clear, none wrong | Neater coloured pencil, handwritten labels with arrows | 11 |
+| 3 | Clearer | At least two key ideas are clear, none wrong | Neater coloured pencil, handwritten labels with arrows | 11 |
 | 4 | Mastered | Every key idea is clear | Clean revision sheet, title, label boxes | 18 |
 
 A wrong idea is drawn the way the student said it, and becomes the biggest gap.

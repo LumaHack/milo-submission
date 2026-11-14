@@ -73,7 +73,7 @@ ideas: one entry per key idea, in the order given, judged across everything said
 level: the crayon level for the explanation so far.
 - 1, Crayon: no key idea is clear.
 - 2, Sketching: ideas are there but vague, or only one is clear.
-- 3, Clearer: at least half the key ideas are clear and none is wrong.
+- 3, Clearer: at least two key ideas are clear and none is wrong.
 - 4, Mastered: every key idea is clear.
 
 biggestGapId: the id of the most important key idea that is missing, vague or wrong. Prefer a wrong idea over a vague one, and a vague one over a missing one, because it is closest to what the student is already thinking about. Null when every idea is clear.
@@ -92,6 +92,7 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels. At most six labels, each a few words long.
 - Say what to remove: question marks that have been answered, labels that have been replaced.
 - Name colours and positions, the way the examples do. Keep it under 110 words.
+- End every instruction with: "Do not add any other parts, shapes or words." Image models like to fill a cell with extra parts, and an extra part gives the answer away.
 - No real people, logos or flags.
 
 These four instructions were tested and drew well. Match their style and length.

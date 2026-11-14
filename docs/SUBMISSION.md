@@ -76,8 +76,12 @@ Fill in from your own runs.
 |---|---|
 | Runs that worked out of 10 | |
 | End of speech to Milo's reply | |
-| End of speech to new board, levels 1 to 3 | (our earlier test: fal alone 5 to 9 s) |
-| End of speech to final sheet | (our earlier test: fal alone 22 s) |
+| Claude scoring one turn (`claude-opus-5-5`, low effort) | 3.9 to 7.9 s, five calls on Sat 14 Nov |
+| fal, first board | 3.9 s, one run |
+| fal, edit at levels 2 and 3 | 7.2 and 8.0 s |
+| fal, final sheet (careful model) | 19.6 s, one run |
+| End of speech to new board, levels 1 to 3 | not measured with voice. Typed: about 11 to 14 s (Claude plus fal) |
+| End of speech to final sheet | not measured with voice. Typed: about 28 s |
 | Cost of one session | |
 
 ## Likely questions

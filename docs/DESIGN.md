@@ -102,6 +102,17 @@ The grey panel holds two columns.
 
 Footer: one small muted credits line.
 
+**Milo is alive.** Decided Sat 14 Nov: the left column should feel like a live agent, not a photo with a caption. So in this column several small things may move at once, as long as the board stays the only big mover on the right.
+
+- Milo's picture never sits still. He breathes when idle, sways while listening, tilts and bobs while thinking or drawing.
+- His picture and the waveform move with the real voice level: the microphone while he listens, his own voice while he talks.
+- A ring inside his picture thickens with the voice. Green (the ok colour) while he listens, black while he talks.
+- When he levels up he shrinks back, overshoots and lands, with a short white flash, and the age badge pops.
+- His line arrives word by word.
+- "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
+- Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
+- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo" and the first tap starts it. The mic button only mutes. The mic bar stays pinned to the bottom of the column.
+
 **Status badge states**
 
 | State | Dot | Text |
