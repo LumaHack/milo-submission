@@ -1,0 +1,8 @@
+/* Styles only Milo v2 uses. Ali's tokens and animations in src/app/globals.css stay unchanged. */
+
+/* A gap the student has not started yet, hidden in exam mode or on request. The text under the blur is
+   scrambled (see session-view-v2.tsx), so nothing can be read even when zoomed in. */
+.v2-hidden-label {
+  filter: blur(5px);
+  user-select: none;
+}

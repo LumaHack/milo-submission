@@ -6,7 +6,8 @@
 // and the board redraws in the background.
 // Safety net: if Milo has not called update_board a few seconds after the student stopped, the page
 // scores the turn itself, so the board always redraws, and passes Milo his line as a note.
-// For now it reuses Ali's session screen unchanged. Phase 3 gives v2 its own screen.
+// Pause hangs up the voice and keeps everything else. The session is saved after every turn.
+// Two looks run on the same engine: the new screen, and Ali's classic one.
 
 import { ConversationProvider, useConversation, useConversationClientTool } from "@elevenlabs/react";
 import Link from "next/link";
@@ -18,8 +19,11 @@ import type { MiloStatus } from "@/lib/turn";
 import { UPDATE_BOARD } from "@/lib/v2/agent";
 import type { Mode } from "@/lib/v2/contract";
 import { cleanMiloLine } from "@/lib/v2/prompts";
+import { clearSession, loadLook, saveLook, type Look, type SavedSession } from "@/lib/v2/storage";
 import { getV2Topic, type V2Topic } from "@/lib/v2/topics";
 import { useMiloV2 } from "@/lib/v2/use-milo-v2";
+
+import { SessionViewV2, type ViewStatus } from "./session-view-v2";
 
 /** How long after the student stops the page waits for Milo to call update_board before drawing itself. */
 const SAFETY_NET_MS = 6000;
@@ -27,7 +31,16 @@ const SAFETY_NET_MS = 6000;
 /** "on" is the real thing. "text" is a typed chat with Milo, "off" has no Milo at all: both are for testing. */
 export type VoiceMode = "on" | "text" | "off";
 
-export function LiveSessionV2({ topicId, mode, voice = "on" }: { topicId: string; mode: Mode; voice?: VoiceMode }) {
+type Props = {
+  topicId: string;
+  mode: Mode;
+  voice?: VoiceMode;
+  /** A saved session to pick up from. */
+  initial?: SavedSession | null;
+  onRestart?: () => void;
+};
+
+export function LiveSessionV2({ topicId, mode, voice = "on", initial = null, onRestart = () => {} }: Props) {
   const topic = getV2Topic(topicId);
   if (!topic || !topic.ready) {
     return (
@@ -43,18 +56,31 @@ export function LiveSessionV2({ topicId, mode, voice = "on" }: { topicId: string
   }
   return (
     <ConversationProvider>
-      <Live topic={topic} mode={mode} voice={voice} />
+      <Live topic={topic} mode={mode} voice={voice} initial={initial} onRestart={onRestart} />
     </ConversationProvider>
   );
 }
 
-function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: VoiceMode }) {
-  const session = useMiloV2(topic, mode);
+function Live({
+  topic,
+  mode,
+  voice,
+  initial,
+  onRestart,
+}: {
+  topic: V2Topic;
+  mode: Mode;
+  voice: VoiceMode;
+  initial: SavedSession | null;
+  onRestart: () => void;
+}) {
+  const session = useMiloV2(topic, mode, initial);
   const { addTranscript, scoreNow, hasUnscored, takeLine, peekLine } = session;
   const [spoken, setSpoken] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [seconds, setSeconds] = useState(0);
+  const [seconds, setSeconds] = useState(initial?.elapsed ?? 0);
+  const [paused, setPaused] = useState(false);
+  const [look, setLook] = useState<Look>(() => loadLook());
 
   // Whether Milo has called update_board since the student's last turn.
   const toolCalled = useRef(true);
@@ -124,29 +150,31 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
     };
   }, [connected, sendContextualUpdate]);
 
-  // Hang up when the student leaves the page.
-  const endRef = useRef(endSession);
+  // Save and hang up when the student leaves the page.
+  const leaveRef = useRef(() => {});
   useEffect(() => {
-    endRef.current = endSession;
-  }, [endSession]);
+    leaveRef.current = () => {
+      session.persist();
+      endSession();
+    };
+  });
   useEffect(
     () => () => {
       if (safetyNet.current) clearTimeout(safetyNet.current);
-      endRef.current();
+      leaveRef.current();
     },
     [],
   );
 
+  // The clock counts session time only, so it stops during a pause.
+  const elapsedRef = useRef(session.elapsed);
   useEffect(() => {
-    if (startedAt === null) return;
-    const timer = setInterval(() => setSeconds((Date.now() - startedAt) / 1000), 1000);
+    elapsedRef.current = session.elapsed;
+  });
+  useEffect(() => {
+    const timer = setInterval(() => setSeconds(elapsedRef.current()), 1000);
     return () => clearInterval(timer);
-  }, [startedAt]);
-
-  const begin = () => {
-    session.start();
-    setStartedAt((value) => value ?? Date.now());
-  };
+  }, []);
 
   // Development only, from the browser console:
   //   window.miloSay("...")   says something to Milo. In a typed chat (?voice=text) it goes to the agent;
@@ -160,7 +188,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
   useEffect(() => {
     devRef.current = {
       say: (text) => {
-        begin();
+        session.start();
         if (connected) {
           sendUserMessage(text);
           return;
@@ -169,7 +197,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
         void scoreNow().then(() => setSpoken(takeLine()));
       },
       hear: (text) => {
-        begin();
+        session.start();
         heard(text);
       },
     };
@@ -185,6 +213,14 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
     };
   }, []);
 
+  /** Milo's first line: a fresh start, or welcome back with the last thing the student said. */
+  const openingLine = () => {
+    const last = session.frames.at(-1)?.said;
+    if (last) return `Welcome back! Last time you told me: ${last} What comes next?`;
+    if (session.lastHeard) return "Welcome back! Keep going, I'm listening.";
+    return topic.firstMessage;
+  };
+
   const connect = async () => {
     setVoiceError(null);
     try {
@@ -199,9 +235,9 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
       if (!response.ok || !(typed ? data.signedUrl : data.token)) {
         throw new Error(data.error ?? "Could not get a voice token.");
       }
-      begin();
+      session.start();
       const shared = {
-        dynamicVariables: { opening_line: topic.firstMessage, topic_about: topic.about },
+        dynamicVariables: { opening_line: openingLine(), topic_about: topic.about },
         // Expressive tags such as "[curious]" never reach the screen.
         stripAudioTags: true,
       };
@@ -230,11 +266,36 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
     }
   }, [voice]);
   useEffect(() => {
-    if (voice === "off" || !idle) return;
+    if (voice === "off" || !idle || paused) return;
     const wake = () => void connectRef.current();
     window.addEventListener("pointerdown", wake, { once: true });
     return () => window.removeEventListener("pointerdown", wake);
-  }, [voice, idle]);
+  }, [voice, idle, paused]);
+
+  const pause = () => {
+    clearSafetyNet();
+    setPaused(true);
+    session.pauseClock();
+    session.persist();
+    endSession();
+  };
+  const resume = () => {
+    setPaused(false);
+    setVoiceError(null);
+    if (voice === "off") session.start();
+    else void connectRef.current();
+  };
+  const restart = () => {
+    clearSafetyNet();
+    session.discard();
+    endSession();
+    clearSession(topic.id, mode);
+    onRestart();
+  };
+  const switchLook = (next: Look) => {
+    setLook(next);
+    saveLook(next);
+  };
 
   const onMic = () => {
     if (connected) conversation.setMuted(!conversation.isMuted);
@@ -247,6 +308,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
   else if (session.drawing) status = "drawing";
   else if (session.thinking) status = "thinking";
   else if (micOn) status = "listening";
+  const viewStatus: ViewStatus = paused ? "paused" : status;
 
   const micLabel = !connected
     ? "Milo is not connected yet"
@@ -270,26 +332,67 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: Voice
     () => (isSpeaking ? getOutputVolume() : getInputVolume()),
     [isSpeaking, getInputVolume, getOutputVolume],
   );
+  const voiceLevel = connected && voice === "on" ? getVoiceLevel : undefined;
+  const error = voiceError ?? session.error;
+  const onEnd = () => {
+    session.persist();
+    endSession();
+  };
 
-  const about = `${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}`;
+  if (look === "classic") {
+    const about = `${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}`;
+    return (
+      <>
+        <SessionView
+          topicTitle={topic.title}
+          subjectLine={`${topic.subject}, ${about}, ${mode === "exam" ? "exam mode" : "coach mode"}`}
+          frames={session.frames}
+          live={{ level: session.live.level, hint: session.live.miloLine, gaps: session.gaps, ideas: session.live.ideas }}
+          spokenLine={spoken ?? session.live.miloLine}
+          status={status}
+          drawing={session.drawing}
+          error={error}
+          seconds={seconds}
+          steps={session.steps}
+          micOn={micOn}
+          micLabel={micLabel}
+          micHint={paused ? "Paused" : micHint}
+          onMic={onMic}
+          getVoiceLevel={voiceLevel}
+          onEnd={onEnd}
+        />
+        <button type="button" className={`${pill.dark} fixed right-6 bottom-6 z-50`} onClick={() => switchLook("new")}>
+          New look
+        </button>
+      </>
+    );
+  }
+
   return (
-    <SessionView
-      topicTitle={topic.title}
-      subjectLine={`${topic.subject}, ${about}, ${mode === "exam" ? "exam mode" : "coach mode"}`}
+    <SessionViewV2
+      topic={topic}
+      mode={mode}
       frames={session.frames}
-      live={{ level: session.live.level, hint: session.live.miloLine, gaps: session.gaps, ideas: session.live.ideas }}
-      spokenLine={spoken ?? session.live.miloLine}
-      status={status}
+      live={session.live}
+      spokenLine={spoken}
+      lastHeard={session.lastHeard}
+      status={viewStatus}
       drawing={session.drawing}
-      error={voiceError ?? session.error}
+      error={error}
       seconds={seconds}
       steps={session.steps}
+      hintsUsed={session.hintsUsed}
       micOn={micOn}
       micLabel={micLabel}
       micHint={micHint}
+      paused={paused}
       onMic={onMic}
-      getVoiceLevel={connected && voice === "on" ? getVoiceLevel : undefined}
-      onEnd={() => endSession()}
+      onPause={pause}
+      onResume={resume}
+      onRestart={restart}
+      onClassic={() => switchLook("classic")}
+      onEnd={onEnd}
+      getVoiceLevel={voiceLevel}
     />
   );
 }

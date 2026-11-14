@@ -5,6 +5,7 @@
 // - scoreNow has Claude score everything said so far and returns Milo's next line at once.
 //   The voice agent's update_board tool calls it, so Milo's line always matches the board.
 // - The board redraws in the background: one redraw in flight, the newest result waiting behind it.
+// - The session saves itself after every turn, so the student can pause and pick up later.
 
 import { useMemo, useRef, useState } from "react";
 
@@ -13,6 +14,7 @@ import type { DrawResult, Frame, IdeaStatus } from "@/lib/turn";
 import type { Step } from "@/lib/use-milo-session";
 
 import type { HintStep, Mode, V2TurnRequest, V2TurnResult } from "./contract";
+import { saveSession, type SavedSession } from "./storage";
 import type { V2Topic } from "./topics";
 
 const MAX_STEPS = 3;
@@ -30,6 +32,9 @@ export function isFiller(text: string): boolean {
 
 type ScoredTurn = V2TurnResult & { seconds: number };
 
+/** A history frame, plus what the timeline needs to label it. */
+export type V2Frame = Frame & { hintStep: HintStep; clear: number };
+
 export type V2Live = {
   level: Level | null;
   /** Status of each key idea, in topic order. Null until the first turn is scored. */
@@ -37,6 +42,15 @@ export type V2Live = {
   gapId: string | null;
   hintStep: HintStep;
   miloLine: string | null;
+};
+
+/** What Claude needs to know about the session so far. */
+export type Memory = {
+  level: Level | null;
+  ideas: V2TurnResult["ideas"] | null;
+  gapId: string | null;
+  hintStep: HintStep;
+  lines: string[];
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -64,34 +78,39 @@ function shorten(text: string, max: number): string {
   return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
 }
 
-export function useMiloV2(topic: V2Topic, mode: Mode) {
-  const [frames, setFrames] = useState<Frame[]>([]);
-  const [live, setLive] = useState<V2Live>({ level: null, ideas: null, gapId: null, hintStep: 0, miloLine: null });
+const EMPTY_LIVE: V2Live = { level: null, ideas: null, gapId: null, hintStep: 0, miloLine: null };
+const EMPTY_MEMORY: Memory = { level: null, ideas: null, gapId: null, hintStep: 0, lines: [] };
+
+/** initial resumes a saved session. It is read once, when the session starts. */
+export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | null = null) {
+  const [frames, setFrames] = useState<V2Frame[]>(initial?.frames ?? []);
+  const [live, setLiveState] = useState<V2Live>(initial?.live ?? EMPTY_LIVE);
   const [thinking, setThinking] = useState(false);
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
+  const [lastHeard, setLastHeard] = useState<string | null>(initial?.turns.at(-1) ?? null);
+  const [hintsUsed, setHintsUsed] = useState(initial?.hintsUsed ?? 0);
 
-  const turns = useRef<string[]>([]);
-  const scored = useRef(0);
+  const turns = useRef<string[]>(initial?.turns ?? []);
+  const scored = useRef(initial?.scored ?? 0);
   const scoring = useRef<Promise<string | null> | null>(null);
   // Milo's newest line, until it is handed to him or the student speaks again.
   const unspoken = useRef<string | null>(null);
   // A turn the agent passed to update_board before its transcript arrived, and when.
   const fromTool = useRef<number | null>(null);
-  const memory = useRef<{
-    level: Level | null;
-    ideas: V2TurnResult["ideas"] | null;
-    gapId: string | null;
-    hintStep: HintStep;
-    lines: string[];
-  }>({ level: null, ideas: null, gapId: null, hintStep: 0, lines: [] });
-  const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
+  const memory = useRef<Memory>(initial?.memory ?? EMPTY_MEMORY);
+  const board = useRef<{ url: string | null; prompt: string | null }>(initial?.board ?? { url: null, prompt: null });
   const inFlight = useRef<ScoredTurn | null>(null);
   const waiting = useRef<ScoredTurn | null>(null);
-  const framesRef = useRef<Frame[]>([]);
-  const startedAt = useRef<number | null>(null);
+  const framesRef = useRef<V2Frame[]>(initial?.frames ?? []);
+  const liveRef = useRef<V2Live>(initial?.live ?? EMPTY_LIVE);
+  const hints = useRef(initial?.hintsUsed ?? 0);
+  // Session time, pauses not counted: seconds banked so far, plus the running stretch.
+  const clock = useRef<{ base: number; since: number | null }>({ base: initial?.elapsed ?? 0, since: null });
   const nextStepId = useRef(1);
+  // Set by "Start again": this session must never be saved again, even by a redraw still finishing.
+  const discarded = useRef(false);
 
   const beginStep = (label: string, detail?: string): number => {
     const id = nextStepId.current++;
@@ -110,10 +129,43 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
     setSteps((list) => [...list, { id, label, detail, state: "done" as const, startedAt: Date.now() }].slice(-MAX_STEPS));
   };
 
+  const elapsed = () => clock.current.base + (clock.current.since ? (Date.now() - clock.current.since) / 1000 : 0);
+  /** Starts or restarts the session clock. */
   const start = () => {
-    if (startedAt.current === null) startedAt.current = Date.now();
+    if (clock.current.since === null) clock.current.since = Date.now();
   };
-  const elapsed = () => (startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0);
+  /** Stops the session clock, for a pause. */
+  const pauseClock = () => {
+    clock.current = { base: elapsed(), since: null };
+  };
+
+  const setLive = (next: V2Live) => {
+    liveRef.current = next;
+    setLiveState(next);
+  };
+
+  /** Saves the session to the browser, so it can be picked up later. */
+  const persist = () => {
+    if (discarded.current || turns.current.length === 0) return;
+    saveSession({
+      version: 1,
+      topicId: topic.id,
+      mode,
+      savedAt: Date.now(),
+      elapsed: elapsed(),
+      turns: turns.current,
+      scored: scored.current,
+      memory: memory.current,
+      board: board.current,
+      frames: framesRef.current,
+      live: liveRef.current,
+      hintsUsed: hints.current,
+    });
+  };
+  /** Stops this session from ever being saved again, for "Start again". */
+  const discard = () => {
+    discarded.current = true;
+  };
 
   /** Gap labels still open after a result, biggest first. */
   const gapsAfter = (result: Pick<V2TurnResult, "ideas" | "biggestGapId">): string[] => {
@@ -138,7 +190,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
       await preload(drawn.imageUrl);
       endStep(id, { label: "Board redrawn" });
       board.current = { url: drawn.imageUrl, prompt: result.drawPrompt };
-      const frame: Frame = {
+      const frame: V2Frame = {
         turn: framesRef.current.length + 1,
         level: result.level,
         said: result.said,
@@ -146,9 +198,12 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
         at: elapsed(),
         hint: result.miloLine,
         gaps: gapsAfter(result),
+        hintStep: result.hintStep,
+        clear: result.ideas.filter((idea) => idea.status === "clear").length,
       };
       framesRef.current = [...framesRef.current, frame];
       setFrames(framesRef.current);
+      persist();
     } catch {
       endStep(id, { state: "error", detail: "Did not finish" });
       setError("The drawing did not come back. Keep talking, Milo will try again.");
@@ -178,6 +233,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
     fromTool.current = null;
     // A new turn makes any line Milo has not said yet out of date.
     if (!recentToolTurn) unspoken.current = null;
+    setLastHeard(said);
     logStep("Heard you", `“${shorten(said, 64)}”`);
     return true;
   };
@@ -206,6 +262,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
       start();
       turns.current = [...turns.current, said];
       fromTool.current = Date.now();
+      setLastHeard(said);
       logStep("Heard you", `“${shorten(said, 64)}”`);
     }
     if (!hasUnscored()) return null;
@@ -239,6 +296,10 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
           hintStep: result.hintStep,
           lines: [...before.lines, result.miloLine].slice(-6),
         };
+        if (result.hintStep > 0) {
+          hints.current += 1;
+          setHintsUsed(hints.current);
+        }
         const statuses = topic.keyIdeas.map(
           (idea) => result.ideas.find((entry) => entry.id === idea.id)?.status ?? "missing",
         );
@@ -254,6 +315,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
           hintStep: result.hintStep,
           miloLine: result.miloLine,
         });
+        persist();
         if (result.changed) queueDraw(result);
         else logStep("Nothing new to draw", "The board stays as it is");
         unspoken.current = result.miloLine;
@@ -293,7 +355,13 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
     drawing,
     error,
     steps,
+    lastHeard,
+    hintsUsed,
     start,
+    pauseClock,
+    elapsed,
+    persist,
+    discard,
     addTranscript,
     scoreNow,
     hasUnscored,
