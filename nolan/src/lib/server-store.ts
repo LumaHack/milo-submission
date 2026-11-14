@@ -11,27 +11,32 @@ import type { CaseFile, Fact, Turn, Witness } from "./nolan";
 const FILE = path.join(process.cwd(), ".data", "cases.json");
 const MAX_CASES = 24;
 
+/** Only used when the disk cannot be written, such as on a serverless host. */
 let memory: CaseFile[] | null = null;
 
+// The file is read on every call. It is small, and it means a second copy of the server (a tunnel test,
+// a restart) always sees what the first one wrote.
 function load(): CaseFile[] {
   if (memory) return memory;
   try {
     const stored = JSON.parse(fs.readFileSync(FILE, "utf8")) as unknown;
-    memory = Array.isArray(stored) ? (stored as CaseFile[]) : [];
+    return Array.isArray(stored) ? (stored as CaseFile[]) : [];
   } catch {
-    memory = [];
+    return [];
   }
-  return memory;
 }
 
 function save(cases: CaseFile[]) {
-  memory = cases;
   try {
     fs.mkdirSync(path.dirname(FILE), { recursive: true });
-    fs.writeFileSync(FILE, JSON.stringify(cases));
+    // Written beside the file and then renamed, so a reader never sees half a file.
+    fs.writeFileSync(`${FILE}.tmp`, JSON.stringify(cases));
+    fs.renameSync(`${FILE}.tmp`, FILE);
+    memory = null;
   } catch (error) {
-    // A read-only disk, such as a serverless host. The cases then last as long as this process does.
+    // A read-only disk. The cases then last as long as this process does.
     console.error("Nolan could not write its case file:", error);
+    memory = cases;
   }
 }
 
@@ -108,17 +113,19 @@ export function investigatorOnly(request: Request): Response | null {
 }
 
 /**
- * The address an interview link starts with. NOLAN_PUBLIC_URL when set (an https address, so a phone
- * can use its microphone), otherwise this machine's address on the local network.
+ * The address an interview link starts with. NOLAN_PUBLIC_URL when set, otherwise this machine's address
+ * on the local network: over https when Nolan was started with `pnpm dev:https`, over http otherwise.
  */
 export function linkBase(request: Request): string {
   const fixed = process.env.NOLAN_PUBLIC_URL?.trim().replace(/\/$/, "");
   if (fixed) return fixed;
+  // `pnpm dev:https` serves this machine's network address over https, so a phone can use its microphone.
+  const scheme = process.env.NOLAN_HTTPS === "1" ? "https" : "http";
   const port = (request.headers.get("host") ?? "").split(":").pop();
   const lan = Object.values(os.networkInterfaces())
     .flat()
     .find((entry) => entry && entry.family === "IPv4" && !entry.internal)?.address;
-  return `http://${lan ?? "localhost"}${port && /^\d+$/.test(port) ? `:${port}` : ""}`;
+  return `${scheme}://${lan ?? "localhost"}${port && /^\d+$/.test(port) ? `:${port}` : ""}`;
 }
 
 /**

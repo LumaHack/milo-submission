@@ -16,3 +16,6 @@ next-env.d.ts
 
 # output of the spoken test
 scripts/voice-test/out/
+
+# the self-signed certificate made by pnpm dev:https, for this machine only
+.cert/

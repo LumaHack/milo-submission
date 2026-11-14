@@ -174,7 +174,7 @@ function OpenCase({ file }: { file: CaseFile }) {
                   {sent.link}
                   {sent.link.startsWith("http://") && !sent.link.includes("//localhost") && (
                     <>
-                      <br />This link is not https, so the witness&rsquo;s browser will refuse the microphone. Set NOLAN_PUBLIC_URL to an https address for this machine (see the README), or use Interview here.
+                      <br />This link is not https, so the witness&rsquo;s browser will refuse the microphone. Start Nolan with pnpm dev:https to send links that can (see the README), or use Interview here.
                     </>
                   )}
                 </p>

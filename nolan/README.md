@@ -67,13 +67,13 @@ Every key stays on the server. The browser gets a short-lived ElevenLabs token a
 - The link holds a long random token. It opens that one account: the questions and that witness's own notes. It cannot reach another witness, the comparison or a scene.
 - The case file, the comparison, the scenes and the drawing route are only served to the machine Nolan runs on (requests to `localhost`). Any other address gets "This is for the investigator". This is a demo-grade guard, not a login.
 - The two routes an interview uses (the voice token and the notes) only answer a request that carries a link that is on file.
-- **A phone needs https for its microphone.** Out of the box the link uses this machine's network address over plain http, which a phone's browser will refuse the microphone on. The interview screen says so in plain words. For a real phone, give the machine an https address and put it in `.env.local`:
+- **A phone needs https for its microphone.** Plain `pnpm dev` sends links over http, which a phone's browser refuses the microphone on, and the interview screen says so in plain words. To send links that work, start Nolan over https instead:
 
 ```bash
-cloudflared tunnel --url http://localhost:3001
+pnpm dev:https
 ```
 
-Then set `NOLAN_PUBLIC_URL` to the https address it prints and restart `pnpm dev`. This puts the dev server on the internet for as long as the tunnel runs, so close it afterwards. "Interview here" needs none of this: it runs the interview on the investigator's device.
+Then open `https://localhost:3443`. Links now start with `https://<this machine's network address>:3443`, and a phone on the same Wi-Fi can open one and talk. The certificate is made on this machine and no browser knows it, so the investigator's browser and each phone show a warning once: choose "Advanced", then "Proceed". Nothing leaves the local network. For witnesses who are not on the same network, set `NOLAN_PUBLIC_URL` to a real https address for this machine.
 
 Cases are kept in one JSON file, `.data/cases.json`, on the machine that runs Nolan. It is ignored by git. On a host with a read-only disk the cases last only as long as the process.
 
@@ -81,21 +81,22 @@ Cases are kept in one JSON file, `.data/cases.json`, on the machine that runs No
 
 Run on Sat 14 Nov on the case "bike theft outside the library" with three witnesses:
 
-- **A spoken interview.** `scripts/voice-test/talk.js` opens a witness's link in headless Chrome, plays generated speech into the page's microphone, and prints what Nolan heard and wrote. One run: four spoken turns, Nolan answered 1.6 to 2.8 s after the witness stopped, all five details were noted, the self-correction was crossed out and the unsure answer was marked. Speech-to-text heard "twenty to six" as "20 to 6:00".
-- An interview through a link on another address (`http://192.168.x.x:3001/interview/<token>`), in text mode. The case file showed "Interview in progress" while it ran, and that address was refused the case file (403).
+- **A spoken interview on the investigator's device.** `scripts/voice-test/talk.js` opens a witness's link in headless Chrome, plays generated speech into the page's microphone, and prints what Nolan heard, said and wrote. Four spoken turns, Nolan answered 1.6 to 2.8 s after the witness stopped, all five details were noted, the self-correction was crossed out and the unsure answer was marked. Speech-to-text heard "twenty to six" as "20 to 6:00".
+- **A spoken interview through a sent link, over https.** The same test with `pnpm dev:https`, opening the link at `https://192.168.x.x:3443/interview/<token>` the way a witness's device would. The page had a microphone (secure context), all four turns were heard and noted, Nolan's own voice arrived (the level meter peaked at 0.94 while he talked), and that address was refused the case file (403).
+- An interview through a link over plain http, in text mode. The case file showed "Interview in progress" while it ran.
 - An interview on the investigator's device, in text mode, with a break and resume.
-- The comparison, the shared scene and three witness scenes from fal, and the report page.
+- The comparison, the shared scene and the witness scenes from fal, with three and with four witnesses, and the report page.
 - Type-check, lint and a production build.
 
 Not run:
 
-- **A person talking to Nolan through a real microphone.** The spoken test uses generated speech and a simulated microphone. Check his voice out loud, and how patient turn-taking feels when you pause.
-- **A link opened on a real phone over https.** The tunnel steps above were not run.
-- More than three witnesses, and a second case topic.
+- **A person talking to Nolan.** Both spoken tests use generated speech and a simulated microphone in Chrome. Nobody has listened to his voice or tried pausing mid-sentence.
+- **A real phone.** The https link was opened by Chrome on this machine at the network address, with the certificate warning accepted by a flag. A phone on the Wi-Fi should behave the same after "Proceed", but none was tried.
+- An internet tunnel for witnesses on another network.
 
 ## What is not built
 
-- **Nolan's live face.** The design gives Nolan an Anam face. No Anam key is set up for this project (`GET /api/face` reports it), so it is not wired and could not be tested. The app shows what the design's artboard draws: an orange swirl with a head and shoulders, which moves with the voice. The credits do not name Anam.
+- **Nolan's live face.** The design gives Nolan an Anam face. No Anam key is set up for this project (`GET /api/face` reports it), so it is not wired and could not be tested. Anam's documented way is for Anam to connect to the ElevenLabs agent itself (the session token carries the agent's signed URL), which replaces the browser's voice code, so it is not something to add blind. The app shows what the design's artboard draws: an orange swirl with a head and shoulders, which moves with the voice. The credits do not name Anam.
 - **Adaption.** The design tunes the questions with a fine-tuned model. Here the open-question rules are in the prompts. The credits do not name Adaption.
 - **Audio recording.** The agent is created with voice recording off. The screen says "Transcribed with your consent", not "Recording".
 - **A login.** Anyone on the machine that runs Nolan is the investigator.
@@ -115,6 +116,7 @@ A snapshot of its five artboards is in `design/`. Sizes and colours in `src/app/
 | `src/lib/server-store.ts` | Cases in `.data/cases.json`, interview links, and who may see what |
 | `src/lib/store.ts` | The investigator's copy of the cases, kept in step with the server |
 | `scripts/voice-test/` | The spoken test: generated speech into a simulated microphone |
+| `scripts/https-dev.mjs` | `pnpm dev:https`: Nolan over https on the local network, with a certificate made on this machine |
 | `src/lib/use-case-work.ts` | Runs the comparison and the scene drawing once, and stores the result |
 | `src/components/` | One file per screen |
 | `design/` | The design artboards as HTML. Read for exact styles |

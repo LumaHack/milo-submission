@@ -14,23 +14,27 @@
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 
+// The investigator's address. Set NOLAN_VIA_LINK=1 to open the interview at the address a sent link uses
+// (NOLAN_PUBLIC_URL on the server), the way a witness's own device would.
 const BASE = process.env.NOLAN_URL || "http://localhost:3001";
 const CLIPS = ["w1", "w2", "w3", "w4"];
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 (async () => {
-  const { cases } = await (await fetch(`${BASE}/api/cases`)).json();
+  const { cases, linkBase } = await (await fetch(`${BASE}/api/cases`)).json();
+  const PAGE = process.env.NOLAN_VIA_LINK === "1" ? linkBase : BASE;
   const file = cases.find((entry) => entry.witnesses.some((witness) => witness.status === "waiting"));
   if (!file) throw new Error("No case has a witness still waiting. Add one on the case file first.");
   const witness = file.witnesses.find((entry) => entry.status === "waiting");
   const account = async () => (await (await fetch(`${BASE}/api/witness/${witness.token}`)).json()).witness;
-  console.log(`case: ${file.title} | witness ${file.witnesses.indexOf(witness) + 1} (${witness.where})`);
+  console.log(`case: ${file.title} | witness ${file.witnesses.indexOf(witness) + 1} (${witness.where}) | interview opened at ${PAGE}`);
 
   const browser = await puppeteer.launch({
     executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     headless: true,
     userDataDir: "/tmp/nolan-voice-test-profile",
-    args: ["--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required", "--mute-audio", "--window-size=1440,1000"],
+    // The last flag accepts the self-signed certificate of `pnpm dev:https`, as a person does by choosing "Proceed".
+    args: ["--use-fake-ui-for-media-stream", "--autoplay-policy=no-user-gesture-required", "--mute-audio", "--window-size=1440,1000", "--ignore-certificate-errors"],
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 1000 });
@@ -58,7 +62,10 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       return new MediaStream(dest.stream.getAudioTracks().map((t) => t.clone()));
     };
   });
-  await page.goto(`${BASE}/interview/${witness.token}`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${PAGE}/interview/${witness.token}`, { waitUntil: "domcontentloaded" });
+  // Can a witness's device reach the investigator's material from here? And does this address get a microphone?
+  const reach = await page.evaluate(async () => (await fetch("/api/cases")).status);
+  const secure = await page.evaluate(() => `${location.origin} secure context: ${window.isSecureContext}, microphone API: ${typeof navigator.mediaDevices}`);
   for (const name of CLIPS) {
     await page.evaluate((n, b64) => window.__load(n, b64), name, fs.readFileSync(`${__dirname}/out/${name}.wav`).toString("base64"));
   }
@@ -71,9 +78,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const badge = () => page.evaluate(() => document.querySelector(".badge.top")?.textContent ?? null);
   const nolanLines = async () => (await account()).turns.filter((turn) => turn.who === "nolan").length;
   // Wait until Nolan has stopped talking and writing, and has been listening for two seconds.
+  // While he talks, the app's level meter follows his voice. The loudest reading shows his audio really arrived.
+  let loudest = 0;
   const settle = async () => {
     for (let quiet = 0, i = 0; i < 240 && quiet < 8; i++) {
-      quiet = (await badge()) === "Listening" ? quiet + 1 : 0;
+      const state = await badge();
+      if (state === "Nolan is talking") {
+        const level = Number(await page.evaluate(() => getComputedStyle(document.querySelector(".nolan-card")).getPropertyValue("--vol")));
+        if (level > loudest) loudest = level;
+      }
+      quiet = state === "Listening" ? quiet + 1 : 0;
       await wait(250);
     }
   };
@@ -118,6 +132,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const line of notes.split("\n").filter(Boolean)) console.log("  " + line);
   console.log("FACTS ON FILE:", JSON.stringify(final.facts.map((fact) => [fact.value, fact.sure, fact.struck])));
   console.log(`STATUS: ${final.status} | CLOCK: ${final.seconds}s | ALERT: ${alert}`);
+  console.log(`NOLAN'S VOICE: loudest level while he talked ${loudest.toFixed(3)} (0 would mean no sound arrived)`);
+  console.log(`ADDRESS: ${secure}`);
+  console.log(`CASE FILE FROM THE INTERVIEW'S ADDRESS: HTTP ${reach} (403 means it is refused, as it should be for a witness)`);
 })().catch((error) => {
   console.error("TEST FAILED:", error.message);
   process.exit(1);
