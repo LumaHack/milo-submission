@@ -15,8 +15,6 @@ import type { MiloStatus } from "@/lib/turn";
 import { useMiloSession } from "@/lib/use-milo-session";
 
 const TOPIC_ID = "cell";
-// Shows a text box so a turn can be typed instead of spoken. For testing without a microphone.
-const TYPING = process.env.NEXT_PUBLIC_MILO_TYPING === "1";
 
 export function LiveSession() {
   return (
@@ -32,10 +30,9 @@ function Live() {
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [seconds, setSeconds] = useState(0);
-  const [typed, setTyped] = useState("");
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
-  const sendNote = useRef<(hint: string, nothingLeft: boolean) => void>(() => {});
+  const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
   const onHint = useCallback((hint: string, nothingLeft: boolean) => sendNote.current(hint, nothingLeft), []);
   const session = useMiloSession(TOPIC_ID, onHint);
   const { addTurn } = session;
@@ -53,11 +50,14 @@ function Live() {
       ),
   });
   const connected = conversation.status === "connected";
-  const { sendContextualUpdate, endSession, getInputVolume } = conversation;
+  const connecting = conversation.status === "connecting";
+  const { sendContextualUpdate, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
     sendNote.current = (hint, nothingLeft) => {
-      if (connected) sendContextualUpdate(miloAppNote(hint, nothingLeft));
+      if (!connected) return false;
+      sendContextualUpdate(miloAppNote(hint, nothingLeft));
+      return true;
     };
   }, [connected, sendContextualUpdate]);
 
@@ -79,6 +79,24 @@ function Live() {
     setStartedAt((value) => value ?? Date.now());
   };
 
+  // Development only: lets a turn be injected from the browser console, with no microphone.
+  //   window.miloSay("The cell takes in things and makes energy.")
+  const sayRef = useRef<(text: string) => void>(() => {});
+  useEffect(() => {
+    sayRef.current = (text) => {
+      begin();
+      addTurn(text);
+    };
+  });
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const target = window as unknown as { miloSay?: (text: string) => void };
+    target.miloSay = (text) => sayRef.current(text);
+    return () => {
+      delete target.miloSay;
+    };
+  }, []);
+
   const connect = async () => {
     setVoiceError(null);
     try {
@@ -93,25 +111,32 @@ function Live() {
   };
 
   const onMic = () => {
-    if (conversation.status === "connecting") return;
+    if (connecting) return;
     if (!connected) void connect();
     else conversation.setMuted(!conversation.isMuted);
   };
 
   const micOn = connected && !conversation.isMuted;
   let status: MiloStatus = "off";
-  if (connected && conversation.isSpeaking) status = "speaking";
+  if (connected && isSpeaking) status = "speaking";
   else if (session.busy === "drawing") status = "drawing";
   else if (session.busy === "thinking") status = "thinking";
   else if (micOn) status = "listening";
 
   const micLabel = !connected
-    ? conversation.status === "connecting"
+    ? connecting
       ? "Connecting to Milo"
       : "Start talking to Milo"
     : conversation.isMuted
       ? "Unmute your microphone"
       : "Mute your microphone";
+  const micHint = connected ? null : connecting ? "Connecting to Milo…" : "Press the mic to start";
+
+  // Milo's own voice while he talks, the student's microphone the rest of the time.
+  const getVoiceLevel = useCallback(
+    () => (isSpeaking ? getOutputVolume() : getInputVolume()),
+    [isSpeaking, getInputVolume, getOutputVolume],
+  );
 
   if (!topic) return null;
 
@@ -126,35 +151,13 @@ function Live() {
       drawing={session.busy === "drawing"}
       error={voiceError ?? session.error}
       seconds={seconds}
+      steps={session.steps}
       micOn={micOn}
       micLabel={micLabel}
+      micHint={micHint}
       onMic={onMic}
-      getMicLevel={connected ? getInputVolume : undefined}
+      getVoiceLevel={connected ? getVoiceLevel : undefined}
       onEnd={() => endSession()}
-      extra={
-        TYPING ? (
-          <form
-            className="flex gap-2 rounded-card bg-card p-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              begin();
-              addTurn(typed);
-              setTyped("");
-            }}
-          >
-            <input
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              aria-label="Type what you would say"
-              placeholder="Type a turn (testing only)"
-              className="min-h-11 min-w-0 flex-1 rounded-full border border-line bg-card px-4 text-[15px] text-ink placeholder:text-faint"
-            />
-            <button type="submit" className="press min-h-11 rounded-full border border-ink bg-ink px-5 text-[15px] font-medium text-white">
-              Send
-            </button>
-          </form>
-        ) : null
-      }
     />
   );
 }

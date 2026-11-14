@@ -92,6 +92,7 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels. At most six labels, each a few words long.
 - Say what to remove: question marks that have been answered, labels that have been replaced.
 - Name colours and positions, the way the examples do. Keep it under 110 words.
+- End every instruction with: "Do not add any other parts, shapes or words." Image models like to fill a cell with extra parts, and an extra part gives the answer away.
 - No real people, logos or flags.
 
 These four instructions were tested and drew well. Match their style and length.

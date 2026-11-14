@@ -32,6 +32,15 @@
   --animate-rise: rise 220ms var(--ease-settle) both;
   --animate-bar: bar 900ms ease-in-out infinite;
   --animate-pulse-dot: pulse-dot 1600ms ease-in-out infinite;
+  --animate-breathe: breathe 4800ms ease-in-out infinite;
+  --animate-listen: listen 3200ms ease-in-out infinite;
+  --animate-ponder: ponder 1500ms ease-in-out infinite;
+  --animate-dot: dot-bounce 1000ms ease-in-out infinite;
+  --animate-ping-ring: ping-ring 1900ms var(--ease-settle) infinite;
+  --animate-grow-up: grow-up 620ms var(--ease-settle) both;
+  --animate-flash: flash 620ms ease-out both;
+  --animate-word: word-in 320ms var(--ease-settle) both;
+  --animate-step-in: step-in 300ms var(--ease-settle) both;
 
   /* The paper lands a little past its resting tilt, then settles. The resting tilt is set with rotate. */
   @keyframes board-in {
@@ -76,6 +85,101 @@
     }
     50% {
       transform: scaleY(1);
+    }
+  }
+  /* Milo is never frozen: he breathes when idle, leans in when listening, ponders when thinking. */
+  @keyframes breathe {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.025) translateY(-1px);
+    }
+  }
+  @keyframes listen {
+    0%,
+    100% {
+      transform: scale(1.03) rotate(-1.2deg);
+    }
+    50% {
+      transform: scale(1.05) rotate(1.2deg);
+    }
+  }
+  @keyframes ponder {
+    0%,
+    100% {
+      transform: scale(1.04) rotate(-2deg) translateY(0);
+    }
+    50% {
+      transform: scale(1.04) rotate(2deg) translateY(-3px);
+    }
+  }
+  @keyframes dot-bounce {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+      opacity: 0.35;
+    }
+    30% {
+      transform: translateY(-4px);
+      opacity: 1;
+    }
+  }
+  @keyframes ping-ring {
+    0% {
+      transform: scale(1);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(1.55);
+      opacity: 0;
+    }
+  }
+  /* Levelling up: Milo shrinks back, overshoots, and lands. */
+  @keyframes grow-up {
+    0% {
+      transform: scale(0.82) rotate(-4deg);
+      filter: blur(6px);
+      opacity: 0;
+    }
+    55% {
+      transform: scale(1.1) rotate(2deg);
+      filter: blur(0);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1) rotate(0deg);
+      opacity: 1;
+    }
+  }
+  @keyframes flash {
+    0% {
+      opacity: 0.85;
+    }
+    100% {
+      opacity: 0;
+    }
+  }
+  @keyframes word-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) rotate(2deg);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) rotate(0deg);
+    }
+  }
+  @keyframes step-in {
+    from {
+      opacity: 0;
+      transform: translateX(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
     }
   }
   @keyframes pulse-dot {

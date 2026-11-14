@@ -2,24 +2,41 @@
 
 // The engine of a live session. Give it what the student said, one turn at a time.
 // It asks the brain to score the explanation, has fal redraw the board, and keeps the history.
-// It knows nothing about voice: the session screen feeds it transcripts (or typed text).
+// It also keeps a short log of what the agent is doing, so the screen can show its work.
+// It knows nothing about voice: the session screen feeds it the transcript.
 
 import { useEffect, useRef, useState } from "react";
 
-import type { Level } from "./levels";
+import { levelInfo, type Level } from "./levels";
 import { getTopic } from "./topics";
-import type { DrawRequest, DrawResult, Frame, TurnRequest, TurnResult } from "./turn";
+import type { DrawRequest, DrawResult, Frame, IdeaStatus, TurnRequest, TurnResult } from "./turn";
 
 export const STORAGE_KEY = "milo.session";
 
 export type StoredSession = { topicId: string; frames: Frame[] };
 
-type Live = {
+/** One line in the "What Milo is doing" feed. */
+export type Step = {
+  id: number;
+  label: string;
+  detail?: string;
+  state: "active" | "done" | "error";
+  /** Wall-clock start, in milliseconds. Used to tick the timer on an active step. */
+  startedAt: number;
+  /** How long the step took, once it is done. */
+  seconds?: number;
+};
+
+export type Live = {
   /** Null until the first turn has been scored. */
   level: Level | null;
   hint: string | null;
   gaps: string[];
+  /** Status of each key idea, in topic order. Null until the first turn has been scored. */
+  ideas: IdeaStatus[] | null;
 };
+
+const MAX_STEPS = 3;
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -44,19 +61,26 @@ function preload(url: string): Promise<void> {
   });
 }
 
-export function useMiloSession(
-  topicId: string,
-  onHint?: (hint: string, nothingLeft: boolean) => void,
-) {
+function shorten(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+/**
+ * onHint is called after each scored turn with Milo's next line. Return true if it was passed
+ * on to the voice agent, so the feed can say so.
+ */
+export function useMiloSession(topicId: string, onHint?: (hint: string, nothingLeft: boolean) => boolean) {
   const topic = getTopic(topicId);
   const [frames, setFrames] = useState<Frame[]>([]);
   const [live, setLive] = useState<Live>({
     level: null,
     hint: null,
     gaps: topic ? topic.keyIdeas.map((idea) => idea.gapLabel) : [],
+    ideas: null,
   });
   const [busy, setBusy] = useState<"idle" | "thinking" | "drawing">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [steps, setSteps] = useState<Step[]>([]);
 
   const turns = useRef<string[]>([]);
   const scored = useRef(0);
@@ -65,17 +89,40 @@ export function useMiloSession(
   const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
+  const nextStepId = useRef(1);
   const onHintRef = useRef(onHint);
 
   useEffect(() => {
     onHintRef.current = onHint;
   }, [onHint]);
 
+  const beginStep = (label: string, detail?: string): number => {
+    const id = nextStepId.current++;
+    setSteps((list) => [...list, { id, label, detail, state: "active" as const, startedAt: Date.now() }].slice(-MAX_STEPS));
+    return id;
+  };
+  const endStep = (id: number, patch: Partial<Step> = {}) => {
+    setSteps((list) =>
+      list.map((step) =>
+        step.id === id
+          ? { ...step, state: "done", seconds: (Date.now() - step.startedAt) / 1000, ...patch }
+          : step,
+      ),
+    );
+  };
+  const logStep = (label: string, detail?: string) => {
+    const id = nextStepId.current++;
+    setSteps((list) =>
+      [...list, { id, label, detail, state: "done" as const, startedAt: Date.now() }].slice(-MAX_STEPS),
+    );
+  };
+
   const run = async () => {
     // One run at a time. Turns that arrive meanwhile are scored together in the next pass,
     // so only one redraw is ever in flight and the newest explanation wins.
     if (running.current || !topic) return;
     running.current = true;
+    let openStep: number | null = null;
     try {
       while (scored.current < turns.current.length) {
         const studentTurns = turns.current.slice();
@@ -83,6 +130,8 @@ export function useMiloSession(
         setError(null);
 
         setBusy("thinking");
+        const total = topic.keyIdeas.length;
+        openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
         const request: TurnRequest = {
           topicId,
           studentTurns,
@@ -91,23 +140,36 @@ export function useMiloSession(
         };
         const result = await postJson<TurnResult>("/api/turn", request);
 
+        const statusOf = (id: string): IdeaStatus => result.ideas.find((idea) => idea.id === id)?.status ?? "missing";
+        const ideas = topic.keyIdeas.map((idea) => statusOf(idea.id));
+        const clear = ideas.filter((status) => status === "clear").length;
+
         // Gap labels still open, biggest first.
-        const open = result.ideas.filter((idea) => idea.status !== "clear").map((idea) => idea.id);
-        const ordered = [
-          ...open.filter((id) => id === result.biggestGapId),
-          ...open.filter((id) => id !== result.biggestGapId),
-        ];
-        const gaps = ordered
-          .map((id) => topic.keyIdeas.find((idea) => idea.id === id)?.gapLabel)
-          .filter((label): label is string => Boolean(label));
+        const open = topic.keyIdeas.filter((idea) => statusOf(idea.id) !== "clear");
+        const gaps = [
+          ...open.filter((idea) => idea.id === result.biggestGapId),
+          ...open.filter((idea) => idea.id !== result.biggestGapId),
+        ].map((idea) => idea.gapLabel);
+
+        endStep(openStep, {
+          label: `Checked ${total} key ideas`,
+          detail: `${clear} of ${total} clear. ${levelInfo(result.level).label}`,
+        });
+        openStep = null;
 
         level.current = result.level;
-        setLive({ level: result.level, hint: result.hint, gaps });
-        onHintRef.current?.(result.hint, gaps.length === 0);
+        setLive({ level: result.level, hint: result.hint, gaps, ideas });
+        if (onHintRef.current?.(result.hint, gaps.length === 0)) {
+          logStep("Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
+        }
 
-        if (!result.changed) continue;
+        if (!result.changed) {
+          logStep("Nothing new to draw", "The board stays as it is");
+          continue;
+        }
 
         setBusy("drawing");
+        openStep = beginStep("Redrawing the board", result.level === 4 ? "fal, careful model" : "fal, fast model");
         const draw: DrawRequest = {
           prompt: result.drawPrompt,
           previousImageUrl: board.current.url,
@@ -115,6 +177,8 @@ export function useMiloSession(
         };
         const drawn = await postJson<DrawResult>("/api/draw", draw);
         await preload(drawn.imageUrl);
+        endStep(openStep, { label: "Board redrawn" });
+        openStep = null;
 
         board.current = { url: drawn.imageUrl, prompt: result.drawPrompt };
         const frame: Frame = {
@@ -137,6 +201,7 @@ export function useMiloSession(
       }
     } catch (caught) {
       const reason = caught instanceof Error ? caught.message : "Something went wrong.";
+      if (openStep !== null) endStep(openStep, { state: "error", detail: "Did not finish" });
       setError(`${reason} Keep talking, Milo will try again.`);
     } finally {
       running.current = false;
@@ -155,8 +220,9 @@ export function useMiloSession(
     if (!said) return;
     start();
     turns.current = [...turns.current, said];
+    logStep("Heard you", `“${shorten(said, 64)}”`);
     void run();
   };
 
-  return { frames, live, busy, error, addTurn, start };
+  return { frames, live, busy, error, steps, addTurn, start };
 }
