@@ -3,9 +3,10 @@
 // The v2 live session (approach B, docs/V2.md).
 // Milo is an ElevenLabs agent. When the student finishes a point he calls the update_board tool,
 // which runs in this page: Claude scores the turn, the line comes straight back for Milo to say,
-// and the board redraws in the background. If he ever answers without calling the tool, the page
-// scores the turn itself and passes the line on as a note (approach A as a safety net).
-// For now it reuses Ali's session screen unchanged. Phase 3 gives v2 its own calmer screen.
+// and the board redraws in the background.
+// Safety net: if Milo has not called update_board a few seconds after the student stopped, the page
+// scores the turn itself, so the board always redraws, and passes Milo his line as a note.
+// For now it reuses Ali's session screen unchanged. Phase 3 gives v2 its own screen.
 
 import { ConversationProvider, useConversation, useConversationClientTool } from "@elevenlabs/react";
 import Link from "next/link";
@@ -20,10 +21,13 @@ import { cleanMiloLine } from "@/lib/v2/prompts";
 import { getV2Topic, type V2Topic } from "@/lib/v2/topics";
 import { useMiloV2 } from "@/lib/v2/use-milo-v2";
 
-/** How long Milo may talk after a turn before the page scores it without him. */
-const SAFETY_NET_MS = 3000;
+/** How long after the student stops the page waits for Milo to call update_board before drawing itself. */
+const SAFETY_NET_MS = 6000;
 
-export function LiveSessionV2({ topicId, mode, voice = true }: { topicId: string; mode: Mode; voice?: boolean }) {
+/** "on" is the real thing. "text" is a typed chat with Milo, "off" has no Milo at all: both are for testing. */
+export type VoiceMode = "on" | "text" | "off";
+
+export function LiveSessionV2({ topicId, mode, voice = "on" }: { topicId: string; mode: Mode; voice?: VoiceMode }) {
   const topic = getV2Topic(topicId);
   if (!topic || !topic.ready) {
     return (
@@ -44,9 +48,9 @@ export function LiveSessionV2({ topicId, mode, voice = true }: { topicId: string
   );
 }
 
-function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boolean }) {
+function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: VoiceMode }) {
   const session = useMiloV2(topic, mode);
-  const { addTranscript, scoreNow, hasUnscored } = session;
+  const { addTranscript, scoreNow, hasUnscored, takeLine, peekLine } = session;
   const [spoken, setSpoken] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -57,24 +61,35 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
   const safetyNet = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendNote = useRef<(line: string) => void>(() => {});
 
+  const clearSafetyNet = () => {
+    if (safetyNet.current) clearTimeout(safetyNet.current);
+    safetyNet.current = null;
+  };
+  const armSafetyNet = () => {
+    clearSafetyNet();
+    safetyNet.current = setTimeout(() => {
+      safetyNet.current = null;
+      if (toolCalled.current || !hasUnscored()) return;
+      toolCalled.current = true;
+      void scoreNow().then(() => {
+        // If Milo asked for the line in the meantime, he already has it.
+        const line = peekLine();
+        if (line) sendNote.current(line);
+      });
+    }, SAFETY_NET_MS);
+  };
+
+  /** What the student said, as the voice agent heard it. */
+  const heard = (text: string) => {
+    if (!addTranscript(text)) return;
+    toolCalled.current = false;
+    armSafetyNet();
+  };
+
   const conversation = useConversation({
     onMessage: (payload) => {
-      if (payload.role === "user") {
-        if (addTranscript(payload.message)) toolCalled.current = false;
-        return;
-      }
-      setSpoken(cleanMiloLine(payload.message));
-      // Milo spoke after a turn without calling update_board yet. Give him a moment, then score it here.
-      if (!toolCalled.current && hasUnscored()) {
-        if (safetyNet.current) clearTimeout(safetyNet.current);
-        safetyNet.current = setTimeout(() => {
-          if (toolCalled.current || !hasUnscored()) return;
-          toolCalled.current = true;
-          void scoreNow().then((line) => {
-            if (line) sendNote.current(line);
-          });
-        }, SAFETY_NET_MS);
-      }
+      if (payload.role === "user") heard(payload.message);
+      else setSpoken(cleanMiloLine(payload.message));
     },
     onError: (message) =>
       setVoiceError(
@@ -82,15 +97,22 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
           ? "Milo needs your microphone. Allow it in the browser, then tap anywhere."
           : `Milo's voice hit a problem: ${message}`,
       ),
+    // Say so when the line drops, instead of leaving the student waiting for an answer.
+    onDisconnect: (details) => {
+      if (details.reason !== "user") setVoiceError("Milo's voice dropped. Tap anywhere to wake him up again.");
+    },
   });
   const connected = conversation.status === "connected";
   const connecting = conversation.status === "connecting";
-  const { sendContextualUpdate, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
+  const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } =
+    conversation;
 
   useConversationClientTool(UPDATE_BOARD, async (params: { point?: string }) => {
     toolCalled.current = true;
-    if (safetyNet.current) clearTimeout(safetyNet.current);
-    const line = await scoreNow(params?.point);
+    clearSafetyNet();
+    await scoreNow(params?.point);
+    // The newest line, from this call or from the safety net if it already scored this turn.
+    const line = takeLine();
     return line
       ? `Say exactly this, word for word: "${line}"`
       : "Nothing new to draw. Say one short, kind sentence inviting them to keep going.";
@@ -98,7 +120,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
 
   useEffect(() => {
     sendNote.current = (line) => {
-      if (connected) sendContextualUpdate(`APP NOTE: Next time the student stops, say exactly: "${line}"`);
+      if (connected) sendContextualUpdate(`APP NOTE: The next time you speak, say exactly: "${line}"`);
     };
   }, [connected, sendContextualUpdate]);
 
@@ -126,41 +148,68 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
     setStartedAt((value) => value ?? Date.now());
   };
 
-  // Development only: lets a turn be typed from the browser console, with no microphone.
-  //   window.miloSay("The Treaty of Versailles punished Germany.")
-  const sayRef = useRef<(text: string) => void>(() => {});
+  // Development only, from the browser console:
+  //   window.miloSay("...")   says something to Milo. In a typed chat (?voice=text) it goes to the agent;
+  //                           with no Milo (?voice=off) the page scores it directly.
+  //   window.miloHear("...")  acts as if the voice agent heard it and Milo then said nothing,
+  //                           to test the safety net.
+  const devRef = useRef<{ say: (text: string) => void; hear: (text: string) => void }>({
+    say: () => {},
+    hear: () => {},
+  });
   useEffect(() => {
-    sayRef.current = (text) => {
-      begin();
-      if (!addTranscript(text)) return;
-      void scoreNow().then((line) => {
-        if (line) setSpoken(line);
-      });
+    devRef.current = {
+      say: (text) => {
+        begin();
+        if (connected) {
+          sendUserMessage(text);
+          return;
+        }
+        if (!addTranscript(text)) return;
+        void scoreNow().then(() => setSpoken(takeLine()));
+      },
+      hear: (text) => {
+        begin();
+        heard(text);
+      },
     };
   });
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
-    const target = window as unknown as { miloSay?: (text: string) => void };
-    target.miloSay = (text) => sayRef.current(text);
+    const target = window as unknown as { miloSay?: (text: string) => void; miloHear?: (text: string) => void };
+    target.miloSay = (text) => devRef.current.say(text);
+    target.miloHear = (text) => devRef.current.hear(text);
     return () => {
       delete target.miloSay;
+      delete target.miloHear;
     };
   }, []);
 
   const connect = async () => {
     setVoiceError(null);
     try {
-      const response = await fetch("/api/v2/elevenlabs/token", { method: "POST" });
-      const data = (await response.json()) as { token?: string; error?: string };
-      if (!response.ok || !data.token) throw new Error(data.error ?? "Could not get a voice token.");
+      // The typed chat test only runs over a websocket, which needs a signed URL instead of a token.
+      const typed = voice === "text";
+      const response = await fetch("/api/v2/elevenlabs/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(typed ? { transport: "websocket" } : {}),
+      });
+      const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
+      if (!response.ok || !(typed ? data.signedUrl : data.token)) {
+        throw new Error(data.error ?? "Could not get a voice token.");
+      }
       begin();
-      conversation.startSession({
-        conversationToken: data.token,
-        connectionType: "webrtc",
+      const shared = {
         dynamicVariables: { opening_line: topic.firstMessage, topic_about: topic.about },
         // Expressive tags such as "[curious]" never reach the screen.
         stripAudioTags: true,
-      });
+      };
+      if (typed && data.signedUrl) {
+        conversation.startSession({ ...shared, signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true });
+      } else if (data.token) {
+        conversation.startSession({ ...shared, conversationToken: data.token, connectionType: "webrtc" });
+      }
     } catch (caught) {
       setVoiceError(caught instanceof Error ? caught.message : "Could not start Milo's voice.");
     }
@@ -175,13 +224,13 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
   const idle = conversation.status === "disconnected" || conversation.status === "error";
   const tried = useRef(false);
   useEffect(() => {
-    if (voice && !tried.current) {
+    if (voice !== "off" && !tried.current) {
       tried.current = true;
       void connectRef.current();
     }
   }, [voice]);
   useEffect(() => {
-    if (!voice || !idle) return;
+    if (voice === "off" || !idle) return;
     const wake = () => void connectRef.current();
     window.addEventListener("pointerdown", wake, { once: true });
     return () => window.removeEventListener("pointerdown", wake);
@@ -204,15 +253,18 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
     : conversation.isMuted
       ? "Unmute your microphone"
       : "Mute your microphone";
-  const micHint = !voice
-    ? "Voice is off for this test"
-    : connected
-      ? conversation.isMuted
-        ? "You are muted"
-        : null
-      : connecting
-        ? "Waking Milo up…"
-        : "Tap anywhere to wake Milo";
+  const micHint =
+    voice === "off"
+      ? "Voice is off for this test"
+      : voice === "text" && connected
+        ? "Typed chat test"
+        : connected
+          ? conversation.isMuted
+            ? "You are muted"
+            : null
+          : connecting
+            ? "Waking Milo up…"
+            : "Tap anywhere to wake Milo";
 
   const getVoiceLevel = useCallback(
     () => (isSpeaking ? getOutputVolume() : getInputVolume()),
@@ -226,7 +278,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
       subjectLine={`${topic.subject}, ${about}, ${mode === "exam" ? "exam mode" : "coach mode"}`}
       frames={session.frames}
       live={{ level: session.live.level, hint: session.live.miloLine, gaps: session.gaps, ideas: session.live.ideas }}
-      spokenLine={connected ? spoken : session.live.miloLine}
+      spokenLine={spoken ?? session.live.miloLine}
       status={status}
       drawing={session.drawing}
       error={voiceError ?? session.error}
@@ -236,7 +288,7 @@ function Live({ topic, mode, voice }: { topic: V2Topic; mode: Mode; voice: boole
       micLabel={micLabel}
       micHint={micHint}
       onMic={onMic}
-      getVoiceLevel={connected ? getVoiceLevel : undefined}
+      getVoiceLevel={connected && voice === "on" ? getVoiceLevel : undefined}
       onEnd={() => endSession()}
     />
   );

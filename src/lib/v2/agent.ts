@@ -36,20 +36,22 @@ export const UPDATE_BOARD_TOOL = {
 export const V2_AGENT_PROMPT = `You are Milo, a curious, slightly cheeky kid of about eight. You know nothing about {{topic_about}}. A student is explaining it to you out loud, to learn it themselves. You draw what they say on a sheet of paper, and you talk with them about your drawing. You are not a teacher.
 
 How each turn works:
-- When the student finishes explaining a point, answers your question, says they are stuck, or asks you something about the topic, call the update_board tool with what they just said.
+- When the student stops talking, call the update_board tool with what they said. Do it every time: after a long answer or a short one, an answer that trails off mid-sentence, an "I don't know", or a question to you. The only exception is when they clearly ask for time, see below.
 - While it runs, say only a few words about drawing, such as "Ooh, wait, I'm drawing that". Never ask a question there.
 - When update_board returns, say the line it gives you, word for word, as your own. Say nothing before or after it.
 - If update_board fails or gives no line, say: "Oops, my crayon slipped! Can you say that again?"
-- The app may send you a note starting with "APP NOTE". Never read it out. Use the line in it the next time the student stops.
+- The app may send you a note starting with "APP NOTE". Never read it out. Say the line in it the next time you speak, unless update_board gives you a newer line.
 
-Let them think:
-- If the student stops in the middle of a sentence, says "um", "wait", "hold on" or "let me think", or goes quiet, they are thinking or looking at your drawing. Call skip_turn and stay silent.
+Letting them think:
+- A pause, an "um", or a sentence that trails off does not mean they want more time. Treat it as the end of their turn and call update_board. Your drawing helps them think.
+- Only call skip_turn when the student clearly asks for time, with words like "wait", "hold on", "let me think" or "give me a second".
+- When a wait ends and they are still quiet, say one short, calm line, such as "Take your time, I'm looking at my drawing." If an APP NOTE gave you a line you have not said yet, say that line instead.
 - Never say "are you still there", and never hurry them.
 - If they talk while you are speaking, stop and listen.
 
 Never:
 - explain, define, correct or teach anything. You do not know the answer.
-- say a word about the topic that the student has not said, unless update_board gave it to you.
+- say a word about the topic that the student has not said, unless update_board or an APP NOTE gave it to you.
 - use brackets, stage directions or emoji. Plain spoken words only.`;
 
 /** The full agent body for the ElevenLabs create and update calls. */
@@ -74,8 +76,14 @@ export function v2AgentBody(toolId: string, voiceId?: string) {
           llm: process.env.ELEVENLABS_V2_AGENT_LLM || "claude-sonnet-5-5",
           tool_ids: [toolId],
           built_in_tools: {
-            // Lets Milo stay quiet while the student thinks.
-            skip_turn: { type: "system", name: "skip_turn", description: "", params: { system_tool_type: "skip_turn" } },
+            // Lets Milo stay quiet when the student asks for time. After 15 s of silence he checks in
+            // gently, so a misread pause can never leave both of them waiting.
+            skip_turn: {
+              type: "system",
+              name: "skip_turn",
+              description: "",
+              params: { system_tool_type: "skip_turn", wait_timeout_secs: 15 },
+            },
           },
         },
       },
@@ -85,7 +93,11 @@ export function v2AgentBody(toolId: string, voiceId?: string) {
       asr: { keywords: [...new Set(V2_TOPICS.flatMap((topic) => topic.keywords))] },
       ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
     },
-    // Private agent: a conversation needs the token from /api/v2/elevenlabs/token.
-    platform_settings: { auth: { enable_auth: true } },
+    platform_settings: {
+      // Private agent: a conversation needs the token from /api/v2/elevenlabs/token.
+      auth: { enable_auth: true },
+      // Lets a session run as a typed chat, to test the whole loop without a microphone (?voice=text).
+      overrides: { conversation_config_override: { conversation: { text_only: true } } },
+    },
   };
 }

@@ -75,6 +75,8 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
   const turns = useRef<string[]>([]);
   const scored = useRef(0);
   const scoring = useRef<Promise<string | null> | null>(null);
+  // Milo's newest line, until it is handed to him or the student speaks again.
+  const unspoken = useRef<string | null>(null);
   // A turn the agent passed to update_board before its transcript arrived, and when.
   const fromTool = useRef<number | null>(null);
   const memory = useRef<{
@@ -174,9 +176,20 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
     // The real transcript replaces the words the agent passed to the tool for the same turn.
     turns.current = recentToolTurn ? [...turns.current.slice(0, -1), said] : [...turns.current, said];
     fromTool.current = null;
+    // A new turn makes any line Milo has not said yet out of date.
+    if (!recentToolTurn) unspoken.current = null;
     logStep("Heard you", `“${shorten(said, 64)}”`);
     return true;
   };
+
+  /** Hands over Milo's newest line once. Null if there is none, or it was already handed over. */
+  const takeLine = (): string | null => {
+    const line = unspoken.current;
+    unspoken.current = null;
+    return line;
+  };
+  /** Milo's newest line, without handing it over. */
+  const peekLine = (): string | null => unspoken.current;
 
   const hasUnscored = () => scored.current < turns.current.length;
 
@@ -243,11 +256,13 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
         });
         if (result.changed) queueDraw(result);
         else logStep("Nothing new to draw", "The board stays as it is");
+        unspoken.current = result.miloLine;
         return result.miloLine;
       } catch {
         // The turns stay unscored, so the next call tries them again.
         endStep(id, { state: "error", detail: "Did not finish" });
         setError("Milo lost his train of thought. Keep talking, he will try again.");
+        unspoken.current = CRAYON_SLIPPED;
         return CRAYON_SLIPPED;
       } finally {
         setThinking(false);
@@ -270,5 +285,19 @@ export function useMiloV2(topic: V2Topic, mode: Mode) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, topic]);
 
-  return { frames, live, gaps, thinking, drawing, error, steps, start, addTranscript, scoreNow, hasUnscored };
+  return {
+    frames,
+    live,
+    gaps,
+    thinking,
+    drawing,
+    error,
+    steps,
+    start,
+    addTranscript,
+    scoreNow,
+    hasUnscored,
+    takeLine,
+    peekLine,
+  };
 }
