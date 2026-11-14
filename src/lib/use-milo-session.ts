@@ -50,6 +50,8 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    // Nothing may hang forever: a stuck request would leave the screen on "Thinking" or "Drawing".
+    signal: AbortSignal.timeout(60000),
   });
   const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !data) {
@@ -62,8 +64,15 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
 function preload(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("The drawing did not load."));
+    const timer = setTimeout(() => reject(new Error("The drawing took too long to load.")), 20000);
+    image.onload = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      reject(new Error("The drawing did not load."));
+    };
     image.src = url;
   });
 }
@@ -92,6 +101,8 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   const running = useRef(false);
   const level = useRef<Level | null>(null);
   const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
+  // The newest drawing the brain asked for. If it differs from the board on screen, a redraw is owed.
+  const wanted = useRef<{ prompt: string; said: string; drew: string } | null>(null);
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -133,12 +144,14 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
     if (running.current) return;
     running.current = true;
     let openStep: number | null = null;
+    let drawing = false;
     try {
       while (scored.current < turns.current.length) {
         const studentTurns = turns.current.slice();
         scored.current = studentTurns.length;
         setError(null);
 
+        drawing = false;
         setBusy("thinking");
         const total = keyIdeas.length;
         openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
@@ -181,36 +194,55 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
 
         level.current = result.level;
         setLive({ level: result.level, hint: result.hint, gaps, ideas });
-        if (callbacksRef.current.onHint?.(result.hint, gaps.length === 0)) {
-          logStep("Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
+        // The voice side can drop at any moment. A failed note must never stop the drawing.
+        try {
+          if (callbacksRef.current.onHint?.(result.hint, gaps.length === 0)) {
+            logStep("Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
+          }
+        } catch {
+          // Milo misses this hint. The next turn sends a fresh one.
         }
 
-        if (!result.changed) {
+        if (result.changed) wanted.current = { prompt: result.drawPrompt, said: result.said, drew: result.drew };
+        const owed = wanted.current;
+        // Draw when there is something new, or when an earlier redraw failed and the board is behind.
+        if (!owed || owed.prompt === board.current.prompt) {
           logStep("Nothing new to draw", "The board stays as it is");
           continue;
         }
 
+        drawing = true;
         setBusy("drawing");
         openStep = beginStep(
           "Redrawing the board",
           result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
         );
         const draw: DrawRequest = {
-          prompt: result.drawPrompt,
+          prompt: owed.prompt,
           previousImageUrl: board.current.url,
           level: result.level,
           detail,
         };
-        const drawn = await postJson<DrawResult>("/api/draw", draw);
-        await preload(drawn.imageUrl);
+        // One retry: a single failed redraw should not leave an old board up while Milo says he gets it.
+        let drawn: DrawResult | null = null;
+        for (let attempt = 0; attempt < 2 && !drawn; attempt++) {
+          try {
+            const tried = await postJson<DrawResult>("/api/draw", draw);
+            await preload(tried.imageUrl);
+            drawn = tried;
+          } catch (caught) {
+            if (attempt === 1) throw caught;
+          }
+        }
+        if (!drawn) continue;
         endStep(openStep, { label: "Board redrawn" });
         openStep = null;
 
-        board.current = { url: drawn.imageUrl, prompt: result.drawPrompt };
+        board.current = { url: drawn.imageUrl, prompt: owed.prompt };
         const frame: Frame = {
           turn: framesRef.current.length + 1,
           level: result.level,
-          said: result.said,
+          said: owed.said,
           imageUrl: drawn.imageUrl,
           at: startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0,
           hint: result.hint,
@@ -218,9 +250,9 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         };
         framesRef.current = [...framesRef.current, frame];
         setFrames(framesRef.current);
-        if (result.drew) callbacksRef.current.onDrawn?.(result.drew, gaps.length === 0);
 
-        // Every new board updates this session's entry in the history.
+        // Every new board updates this session's entry in the history. Saved before Milo is told,
+        // so a dropped voice call cannot lose the frame.
         sessionId.current ??= Date.now().toString(36);
         saveSession({
           id: sessionId.current,
@@ -230,11 +262,21 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           frames: framesRef.current,
           savedAt: Date.now(),
         });
+        try {
+          if (owed.drew) callbacksRef.current.onDrawn?.(owed.drew, gaps.length === 0);
+        } catch {
+          // Milo does not announce this drawing. It is still on screen.
+        }
       }
     } catch (caught) {
-      const reason = caught instanceof Error ? caught.message : "Something went wrong.";
+      // The technical reason goes to the console. The student gets a plain line.
+      console.error("Milo's turn failed:", caught);
       if (openStep !== null) endStep(openStep, { state: "error", detail: "Did not finish" });
-      setError(`${reason} Keep talking, Milo will try again.`);
+      setError(
+        drawing
+          ? "The drawing did not come back. Keep talking, Milo will try again on your next turn."
+          : "Milo could not check that. Keep talking, he will try again on your next turn.",
+      );
     } finally {
       running.current = false;
       setBusy("idle");

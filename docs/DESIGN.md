@@ -104,6 +104,8 @@ The grey panel holds two columns.
 
 Footer: one small muted credits line.
 
+**Fit.** The design was drawn at 1440x1120. At 1440x900 the session screen needs a little scrolling once a turn is scored: Milo, his line and the crayon level stay in view, and the feed and the on/off bar are just below. Record the video in a 1440x1120 window.
+
 **Milo is alive.** Decided Sat 14 Nov: the left column should feel like a live agent, not a photo with a caption. So in this column several small things may move at once, as long as the board stays the only big mover on the right.
 
 - Milo's picture never sits still. He breathes when idle, sways while listening, tilts and bobs while thinking or drawing.
@@ -116,7 +118,7 @@ Footer: one small muted credits line.
 - When a new board lands he says what he drew without being asked, if nobody is talking.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
 - Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
-- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo". The round button switches Milo off and on again. It is not a mute button: black with a mic while he is on, white with a struck-through mic while he is off. The bar stays pinned to the bottom of the column.
+- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo". The round button switches Milo off and on again. It is not a mute button: black with a mic while he is on, white with a struck-through mic while he is off. The bar sits at the bottom of the column, under the crayon level card and the feed.
 
 **Status badge states**
 
@@ -126,7 +128,8 @@ Footer: one small muted credits line.
 | Thinking | faint | Thinking |
 | Drawing | faint | Drawing |
 | Speaking | ink | Milo is talking |
-| Mic off | miss | Mic is off |
+| Milo off | miss | Milo is off |
+| Connecting | faint | Waking Milo up |
 
 **The board while fal is drawing.** Keep the old board. Put a small white pill at the bottom centre of the paper: "Milo is drawing…". Swap the image only when the new one has fully loaded.
 
@@ -165,7 +168,7 @@ Rules for any new text:
 
 - Milo is a quick, warm, cheeky kid. He reacts to what was just said, then asks one small question you can answer in a sentence. He never explains and never uses the proper term before the student does. He never says "Mmhh".
 - Interface text is plain and short. Say what a button does: "End session", "Open revision sheet", "Replay".
-- Errors say what happened and what to do: "The drawing did not come back. Keep talking, Milo will try again."
+- Errors say what happened and what to do, in plain words and in ink, never in the miss colour: "The drawing did not come back. Keep talking, Milo will try again on your next turn." The technical reason goes to the console, not the screen.
 - The credits line names only tools the run really used. The design shows "Voice by ElevenLabs. Face by Anam. Drawing by fal. Grading by Adaption." Remove "Face by Anam" and "Grading by Adaption" unless they are wired.
 
 ## 20 UX and motion rules

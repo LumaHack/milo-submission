@@ -122,13 +122,13 @@ export const SUGGESTIONS: Record<(typeof SUBJECTS)[number], { title: string; blu
   ],
   History: [
     { title: "How the pyramids were built", blurb: "Stone, ramps and thousands of workers." },
-    { title: "Why the Roman Empire fell", blurb: "Money, borders and too many emperors." },
+    { title: "How Roman aqueducts worked", blurb: "Water carried for miles by a gentle slope." },
     { title: "How the printing press changed Europe", blurb: "Books for everyone, suddenly." },
     { title: "What caused the Industrial Revolution", blurb: "Coal, steam and factories." },
     { title: "How the Silk Road worked", blurb: "Goods and ideas across a continent." },
-    { title: "How castles were defended", blurb: "Walls, moats and murder holes." },
+    { title: "How a medieval castle was built", blurb: "Stone, timber and years of work." },
     { title: "How the first cities began", blurb: "Farming, surplus and writing." },
-    { title: "How the Moon landing happened", blurb: "Three people, one very big rocket." },
+    { title: "How writing was invented", blurb: "From counting tokens to an alphabet." },
   ],
   Chemistry: [
     { title: "How an atom is built", blurb: "A tiny centre and a cloud around it." },

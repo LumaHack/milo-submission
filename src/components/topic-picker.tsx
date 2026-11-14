@@ -5,7 +5,7 @@
 // which works out the key ideas Milo should be taught.
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { pill } from "@/components/ui";
 import { chooseTopic } from "@/lib/history";
@@ -16,7 +16,7 @@ type Subject = (typeof SUBJECTS)[number];
 const topicCard =
   "press flex min-h-[168px] flex-[1_1_260px] flex-col justify-between gap-5 rounded-card bg-card p-6 text-left text-ink disabled:opacity-50";
 
-export function TopicPicker() {
+export function TopicPicker({ children }: { children?: ReactNode }) {
   const router = useRouter();
   const [subject, setSubject] = useState<Subject>("Biology");
   const [page, setPage] = useState(0);
@@ -79,6 +79,8 @@ export function TopicPicker() {
         </div>
       </div>
 
+      {children}
+
       <div className="flex flex-col gap-3.5">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <span className="text-[15px] font-semibold">Four topics to choose from</span>
@@ -94,7 +96,7 @@ export function TopicPicker() {
                 key={topic.title}
                 type="button"
                 onClick={() => void pick(topic.title)}
-                disabled={making !== null}
+                disabled={making !== null && making !== topic.title}
                 className={`${topicCard} animate-rise`}
                 style={{ animationDelay: `${i * 50}ms` }}
               >
@@ -131,7 +133,7 @@ export function TopicPicker() {
         </div>
 
         {error && (
-          <p role="alert" className="m-0 animate-rise text-sm text-miss">
+          <p role="alert" className="m-0 animate-rise text-sm text-ink">
             {error}
           </p>
         )}

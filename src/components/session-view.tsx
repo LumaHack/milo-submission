@@ -62,6 +62,8 @@ export type SessionViewProps = {
   /** Voice level from 0 to 1: the microphone while listening, Milo's own voice while he talks. */
   getVoiceLevel?: () => number;
   onEnd?: () => void;
+  /** Replaces the usual credits line where it would not be true. */
+  credits?: string;
 };
 
 export function SessionView(props: SessionViewProps) {
@@ -71,6 +73,7 @@ export function SessionView(props: SessionViewProps) {
   const [replaying, setReplaying] = useState(false);
   const replayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const columnRef = useRef<HTMLElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   const stopReplay = () => {
     if (replayTimer.current) clearInterval(replayTimer.current);
@@ -90,7 +93,8 @@ export function SessionView(props: SessionViewProps) {
   useEffect(() => {
     const node = columnRef.current;
     if (!node) return;
-    if (!voiceActive || !getVoiceLevel) {
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!voiceActive || !getVoiceLevel || calm) {
       node.style.setProperty("--vol", "0");
       return;
     }
@@ -106,6 +110,12 @@ export function SessionView(props: SessionViewProps) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [voiceActive, getVoiceLevel]);
+
+  // Keep the newest frame in view when the strip grows past four.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (strip) strip.scrollTo({ left: strip.scrollWidth, behavior: "smooth" });
+  }, [frames.length]);
 
   // A new board always takes over the view, unless a replay is running.
   const frameCount = frames.length;
@@ -126,6 +136,15 @@ export function SessionView(props: SessionViewProps) {
   const info = levelInfo(level);
   const status = STATUS[props.status];
   const scored = live.level !== null || frames.length > 0;
+
+  // The grow-up effect is the one big moment, so it only plays when Milo really levels up:
+  // not when the page loads, not when an older frame is opened, not during a replay.
+  const [shownLevel, setShownLevel] = useState<Level>(level);
+  const [grewUp, setGrewUp] = useState(false);
+  if (level !== shownLevel) {
+    setGrewUp(level > shownLevel && onNewest && !replaying);
+    setShownLevel(level);
+  }
   const ideas = live.ideas ?? null;
 
   const replay = () => {
@@ -147,6 +166,7 @@ export function SessionView(props: SessionViewProps) {
 
   return (
     <Page
+      credits={props.credits}
       header={
         <>
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
@@ -156,9 +176,11 @@ export function SessionView(props: SessionViewProps) {
             <span className="text-[15px] text-muted">{props.subjectLine}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/sheet" className={pill.light} onClick={props.onEnd}>
-              Open revision sheet
-            </Link>
+            {frames.length > 0 && (
+              <Link href="/sheet" className={pill.light} onClick={props.onEnd}>
+                Open revision sheet
+              </Link>
+            )}
             <Link href="/" className={pill.dark} onClick={props.onEnd}>
               End session
             </Link>
@@ -184,12 +206,14 @@ export function SessionView(props: SessionViewProps) {
                     key={level}
                     src={info.miloImage}
                     alt={`Milo, age ${info.miloAge}`}
-                    className="block h-full w-full animate-grow-up object-cover object-[50%_25%]"
+                    className={`block h-full w-full object-cover object-[50%_25%] ${grewUp ? "animate-grow-up" : "animate-rise"}`}
                   />
                 </div>
               </div>
               {/* A white flash when he grows up. */}
-              <span key={`flash-${level}`} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-flash bg-card" />
+              {grewUp && (
+                <span key={`flash-${level}`} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-flash bg-card" />
+              )}
               {/* The ring thickens with the voice: green while he listens, black while he talks. */}
               {status.ring && (
                 <span
@@ -202,7 +226,7 @@ export function SessionView(props: SessionViewProps) {
                 <span
                   key={props.reaction.id}
                   aria-hidden="true"
-                  className="pointer-events-none absolute top-3 right-3 animate-reaction rounded-[16px_16px_16px_4px] bg-card px-3.5 py-1.5 font-crayon text-[28px] leading-none text-ink shadow-paper"
+                  className="pointer-events-none absolute top-3 right-3 animate-reaction rounded-[16px_16px_16px_4px] bg-card px-3.5 py-1.5 border border-line font-crayon text-[28px] leading-none text-ink"
                 >
                   {props.reaction.text}
                 </span>
@@ -238,8 +262,6 @@ export function SessionView(props: SessionViewProps) {
               </p>
             </div>
           </div>
-
-          <AgentFeed steps={props.steps} />
 
           <div className="flex flex-col gap-3 rounded-card bg-card px-4 py-[18px]">
             <div className="flex items-baseline justify-between gap-3">
@@ -278,7 +300,9 @@ export function SessionView(props: SessionViewProps) {
             )}
           </div>
 
-          <div className="sticky bottom-3 z-10 mt-auto flex items-center gap-3.5 rounded-card bg-card px-4 py-3.5 shadow-paper">
+          <AgentFeed steps={props.steps} />
+
+          <div className="mt-auto flex items-center gap-3.5 rounded-card bg-card px-4 py-3.5">
             <span className="relative flex-none">
               <button
                 type="button"
@@ -333,7 +357,7 @@ export function SessionView(props: SessionViewProps) {
                 </div>
               )}
               {props.drawing && (
-                <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full bg-card px-3.5 py-1.5 text-[13px] font-medium shadow-paper">
+                <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-medium">
                   Milo is drawing
                   <Dots />
                 </span>
@@ -342,7 +366,7 @@ export function SessionView(props: SessionViewProps) {
           </div>
 
           {props.error && (
-            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
+            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-ink">
               {props.error}
             </p>
           )}
@@ -366,7 +390,7 @@ export function SessionView(props: SessionViewProps) {
               </button>
             </div>
             {frames.length > 0 ? (
-              <div className="flex gap-2.5 overflow-x-auto pb-1">
+              <div ref={stripRef} className="flex gap-2.5 overflow-x-auto pb-1">
                 {frames.map((entry, i) => {
                   const last = i === frames.length - 1 && entry.level === 4;
                   return (
@@ -381,6 +405,7 @@ export function SessionView(props: SessionViewProps) {
                       className={`press flex w-[calc(25%-7.5px)] min-w-[180px] flex-none animate-rise flex-col gap-2 rounded-tile border-2 bg-card p-2.5 text-left text-ink ${
                         i === index ? "border-ink" : "border-line"
                       }`}
+                      style={{ animationDelay: "400ms" }}
                     >
                       <span className="pointer-events-none block overflow-hidden rounded-lg border border-line bg-paper">
                         <img src={entry.imageUrl} alt="" className="block aspect-video w-full object-cover" />

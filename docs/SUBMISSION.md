@@ -53,7 +53,7 @@ Imperial AI Hack, Huxley Building. Everything here is from the hackathon site an
 | 1:30 to 1:50 | The revision sheet, then a simple diagram | How it is built: ElevenLabs agent hears and speaks as Milo, Claude scores each turn and writes the drawing instruction, fal edits the same board every turn |
 | 1:50 to 2:00 | Back on Milo aged 18 | The closest product (flashcard and quiz apps), how Milo differs (you build the explanation, it shows the gap instead of telling you), and how often the run works out of ten |
 
-Record it at 10:30 on Sunday. Record a backup take with the scripted run in case the live one fails.
+Record it in a 1440x1120 browser window, the size the design was drawn at. Record it at 10:30 on Sunday. Record a backup take with the scripted run in case the live one fails.
 
 ## What is real and what is mocked
 
@@ -61,12 +61,13 @@ Fill this in before recording. The video must match it.
 
 | Part | Real or mocked | Notes |
 |---|---|---|
-| Milo's voice and listening | | |
-| Scoring and drawing instruction (Claude) | | |
-| Board redraw (fal) | | |
+| Milo's voice and listening | Real | ElevenLabs agent, live |
+| Scoring and drawing instruction (Claude) | Real | One call per turn |
+| Board redraw (fal) | Real | One edit per turn |
 | Milo's face | Four fal images, swapped by level | Live avatar only if Anam is wired |
 | Grading | Claude's level | Adaption only if the fine-tune is done |
-| Topics other than the cell | Shown, not built | |
+| Topics other than the cell | Real, less tested | Set up by Claude when picked. Film the cell |
+| `/demo` | Scripted | Stored boards, no voice, no calls. Its own credits line says so |
 
 ## Numbers for the questions
 
@@ -76,7 +77,7 @@ Fill in from your own runs.
 |---|---|
 | Runs that worked out of 10 | |
 | End of speech to Milo's reply | |
-| Claude scoring one turn (`claude-opus-5-5`, low effort) | 3.9 to 7.9 s, five calls on Sat 14 Nov |
+| Claude scoring one turn (`claude-opus-5-5`, low effort, fast mode) | 1.9 to 2.9 s. At standard speed it was 3.9 to 7.9 s |
 | fal, first board | 3.9 s, one run |
 | fal, edit at levels 2 and 3 | 7.2 and 8.0 s |
 | fal, final sheet (careful model) | 19.6 s, one run |
@@ -104,7 +105,7 @@ Fill in from your own runs.
 
 - **Why not draw in real time?** A redraw takes 5 to 9 seconds. We redraw once per turn and keep the old board up, so it never blocks the conversation.
 - **How do you stop it giving the answer?** The drawing instruction may only contain what the student said, and Milo's prompt forbids explaining or using a word the student has not used.
-- **What does ElevenLabs do beyond text to speech?** Milo is an ElevenLabs agent: it handles turn-taking with patient timing, can be interrupted, and takes notes from the app mid-conversation about the student's weakest point.
+- **What does ElevenLabs do beyond text to speech?** Milo is an ElevenLabs agent: it handles turn-taking, answers a second or two after you stop, can be interrupted, speaks up by itself when he finishes a drawing or you go quiet, and takes notes from the app mid-conversation about the student's weakest point.
 - **Why fal?** The board is the feedback. Each board is an edit of the previous image, so the student watches the same drawing grow up.
 - **Does it detect emotion?** No. We do not claim that.
 

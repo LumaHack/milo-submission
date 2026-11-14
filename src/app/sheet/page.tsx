@@ -26,18 +26,29 @@ export default function SheetPage() {
   useEffect(() => {
     if (!session || !job) return;
     let stopped = false;
+    let failures = 0;
     const check = async () => {
       setNow(Date.now());
+      // fal has never taken this long. Stop waiting so the button comes back.
+      if (Date.now() - job.startedAt > 8 * 60 * 1000) {
+        setFilmError("The film is taking too long. Try making it again.");
+        saveSession({ ...session, filmJob: undefined });
+        return;
+      }
       try {
         const response = await fetch(`/api/film?id=${encodeURIComponent(job.requestId)}`);
         const data = (await response.json().catch(() => null)) as { status?: string; videoUrl?: string; error?: string } | null;
         if (stopped) return;
         if (!response.ok || !data) throw new Error(data?.error ?? "The film could not be made.");
+        failures = 0;
         if (data.status === "done" && data.videoUrl) {
           saveSession({ ...session, filmJob: undefined, filmUrl: data.videoUrl });
         }
       } catch (caught) {
         if (stopped) return;
+        // One failed check is usually the network. fal is still making the film, so keep asking.
+        failures += 1;
+        if (failures < 3) return;
         setFilmError(caught instanceof Error ? caught.message : "The film could not be made.");
         saveSession({ ...session, filmJob: undefined });
       }
@@ -94,7 +105,7 @@ export default function SheetPage() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link href="/sheets" className={pill.light}>
-              All your sheets
+              Your revision sheets
             </Link>
             <Link href="/" className={pill.dark}>
               Explain something
@@ -139,7 +150,7 @@ export default function SheetPage() {
           </div>
 
           {filmError && (
-            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
+            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-ink">
               {filmError}
             </p>
           )}
@@ -163,7 +174,7 @@ export default function SheetPage() {
                 <video src={session.filmUrl} controls loop playsInline className="block aspect-video w-full rounded-[10px] bg-ink" />
                 <figcaption className="flex flex-wrap items-center justify-between gap-2 text-[13px] text-muted">
                   <span>Your first drawing turning into your last. Made by fal from the two boards.</span>
-                  <a href={session.filmUrl} download="milo-film.mp4" target="_blank" rel="noreferrer" className="text-ink">
+                  <a href={session.filmUrl} download="milo-film.mp4" target="_blank" rel="noreferrer" className={pill.light}>
                     Save film
                   </a>
                 </figcaption>

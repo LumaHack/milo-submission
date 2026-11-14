@@ -74,12 +74,17 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       else if (payload.message === typedByUs.current) typedByUs.current = null;
       else addTurn(payload.message);
     },
+    // A fresh connection clears any earlier voice error, so it cannot hide a later one.
+    onConnect: () => setVoiceError(null),
     // Kept in the developer log, so a dropped connection can be explained afterwards.
     onDisconnect: (details) => {
       log.current.push({ who: "disconnect", text: JSON.stringify(details) });
       // A drop that was not the student's doing gets said out loud on screen, never swallowed.
       const info = details as { reason?: string; message?: string };
-      if (info.reason === "error") setVoiceError(`Milo dropped out: ${info.message ?? "the connection closed"}. Tap anywhere to wake him.`);
+      if (info.reason === "error") {
+        console.error("Milo dropped out:", info.message);
+        setVoiceError("Milo dropped out. Press the button under him to bring him back.");
+      }
     },
     onVadScore: ({ vadScore }) => {
       if (vadScore > 0.6) lastSpeech.current = Date.now();
@@ -88,8 +93,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       log.current.push({ who: "error", text: String(message) });
       setVoiceError(
         /permission|notallowed/i.test(message)
-          ? "Milo needs your microphone. Allow it in the browser, then tap anywhere."
-          : `Milo's voice hit a problem: ${message}`,
+          ? "Milo needs your microphone. Allow it in the browser, then press the button under Milo."
+          : "Milo's voice hit a problem. Press the button under him to try again.",
       );
     },
   });
@@ -126,7 +131,11 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       const quiet = Date.now() - lastSpeech.current > 1500;
       if (quiet && !isSpeaking) {
         pendingShow.current = null;
-        sendUserMessage(pending.cue);
+        try {
+          sendUserMessage(pending.cue);
+        } catch {
+          // The call ended in this instant. Nothing to announce to.
+        }
       }
     }, 400);
     return () => clearInterval(timer);
@@ -150,7 +159,19 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     setStartedAt((value) => value ?? Date.now());
   };
 
+  const alive = useRef(false);
+  const connectingNow = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
   const connect = async () => {
+    // One attempt at a time, and never after the student has left the page.
+    if (connectingNow.current || !alive.current) return;
+    connectingNow.current = true;
     setVoiceError(null);
     try {
       const text = textMode.current;
@@ -161,6 +182,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       // Fills the topic into Milo's prompt and first line.
       // If the student has already said something, Milo is coming back, not starting.
       const dynamicVariables = miloVariables(topic, session.said().length > 0);
+      // The token took a moment. If the student left meanwhile, do not open a call on the next page.
+      if (!alive.current) return;
       if (text && data.signedUrl) {
         conversation.startSession({ signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true, dynamicVariables });
       } else if (data.token) {
@@ -168,6 +191,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       }
     } catch (caught) {
       setVoiceError(caught instanceof Error ? caught.message : "Could not start Milo's voice.");
+    } finally {
+      connectingNow.current = false;
     }
   };
 
@@ -187,11 +212,16 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     }
   }, []);
   useEffect(() => {
-    if (!idle || switchedOff) return;
-    const wake = () => void connectRef.current();
-    window.addEventListener("pointerdown", wake, { once: true });
+    // After an error only the button retries, so a tap does not make the message blink.
+    if (!idle || switchedOff || voiceError) return;
+    // Leaving the page or pressing a control is not a request to wake Milo.
+    const wake = (event: PointerEvent) => {
+      if (event.target instanceof Element && event.target.closest("a, button")) return;
+      void connectRef.current();
+    };
+    window.addEventListener("pointerdown", wake);
     return () => window.removeEventListener("pointerdown", wake);
-  }, [idle, switchedOff]);
+  }, [idle, switchedOff, voiceError]);
 
   // Development only. From the browser console:
   //   window.miloSay("The cell takes in things and makes energy.")   a turn, with no microphone
@@ -269,9 +299,11 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     ? null
     : connecting
       ? "Waking Milo up…"
-      : switchedOff
-        ? "Milo is off. Press to switch him on"
-        : "Tap anywhere to wake Milo";
+      : voiceError
+        ? "Press to try again"
+        : switchedOff
+          ? "Milo is off. Press to switch him on"
+          : "Tap anywhere to wake Milo";
 
   // Milo's own voice while he talks, the student's microphone the rest of the time.
   const getVoiceLevel = useCallback(

@@ -83,7 +83,15 @@ export function chooseTopic(topic: Topic) {
 /** Every stored session, newest first. Undefined until storage has been read. */
 export function useHistory(): StoredSession[] | undefined {
   const raw = useSyncExternalStore<string | null | undefined>(subscribe, () => read(HISTORY_KEY), () => undefined);
-  return useMemo(() => (raw === undefined ? undefined : parse<StoredSession[]>(raw, [])), [raw]);
+  return useMemo(() => {
+    if (raw === undefined) return undefined;
+    const stored = parse<unknown>(raw, []);
+    // Anything that is not a well-formed session is skipped, so one bad entry cannot break the pages.
+    return (Array.isArray(stored) ? stored : []).filter(
+      (entry): entry is StoredSession =>
+        Boolean(entry) && typeof entry.id === "string" && typeof entry.topicTitle === "string" && Array.isArray(entry.frames),
+    );
+  }, [raw]);
 }
 
 /** The session the revision sheet shows: the one last opened, or the newest. */

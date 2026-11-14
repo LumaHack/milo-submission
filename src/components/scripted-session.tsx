@@ -84,6 +84,7 @@ export function ScriptedSession() {
       micLabel={done ? "The scripted run is finished" : "Play the next scripted turn"}
       micHint={shown === 0 && !drawing ? "Press the mic to play the first turn" : null}
       onMic={next}
+      credits="Scripted run. Nothing here is live. The boards were drawn earlier by fal."
     />
   );
 }

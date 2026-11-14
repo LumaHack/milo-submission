@@ -61,7 +61,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 
 - [x] **Revision sheet screen.** Final board, "In your words", "How you got here". Save to `localStorage`. *Done when:* it matches `SheetV3` and survives a page reload.
 - [ ] **Level-up moment.** Chip pop, Milo's picture and age change (rules 1, 5, 10 in DESIGN.md). *Done when:* levelling up is the one thing on screen you cannot miss.
-- [ ] **Status badge.** Listening, Thinking, Drawing, Milo is talking, Mic is off, driven by the real state.
+- [ ] **Status badge.** Listening, Thinking, Drawing, Milo is talking, Milo is off, driven by the real state.
 - [ ] **Live waveform.** The bars move with the microphone level while listening.
 - [x] **Scripted fallback mode.** (`/demo`) A switch that runs the session from the reference images with no network. *Done when:* the demo can be filmed even if the venue wifi dies. Say in the video that it is the scripted run if you use it.
 - [ ] **Time everything.** Brain call, each fal call, time from end of speech to new board. Write the numbers into SUBMISSION.md for the Q&A.

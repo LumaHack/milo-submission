@@ -14,12 +14,23 @@ export const pill = {
 };
 
 /** The page frame every screen shares: header, content, and the credits line. */
-export function Page({ header, children, gap = "gap-4" }: { header: ReactNode; children: ReactNode; gap?: string }) {
+export function Page({
+  header,
+  children,
+  gap = "gap-4",
+  credits,
+}: {
+  header: ReactNode;
+  children: ReactNode;
+  gap?: string;
+  /** Replaces the usual credits where they would not be true, such as the scripted run. */
+  credits?: string;
+}) {
   return (
     <div className={`flex min-h-screen flex-col ${gap} bg-bg px-7 pt-5 pb-6 text-ink max-sm:px-4`}>
       <header className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">{header}</header>
       {children}
-      <Credits />
+      <Credits text={credits} />
     </div>
   );
 }
@@ -28,8 +39,10 @@ export function Page({ header, children, gap = "gap-4" }: { header: ReactNode; c
  * Credits only the tools that really run. Add Anam or Adaption here once they are wired,
  * not before: the credits must be true.
  */
-export function Credits() {
-  return <footer className="text-[13px] text-muted">Voice by ElevenLabs. Drawing by fal. Brain by Claude.</footer>;
+export function Credits({ text }: { text?: string }) {
+  return (
+    <footer className="text-[13px] text-muted">{text ?? "Voice by ElevenLabs. Drawing by fal. Brain by Claude."}</footer>
+  );
 }
 
 /** Milo at one of his four ages. The pictures are real fal output, see scripts/gen_milo.py. */

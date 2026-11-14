@@ -35,9 +35,9 @@ export default function StartPage() {
           </div>
         </div>
 
-        <DetailPicker />
-
-        <TopicPicker />
+        <TopicPicker>
+          <DetailPicker />
+        </TopicPicker>
       </main>
     </Page>
   );
