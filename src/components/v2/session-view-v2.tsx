@@ -15,6 +15,7 @@ import { LEVELS, levelInfo, type Level } from "@/lib/levels";
 import type { IdeaStatus, MiloStatus } from "@/lib/turn";
 import type { Step } from "@/lib/use-milo-session";
 import type { Mode } from "@/lib/v2/contract";
+import { MILO_POSES, poseBox, posePicture, type MiloPose } from "@/lib/v2/milo-poses";
 import type { V2Topic } from "@/lib/v2/topics";
 import type { V2Frame, V2Live } from "@/lib/v2/use-milo-v2";
 
@@ -129,6 +130,41 @@ export function SessionViewV2(props: SessionViewV2Props) {
   const line = (onNewest ? (props.spokenLine ?? live.miloLine) : frame?.hint) ?? topic.firstMessage;
   const scored = live.level !== null || frames.length > 0;
 
+  // Load every pose and age up front, so a pose change never shows a gap.
+  useEffect(() => {
+    for (const entry of LEVELS) for (const pose of MILO_POSES) new Image().src = posePicture(pose, entry.level);
+  }, []);
+
+  // When he grows up a level, Milo cheers for a moment.
+  const [seenLevel, setSeenLevel] = useState(live.level);
+  const [cheerRun, setCheerRun] = useState(0);
+  if (live.level !== seenLevel) {
+    setSeenLevel(live.level);
+    if (seenLevel !== null && live.level !== null && live.level > seenLevel) setCheerRun((run) => run + 1);
+  }
+  const [cheering, setCheering] = useState(false);
+  useEffect(() => {
+    if (cheerRun === 0) return;
+    const on = setTimeout(() => setCheering(true), 0);
+    const off = setTimeout(() => setCheering(false), 2600);
+    return () => {
+      clearTimeout(on);
+      clearTimeout(off);
+    };
+  }, [cheerRun]);
+
+  const finished = live.level === 4 && live.gapId === null;
+  const pose: MiloPose =
+    cheering || (finished && props.status === "speaking")
+      ? "cheer"
+      : props.status === "speaking"
+        ? props.mode === "coach" && live.hintStep >= 1
+          ? "point"
+          : "talk"
+        : props.status === "thinking" || props.status === "drawing" || props.status === "connecting"
+          ? "think"
+          : "listen";
+
   const replay = () => {
     if (frames.length < 2) return;
     stopReplay();
@@ -225,7 +261,7 @@ export function SessionViewV2(props: SessionViewV2Props) {
         <section
           ref={miloRef}
           aria-label="Milo"
-          className="relative z-10 order-2 flex min-w-0 flex-col gap-3 lg:order-none lg:-ml-10 lg:pt-16"
+          className="relative z-10 order-2 flex min-w-0 flex-col gap-3 lg:order-none lg:-ml-10 lg:self-stretch lg:pt-16"
         >
           <p
             key={line}
@@ -233,8 +269,8 @@ export function SessionViewV2(props: SessionViewV2Props) {
           >
             <Words text={line} />
           </p>
-          <MiloFigure level={shownLevel} status={props.status} />
           <LatestStep steps={props.steps} />
+          <MiloFigure level={shownLevel} status={props.status} pose={pose} />
         </section>
 
         <VoiceBar {...props} className="order-4 lg:order-none lg:col-span-2 lg:col-start-2" />
@@ -390,36 +426,43 @@ function IdeaIcon({ status }: { status: IdeaStatus }) {
   return <span aria-hidden="true" className="block h-4 w-4 rounded-full border-2 border-line" />;
 }
 
-/** Milo himself, at his current age, moving with his state and his voice. */
-function MiloFigure({ level, status }: { level: Level; status: ViewStatus }) {
+/**
+ * Milo himself: a 3D cut-out standing beside the board, at his current age and in the pose for what he
+ * is doing. Poses cross-fade, never morph. The box clips only at the bottom, like a desk in front of
+ * him, so a pointing arm can reach over the board's edge.
+ */
+function MiloFigure({ level, status, pose }: { level: Level; status: ViewStatus; pose: MiloPose }) {
   const info = levelInfo(level);
   const look = STATUS[status];
   return (
-    <div className="relative aspect-[4/5] overflow-hidden rounded-tile bg-milo">
-      {/* Outer layer moves with the voice. Inner layer carries the idle motion for the current state. */}
+    <div
+      className="relative mt-auto aspect-square w-full max-w-[320px] self-center lg:max-w-none"
+      style={{ clipPath: "inset(-100% -100% 0 -100%)" }}
+    >
+      {/* Outer layer moves with the voice. */}
       <div
-        className="h-full w-full will-change-transform"
-        style={{ transform: "scale(calc(1 + var(--vol, 0) * 0.06)) translateY(calc(var(--vol, 0) * -5px))" }}
+        className="absolute inset-0 origin-bottom will-change-transform"
+        style={{ transform: "scale(calc(1 + var(--vol, 0) * 0.04)) translateY(calc(var(--vol, 0) * -4px))" }}
       >
-        <div className={`h-full w-full ${look.motion}`}>
-          <img
-            key={level}
-            src={info.miloImage}
-            alt={`Milo, age ${info.miloAge}`}
-            className="block h-full w-full animate-grow-up object-cover object-[50%_25%]"
-          />
+        {/* Growing up plays again whenever his age changes. */}
+        <div key={level} className="absolute inset-0 origin-bottom animate-grow-up">
+          {/* The idle motion for the current state. */}
+          <div className={`absolute inset-0 origin-bottom ${look.motion}`}>
+            {MILO_POSES.map((entry) => (
+              <img
+                key={entry}
+                src={posePicture(entry, level)}
+                alt=""
+                aria-hidden="true"
+                draggable={false}
+                className="absolute h-auto max-w-none transition-opacity duration-200 ease-out select-none"
+                style={{ ...poseBox(entry, level), opacity: entry === pose ? 1 : 0 }}
+              />
+            ))}
+          </div>
         </div>
       </div>
-      {/* A white flash when he grows up. */}
-      <span key={`flash-${level}`} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-flash bg-card" />
-      {/* The ring thickens with the voice: green while he listens, black while he talks. */}
-      {look.ring && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-tile"
-          style={{ boxShadow: `inset 0 0 0 calc(2px + var(--vol, 0) * 9px) ${look.ring}` }}
-        />
-      )}
+      <span className="sr-only">Milo, age {info.miloAge}</span>
       <span
         key={status}
         aria-live="polite"
