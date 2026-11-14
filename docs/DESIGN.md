@@ -72,7 +72,7 @@ Spacing: page padding 20px top, 28px sides, 24px bottom. Panel padding 12px, 12p
 
 - Header: wordmark "Milo" left. Light pill "Your revision sheets" right.
 - Headline "What do you want to explain?" on the left. On the right, Milo aged 4 in a 128px circle, beside: "Explain it out loud, like you would to a friend who knows nothing. Milo draws what you say and grows up as you get it right."
-- "Subject": four pills, Biology (selected, black), History, Chemistry, Physics.
+- "Subject": four pills, Biology (selected, black), History, Chemistry, Physics. Every subject works: picking one swaps the four topic cards. "Give me four others" shows that subject's second set. Any card other than "How a cell works" is set up by Claude when picked and reads "Setting it up…" while that runs.
 - "How much detail": three pills, Basics (default), Exam, Deep, with a one-line description of the chosen one beside them. Added after v3, in the same pill style.
 - "Four topics to choose from", with a light pill "Give me four others" on the right.
 - The grey panel holds four white topic cards, min height 190px, title at the top and a one-line description at the bottom:

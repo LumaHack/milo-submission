@@ -104,6 +104,54 @@ export const TOPICS: Topic[] = [
 
 export const DEFAULT_TOPIC = TOPICS[0];
 
+/**
+ * Topics offered on the Start screen, eight per subject, shown four at a time.
+ * "How a cell works" is the tested preset above and opens at once. Every other one is set up by
+ * /api/topic when the student picks it, the same way as a topic they type.
+ */
+export const SUGGESTIONS: Record<(typeof SUBJECTS)[number], { title: string; blurb: string }[]> = {
+  Biology: [
+    { title: "How a cell works", blurb: "Every part, and what each one does." },
+    { title: "How the heart pumps blood", blurb: "Four chambers and two loops." },
+    { title: "How a neuron fires", blurb: "From a touch to a signal in the brain." },
+    { title: "Photosynthesis", blurb: "How a leaf turns light into sugar." },
+    { title: "How vaccines work", blurb: "Training the body before the real thing." },
+    { title: "How we digest food", blurb: "From a bite to energy in the blood." },
+    { title: "How DNA is copied", blurb: "One strand becomes two." },
+    { title: "Natural selection", blurb: "Why living things fit where they live." },
+  ],
+  History: [
+    { title: "How the pyramids were built", blurb: "Stone, ramps and thousands of workers." },
+    { title: "Why the Roman Empire fell", blurb: "Money, borders and too many emperors." },
+    { title: "How the printing press changed Europe", blurb: "Books for everyone, suddenly." },
+    { title: "What caused the Industrial Revolution", blurb: "Coal, steam and factories." },
+    { title: "How the Silk Road worked", blurb: "Goods and ideas across a continent." },
+    { title: "How castles were defended", blurb: "Walls, moats and murder holes." },
+    { title: "How the first cities began", blurb: "Farming, surplus and writing." },
+    { title: "How the Moon landing happened", blurb: "Three people, one very big rocket." },
+  ],
+  Chemistry: [
+    { title: "How an atom is built", blurb: "A tiny centre and a cloud around it." },
+    { title: "Why ice floats", blurb: "What water does when it freezes." },
+    { title: "How a battery works", blurb: "Chemicals pushing electrons round a loop." },
+    { title: "What happens when things burn", blurb: "Fuel, oxygen and heat." },
+    { title: "How soap cleans", blurb: "One end loves water, the other loves grease." },
+    { title: "Acids and alkalis", blurb: "What the pH scale measures." },
+    { title: "How rust forms", blurb: "Iron, water and air." },
+    { title: "The states of matter", blurb: "Solid, liquid, gas, and why they change." },
+  ],
+  Physics: [
+    { title: "How a rainbow forms", blurb: "Sunlight split by raindrops." },
+    { title: "Why the sky is blue", blurb: "What air does to sunlight." },
+    { title: "How a plane stays up", blurb: "Wings, air and lift." },
+    { title: "How an electric circuit works", blurb: "A loop, a push and something to power." },
+    { title: "How magnets work", blurb: "Two poles and an invisible field." },
+    { title: "How sound travels", blurb: "A push passed from one bit of air to the next." },
+    { title: "Why the Moon has phases", blurb: "Sun, Earth and Moon lining up." },
+    { title: "How gravity keeps planets in orbit", blurb: "Always falling, never landing." },
+  ],
+};
+
 /** How much detail the student is asked for. Chosen on the Start screen. */
 export type Detail = "basics" | "exam" | "deep";
 

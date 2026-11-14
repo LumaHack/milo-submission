@@ -29,7 +29,7 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 | Slideshow | inside Revision sheet | Full screen. Each board with what the student said and what Milo asked. Advances by itself |
 | Film | inside Revision sheet | A fal video of the first board turning into the last. Made when the student presses "Make a film" |
 
-The preset that works is **Biology, "How a cell works"**. The other three presets are shown and do nothing. The student can also **type any topic**: `/api/topic` has Claude turn it into a title, Milo's opening question and five key ideas (three core), and refuses anything that is not a school topic or is not safe to draw.
+**Biology, "How a cell works"** is the hand-written, most-tested topic and opens at once. Every other topic on the Start screen (eight per subject, four shown at a time) is set up on the spot, and the student can also **type any topic**: `/api/topic` has Claude turn it into a title, Milo's opening question and five key ideas (three core), and refuses anything that is not a school topic or is not safe to draw.
 
 ## One turn, step by step
 
