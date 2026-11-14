@@ -7,7 +7,8 @@
 //
 //   python3 scripts/voice-test/make_voice.py
 //   npm install --no-save puppeteer-core
-//   node scripts/voice-test/talk.js
+//   node scripts/voice-test/talk.js          two sentences, straight to Mastered
+//   node scripts/voice-test/talk.js hint     wrong twice about the energy, so Milo sketches a hint
 //
 // It talks to the real agent, so each run uses a little ElevenLabs, Claude and fal credit.
 const puppeteer = require("puppeteer-core");
@@ -45,7 +46,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
   await page.evaluate(() => localStorage.clear());
-  for (const name of ["a1", "a2", "b"]) {
+  const run = process.argv[2] === "hint" ? "hint" : "cell";
+  for (const name of run === "hint" ? ["h1", "h2", "h3", "h4", "h5"] : ["a1", "a2", "b"]) {
     await page.evaluate((n, b64) => window.__load(n, b64), name, fs.readFileSync(`${__dirname}/out/${name}.wav`).toString("base64"));
   }
   // A real mouse click, so the browser counts it as the student's gesture.
@@ -73,19 +75,41 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (let quiet = 0, i = 0; i < 120 && quiet < 4; i++) { quiet = (await badge()) === "Listening" ? quiet + 1 : 0; await wait(250); }
   console.log("audio context:", await page.evaluate(() => window.__ctxState()), "| getUserMedia calls:", await page.evaluate(() => window.__gum + " " + (window.__gumArgs || "")));
 
-  await say("a1");
-  await wait(900); // a pause mid-sentence: does Milo jump in?
-  await say("a2");
-  await quietFor(14000, "student goes quiet");
-  await say("b");
-  await quietFor(24000, "student goes quiet");
+  // Wait until Milo has finished thinking, drawing and talking, and has been listening for two seconds.
+  const settle = async (label) => {
+    mark(label);
+    for (let quiet = 0, i = 0; i < 240 && quiet < 8; i++) { quiet = (await badge()) === "Listening" ? quiet + 1 : 0; await wait(250); }
+  };
+
+  if (run === "hint") {
+    await say("h1");
+    await settle("waiting for Milo");
+    await say("h2"); // first wrong try at the energy
+    await settle("waiting for Milo");
+    await say("h3"); // second wrong try: Milo should sketch a hint and say his teacher line
+    await wait(4000);
+    await settle("waiting for the hint");
+    await wait(6000);
+    await settle("waiting for Milo to finish");
+    await say("h4"); // building on the hint
+    await settle("waiting for Milo");
+    await say("h5");
+    await quietFor(24000, "student goes quiet");
+  } else {
+    await say("a1");
+    await wait(900); // a pause mid-sentence: does Milo jump in?
+    await say("a2");
+    await quietFor(14000, "student goes quiet");
+    await say("b");
+    await quietFor(24000, "student goes quiet");
+  }
 
   const out = await page.evaluate(() => ({
     log: (window.miloLog || []).map((m) => ({ who: m.who, at: m.at, text: m.text })),
     feed: [...document.querySelectorAll("ol li")].map((li) => li.textContent),
     alert: document.querySelector("[role=alert]")?.textContent ?? null,
     bubble: document.querySelector("section[aria-label=Milo] p.mr-auto")?.textContent ?? null,
-    frames: (JSON.parse(localStorage.getItem("milo.history") || "[]")[0]?.frames || []).map((f) => ({ level: f.level, at: Math.round(f.at), said: f.said })),
+    frames: (JSON.parse(localStorage.getItem("milo.history") || "[]")[0]?.frames || []).map((f) => ({ level: f.level, at: Math.round(f.at), hinted: Boolean(f.hinted), said: f.said, image: f.imageUrl })),
     level: [...document.querySelectorAll(".bg-ink.text-white")].map((e) => e.textContent).filter((t) => /Crayon|Sketching|Clearer|Mastered/.test(t)),
   }));
   await page.screenshot({ path: `${__dirname}/out/end.png` });

@@ -16,6 +16,12 @@ CLIPS = {
     "a1": "Okay, so a cell has a skin around it,",
     "a2": "and that skin decides what gets in and what gets out.",
     "b": "Inside there are little power stations that make the energy, and the middle bit has the DNA that tells the cell what to do.",
+    # The hint run: right about the skin, wrong twice about the energy, then building on Milo's hint.
+    "h1": "A cell has a skin around it that decides what gets in and what gets out.",
+    "h2": "The energy comes from the skin itself, I think.",
+    "h3": "I'm not sure, maybe the energy just comes from the air around the cell.",
+    "h4": "Oh, so there are little power stations inside the cell that make the energy.",
+    "h5": "And the middle bit has the DNA that tells the cell what to do.",
 }
 
 
