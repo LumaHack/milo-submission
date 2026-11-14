@@ -10,6 +10,14 @@ export type BoardExample = { level: 1 | 2 | 3 | 4; said: string; drawPrompt: str
 export type Subject = "Biology" | "History";
 export const V2_SUBJECTS: Subject[] = ["Biology", "History"];
 
+/** A key idea, plus what "close enough" means for it. */
+export type V2KeyIdea = KeyIdea & {
+  /** What the student must get across for the idea to count as clear. Anything beyond it is bonus. */
+  core: string;
+  /** The proper word or words. Exam mode wants the student to use them. */
+  term: string;
+};
+
 export type V2Topic = {
   id: string;
   subject: Subject;
@@ -19,23 +27,34 @@ export type V2Topic = {
   about: string;
   /** Milo's first line when a session starts. */
   firstMessage: string;
-  /** When a key idea counts as clear, for this kind of topic. */
-  clearMeans: string;
   /** Extra guidance on tone, for serious topics. */
   tone?: string;
   /** Words speech-to-text should listen out for, such as hard names. */
   keywords: string[];
-  keyIdeas: KeyIdea[];
+  keyIdeas: V2KeyIdea[];
   /** Tested board prompts for this topic, one per level. Claude matches their style. */
   boardExamples: BoardExample[];
   /** Only ready topics can start a session. The others are shown on the start screen and do nothing. */
   ready: boolean;
 };
 
-function cellIdeas(): KeyIdea[] {
+/** What "close enough" means for each of the cell's key ideas. */
+const CELL_GRADING: Record<string, { core: string; term: string }> = {
+  membrane: { core: "The outer layer of the cell controls what goes in and out.", term: "membrane" },
+  energy: { core: "The mitochondria make the cell's energy. ATP is a bonus.", term: "mitochondria" },
+  nucleus: { core: "The nucleus holds the DNA, the cell's instructions.", term: "nucleus, DNA" },
+  ribosomes: { core: "Ribosomes make proteins. Following the instructions is a bonus.", term: "ribosomes" },
+  golgi: {
+    core: "The Golgi, with the rough ER, packs the proteins and sends them where they are needed.",
+    term: "Golgi",
+  },
+};
+
+/** Ali's key ideas for the cell, unchanged, plus what "close enough" means for each. */
+function cellIdeas(): V2KeyIdea[] {
   const cell = getTopic("cell");
   if (!cell) throw new Error("The cell topic is missing from src/lib/topics.ts.");
-  return cell.keyIdeas;
+  return cell.keyIdeas.map((idea) => ({ ...idea, ...(CELL_GRADING[idea.id] ?? { core: idea.idea, term: "" }) }));
 }
 
 const NO_PEOPLE = "No people, faces, flags or symbols.";
@@ -88,7 +107,6 @@ const CELL: V2Topic = {
   blurb: "Every part, and what each one does.",
   about: "how a cell works",
   firstMessage: "Hi, I'm Milo! I don't know anything about cells. Can you explain how a cell works? I'll draw what you say.",
-  clearMeans: "the part is named and its job is stated correctly",
   keywords: ["membrane", "mitochondria", "ATP", "nucleus", "DNA", "ribosomes", "endoplasmic reticulum", "Golgi"],
   keyIdeas: cellIdeas(),
   boardExamples: BOARD_EXAMPLES,
@@ -103,8 +121,6 @@ const WW2: V2Topic = {
   about: "how World War Two started",
   firstMessage:
     "Hi, I'm Milo! I don't know anything about how World War Two started. Can you explain it to me? I'll draw what you say.",
-  clearMeans:
-    "the event or cause is named and its effect on the road to war is stated correctly. Exact dates are welcome but not required",
   tone: "This is a serious topic about a war. Milo stays curious and kind, and never jokes about war, death or suffering.",
   keywords: [
     "Versailles",
@@ -126,26 +142,36 @@ const WW2: V2Topic = {
       id: "versailles",
       idea: "The Treaty of Versailles (1919) blamed and punished Germany after the First World War: it lost land, its army was cut to 100,000 men and it had to pay reparations, which left Germans angry and humiliated.",
       gapLabel: "What the last war left behind",
+      core: "A harsh peace treaty after the First World War punished Germany, and that made Germans angry or resentful. The year, the lost land, the small army and the reparations are bonus.",
+      term: "Treaty of Versailles",
     },
     {
       id: "depression",
       idea: "The Great Depression, from 1929, caused mass unemployment in Germany, about 6 million by 1932, so desperate voters turned to extreme parties.",
       gapLabel: "Why people got desperate",
+      core: "An economic crisis left many Germans without jobs or money, so people turned to extreme parties. The year and the numbers are bonus.",
+      term: "Great Depression",
     },
     {
       id: "hitler",
       idea: "Hitler and the Nazis took power in 1933 and broke the treaty: Germany rearmed, sent troops into the Rhineland (1936) and took over Austria (1938).",
       gapLabel: "Who took over, and what he broke",
+      core: "Hitler and the Nazis took power and broke the treaty, by building up the army or taking land. The years and the places are bonus.",
+      term: "Hitler, Nazis",
     },
     {
       id: "appeasement",
       idea: "Britain and France followed appeasement, giving Hitler what he wanted to avoid another war, as at Munich in 1938 when Germany was handed the Sudetenland.",
       gapLabel: "Why nobody stopped him",
+      core: "Britain and France let Hitler have what he wanted, to avoid another war. Munich and the Sudetenland are bonus.",
+      term: "appeasement",
     },
     {
       id: "poland",
       idea: "After the Nazi-Soviet Pact (August 1939), Germany invaded Poland on 1 September 1939, and Britain and France declared war on Germany on 3 September.",
       gapLabel: "What finally started the war",
+      core: "Germany invaded Poland in 1939, so Britain and France declared war on Germany. The Nazi-Soviet Pact and the exact days are bonus.",
+      term: "invasion of Poland",
     },
   ],
   boardExamples: WW2_EXAMPLES,
@@ -161,7 +187,6 @@ function placeholder(id: string, subject: Subject, title: string, blurb: string)
     blurb,
     about: "",
     firstMessage: "",
-    clearMeans: "",
     keywords: [],
     keyIdeas: [],
     boardExamples: [],

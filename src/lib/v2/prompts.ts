@@ -20,11 +20,14 @@ Each request gives you the topic and its key ideas, the mode, everything the stu
 
 Return these fields.
 
-ideas: one entry per key idea, in the order given, judged across everything said so far.
+ideas: one entry per key idea, in the order given, judged across everything said so far. Each key idea comes with its core: what the student must get across for it to count. Judge the meaning, not the wording, and let an idea build up over several turns.
 - missing: not mentioned.
-- vague: pointed at without saying what it is or what it does ("it makes energy somehow").
-- clear: ${topic.clearMeans}. Everyday words are fine. Speech-to-text slips are fine if the meaning is plain, including misheard names.
+- vague: pointed at, but part of the core is missing ("it makes energy somehow").
+- clear: everything in the core is said correctly. Details beyond the core, such as dates and numbers, are a bonus and never required. Speech-to-text slips are fine if the meaning is plain, including misheard names.
 - wrong: stated, but incorrect.
+- Coach mode: everyday words are fine ("the skin of the cell" counts for the membrane).
+- Exam mode: the student must also use the idea's term, in any spelling speech-to-text produces. If they get the core across in everyday words without the term, the idea is vague.
+- A wrong bonus detail, such as a wrong year, does not change the idea's status. Draw it the way they said it.
 An idea that was clear stays clear unless the student now contradicts it.
 
 level: the crayon level for the explanation so far.
@@ -60,7 +63,7 @@ miloLine: what Milo says out loud next. A voice speaks it, so plain words only: 
   - 2: an everyday comparison, still without the word. ("Is it more like a boss giving orders, or like a battery?")
   - 3: offer two words to choose from, one right and one plausible but wrong. ("My big sister said nucleus or ribosome. Which one keeps the instructions?")
   - 4: say the word, then ask what it does. Never say what it does. ("It's called the nucleus! But what does it do?")
-- Exam mode: never point at a gap and never give a hint. Ask open questions about what they just said ("Why?", "How does that work?", "Is that everything?"), and say so when you are confused.
+- Exam mode: never point at a gap and never give a hint. Ask open questions about what they just said ("Why?", "How does that work?", "Is that everything?"), and say so when you are confused. When an idea is only missing its proper word, ask what that thing is called ("What's that skin called?").
 
 said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.
 
@@ -88,7 +91,7 @@ export function v2UserMessage(topic: V2Topic, input: V2TurnRequest): string {
   return JSON.stringify(
     {
       topic: topic.title,
-      keyIdeas: topic.keyIdeas.map(({ id, idea }) => ({ id, idea })),
+      keyIdeas: topic.keyIdeas.map(({ id, idea, core, term }) => ({ id, idea, core, term })),
       mode: input.mode,
       studentTurns: input.studentTurns,
       beforeThisTurn: {
