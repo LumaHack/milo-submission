@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
 import { LEVELS, levelInfo, type Level } from "@/lib/levels";
+import { MILO_FIRST_MESSAGE } from "@/lib/prompts";
 import type { Frame, IdeaStatus, MiloStatus } from "@/lib/turn";
 import type { Step } from "@/lib/use-milo-session";
 
@@ -116,8 +117,7 @@ export function SessionView(props: SessionViewProps) {
   const level: Level = (onNewest ? live.level : null) ?? frame?.level ?? 1;
   const gaps = onNewest ? live.gaps : (frame?.gaps ?? []);
   const line =
-    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ??
-    "Hi, I'm Milo. I don't know anything about cells. Can you explain how a cell works?";
+    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ?? MILO_FIRST_MESSAGE;
   const info = levelInfo(level);
   const status = STATUS[props.status];
   const scored = live.level !== null || frames.length > 0;

@@ -1,7 +1,8 @@
 // POST /api/elevenlabs/setup
-// One-off helper for development. Creates Milo's ElevenLabs agent from the prompt in src/lib/prompts.ts
-// and returns its id. Put the id in .env.local as ELEVENLABS_AGENT_ID and restart the dev server.
-// It refuses to run once an agent id is set, so it cannot create a second agent by accident.
+// Development helper. Keeps Milo's ElevenLabs agent in step with the prompt in src/lib/prompts.ts.
+//  - No ELEVENLABS_AGENT_ID yet: creates the agent and returns its id. Put it in .env.local.
+//  - ELEVENLABS_AGENT_ID set: updates that agent's prompt, first line and turn-taking.
+// Run it again whenever the prompt changes:
 //
 //   curl -X POST http://localhost:3000/api/elevenlabs/setup
 
@@ -12,42 +13,56 @@ export async function POST() {
   if (!apiKey) {
     return Response.json({ error: "ELEVENLABS_API_KEY is not set. Add it to .env.local." }, { status: 500 });
   }
-  if (process.env.ELEVENLABS_AGENT_ID) {
-    return Response.json({ error: "ELEVENLABS_AGENT_ID is already set. Milo's agent exists." }, { status: 409 });
-  }
 
+  const agentId = process.env.ELEVENLABS_AGENT_ID;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
-  const response = await fetch("https://api.elevenlabs.io/v1/convai/agents/create", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "xi-api-key": apiKey },
-    body: JSON.stringify({
-      name: "Milo",
-      conversation_config: {
-        agent: {
-          first_message: MILO_FIRST_MESSAGE,
-          language: "en",
-          prompt: {
-            prompt: MILO_AGENT_PROMPT,
-            // Milo says one short sentence at a time, so a fast model keeps the conversation live.
-            llm: process.env.ELEVENLABS_AGENT_LLM || "claude-haiku-5-5",
-          },
-        },
-        ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
-        // Patient: students pause, restart and correct themselves mid-sentence.
-        turn: { turn_eagerness: "patient" },
+  const conversationConfig = {
+    agent: {
+      first_message: MILO_FIRST_MESSAGE,
+      language: "en",
+      prompt: {
+        prompt: MILO_AGENT_PROMPT,
+        // Milo says a sentence or two at a time, so a fast model keeps the conversation live.
+        llm: process.env.ELEVENLABS_AGENT_LLM || "claude-haiku-5-5",
       },
-      // Private agent: a conversation needs the token from /api/elevenlabs/token.
-      platform_settings: { auth: { enable_auth: true } },
-    }),
-    cache: "no-store",
-  });
+    },
+    ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
+    // Eager: Milo jumps in at the first small pause instead of waiting politely.
+    // Speculative turn: his reply starts generating during the pause, so he answers faster.
+    turn: { turn_eagerness: "eager", speculative_turn: true },
+  };
+
+  const response = await fetch(
+    agentId
+      ? `https://api.elevenlabs.io/v1/convai/agents/${encodeURIComponent(agentId)}`
+      : "https://api.elevenlabs.io/v1/convai/agents/create",
+    {
+      method: agentId ? "PATCH" : "POST",
+      headers: { "Content-Type": "application/json", "xi-api-key": apiKey },
+      body: JSON.stringify(
+        agentId
+          ? { conversation_config: conversationConfig }
+          : {
+              name: "Milo",
+              conversation_config: conversationConfig,
+              // Private agent: a conversation needs the token from /api/elevenlabs/token.
+              platform_settings: { auth: { enable_auth: true } },
+            },
+      ),
+      cache: "no-store",
+    },
+  );
 
   const data = (await response.json().catch(() => null)) as { agent_id?: string; detail?: unknown } | null;
   if (!response.ok || !data?.agent_id) {
     return Response.json(
-      { error: `ElevenLabs did not create the agent (${response.status}).`, detail: data?.detail ?? null },
+      { error: `ElevenLabs did not ${agentId ? "update" : "create"} the agent (${response.status}).`, detail: data?.detail ?? null },
       { status: 502 },
     );
   }
-  return Response.json({ agentId: data.agent_id, next: "Add ELEVENLABS_AGENT_ID to .env.local and restart." });
+  return Response.json(
+    agentId
+      ? { agentId: data.agent_id, updated: true }
+      : { agentId: data.agent_id, created: true, next: "Add ELEVENLABS_AGENT_ID to .env.local." },
+  );
 }

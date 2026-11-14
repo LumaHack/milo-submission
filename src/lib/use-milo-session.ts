@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { levelInfo, type Level } from "./levels";
-import { getTopic } from "./topics";
+import { getTopic, ideasFor, type Detail } from "./topics";
 import type { DrawRequest, DrawResult, Frame, IdeaStatus, TurnRequest, TurnResult } from "./turn";
 
 export const STORAGE_KEY = "milo.session";
@@ -69,13 +69,18 @@ function shorten(text: string, max: number): string {
  * onHint is called after each scored turn with Milo's next line. Return true if it was passed
  * on to the voice agent, so the feed can say so.
  */
-export function useMiloSession(topicId: string, onHint?: (hint: string, nothingLeft: boolean) => boolean) {
+export function useMiloSession(
+  topicId: string,
+  detail: Detail,
+  onHint?: (hint: string, nothingLeft: boolean) => boolean,
+) {
   const topic = getTopic(topicId);
+  const keyIdeas = topic ? ideasFor(topic, detail) : [];
   const [frames, setFrames] = useState<Frame[]>([]);
   const [live, setLive] = useState<Live>({
     level: null,
     hint: null,
-    gaps: topic ? topic.keyIdeas.map((idea) => idea.gapLabel) : [],
+    gaps: keyIdeas.map((idea) => idea.gapLabel),
     ideas: null,
   });
   const [busy, setBusy] = useState<"idle" | "thinking" | "drawing">("idle");
@@ -130,10 +135,11 @@ export function useMiloSession(topicId: string, onHint?: (hint: string, nothingL
         setError(null);
 
         setBusy("thinking");
-        const total = topic.keyIdeas.length;
+        const total = keyIdeas.length;
         openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
         const request: TurnRequest = {
           topicId,
+          detail,
           studentTurns,
           previousLevel: level.current,
           previousDrawPrompt: board.current.prompt,
@@ -141,11 +147,11 @@ export function useMiloSession(topicId: string, onHint?: (hint: string, nothingL
         const result = await postJson<TurnResult>("/api/turn", request);
 
         const statusOf = (id: string): IdeaStatus => result.ideas.find((idea) => idea.id === id)?.status ?? "missing";
-        const ideas = topic.keyIdeas.map((idea) => statusOf(idea.id));
+        const ideas = keyIdeas.map((idea) => statusOf(idea.id));
         const clear = ideas.filter((status) => status === "clear").length;
 
         // Gap labels still open, biggest first.
-        const open = topic.keyIdeas.filter((idea) => statusOf(idea.id) !== "clear");
+        const open = keyIdeas.filter((idea) => statusOf(idea.id) !== "clear");
         const gaps = [
           ...open.filter((idea) => idea.id === result.biggestGapId),
           ...open.filter((idea) => idea.id !== result.biggestGapId),

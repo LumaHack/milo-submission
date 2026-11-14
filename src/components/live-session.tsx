@@ -9,22 +9,26 @@ import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SessionView } from "@/components/session-view";
+import { useDetail } from "@/lib/detail-store";
 import { miloAppNote } from "@/lib/prompts";
-import { getTopic } from "@/lib/topics";
+import { DETAILS, getTopic, type Detail } from "@/lib/topics";
 import type { MiloStatus } from "@/lib/turn";
 import { useMiloSession } from "@/lib/use-milo-session";
 
 const TOPIC_ID = "cell";
 
 export function LiveSession() {
+  // Wait for the stored choice before starting, so the session never begins at the wrong level.
+  const detail = useDetail();
+  if (!detail) return null;
   return (
     <ConversationProvider>
-      <Live />
+      <Live detail={detail} />
     </ConversationProvider>
   );
 }
 
-function Live() {
+function Live({ detail }: { detail: Detail }) {
   const topic = getTopic(TOPIC_ID);
   const [spoken, setSpoken] = useState<string | null>(null);
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -34,7 +38,7 @@ function Live() {
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
   const sendNote = useRef<(hint: string, nothingLeft: boolean) => boolean>(() => false);
   const onHint = useCallback((hint: string, nothingLeft: boolean) => sendNote.current(hint, nothingLeft), []);
-  const session = useMiloSession(TOPIC_ID, onHint);
+  const session = useMiloSession(TOPIC_ID, detail, onHint);
   const { addTurn } = session;
 
   const conversation = useConversation({
@@ -169,7 +173,7 @@ function Live() {
   return (
     <SessionView
       topicTitle={topic.title}
-      subjectLine={`${topic.subject}, ${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}`}
+      subjectLine={`${topic.subject}, ${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}, ${(DETAILS.find((entry) => entry.id === detail)?.label ?? detail).toLowerCase()}`}
       frames={session.frames}
       live={session.live}
       spokenLine={connected ? spoken : null}

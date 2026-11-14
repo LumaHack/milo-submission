@@ -73,6 +73,7 @@ Spacing: page padding 20px top, 28px sides, 24px bottom. Panel padding 12px, 12p
 - Header: wordmark "Milo" left. Light pill "Your revision sheets" right.
 - Headline "What do you want to explain?" on the left. On the right, Milo aged 4 in a 128px circle, beside: "Explain it out loud, like you would to a friend who knows nothing. Milo draws what you say and grows up as you get it right."
 - "Subject": four pills, Biology (selected, black), History, Chemistry, Physics.
+- "How much detail": three pills, Basics (default), Exam, Deep, with a one-line description of the chosen one beside them. Added after v3, in the same pill style.
 - "Four topics to choose from", with a light pill "Give me four others" on the right.
 - The grey panel holds four white topic cards, min height 190px, title at the top and a one-line description at the bottom:
   - How a cell works. "Every part, and what each one does."
@@ -145,14 +146,14 @@ Milo's lines in the scripted run:
 
 | Turn | Student says | Milo says | Age |
 |---|---|---|---|
-| 1 | "The cell does stuff and keeps the body alive." | Mmhh… but what is the cell actually doing? | 4 |
-| 2 | "The cell takes in things and makes energy." | Mmhh… but what lets things in, and where does the energy come from? | 7 |
-| 3 | "The membrane controls what enters, and mitochondria make the energy." | Mmhh… but who gives the instructions, and how do proteins get made? | 11 |
-| 4 | "DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out." | That is all of it. I have nothing left to ask. | 18 |
+| 1 | "The cell does stuff and keeps the body alive." | Wait, it does stuff? Like what, give me one thing it does. | 4 |
+| 2 | "The cell takes in things and makes energy." | Ooh, it takes things in! Through what, is it like a wall or more like a door? | 7 |
+| 3 | "The membrane controls what enters, and mitochondria make the energy." | Okay, so it has a door and a power bit. But who tells it what to do? | 11 |
+| 4 | "DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out." | Ohh, I finally get it! The boss bit gives instructions, things get built, packed and sent out. | 18 |
 
 Rules for any new text:
 
-- Milo is a puzzled, slightly cheeky kid. He asks. He never explains and never uses a word the student has not said.
+- Milo is a quick, warm, cheeky kid. He reacts to what was just said, then asks one small question you can answer in a sentence. He never explains and never uses the proper term before the student does. He never says "Mmhh".
 - Interface text is plain and short. Say what a button does: "End session", "Open revision sheet", "Replay".
 - Errors say what happened and what to do: "The drawing did not come back. Keep talking, Milo will try again."
 - The credits line names only tools the run really used. The design shows "Voice by ElevenLabs. Face by Anam. Drawing by fal. Grading by Adaption." Remove "Face by Anam" and "Grading by Adaption" unless they are wired.

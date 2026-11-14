@@ -6,7 +6,8 @@ A study tool built on one idea: you only understand something if you can explain
 
 - A weak explanation gets a messy crayon scribble with question marks.
 - A good explanation gets a clean, labelled revision sheet.
-- Milo never explains. He asks about the biggest gap, vaguely: "Mmhh… but what lets things in?"
+- Milo never explains. He is a quick, cheeky kid in a real back-and-forth: he reacts to what you said, asks one small question about your biggest gap, guesses wildly when you are stuck, and cuts in when he is confused.
+- The student picks how much detail Milo holds them to: Basics, Exam or Deep.
 - Milo grows up as the explanation improves: age 4, 7, 11, 18.
 - Every board is kept. The session can be replayed, and the last board is saved as a revision sheet.
 
@@ -20,7 +21,7 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 
 | Screen | Route (suggested) | What happens |
 |---|---|---|
-| Start | `/` | Pick a subject, then one of four topics |
+| Start | `/` | Pick a subject, how much detail, then one of four topics |
 | Session | `/session` | Talk to Milo. Board on the right, Milo on the left |
 | Revision sheet | `/sheet` | The final board, the explanation in the student's words, how the level climbed |
 | Replay | inside Session | The history strip plays the boards in order, 1.4 s each |
@@ -29,8 +30,8 @@ For the demo only one topic has to work: **Biology, "How a cell works"**. The ot
 
 ## One turn, step by step
 
-1. **The student talks.** Milo's ElevenLabs agent is listening. The student can pause, restart and correct themselves. They can interrupt Milo.
-2. **The turn ends.** The agent decides the student has stopped (turn-taking set to patient). The browser receives the final transcript of what the student said.
+1. **The student talks.** Milo's ElevenLabs agent is listening. It is a back-and-forth, not a speech: Milo comes in at the first small pause. The student can interrupt him at any time.
+2. **The turn ends.** The agent decides the student has paused (turn-taking set to eager). The browser receives the final transcript of what the student said.
 3. **The brain scores it.** The browser sends everything the student has said so far to our server. Claude returns: the status of each key idea, the crayon level, the biggest gap, Milo's hint, a one-line version of what the student said, and the drawing instruction. See "The turn contract".
 4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet.
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
@@ -48,6 +49,7 @@ These shapes are shared by all three branches. Change them only together with th
 ```ts
 type TurnRequest = {
   topicId: string;               // "cell"
+  detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
   previousLevel: 1 | 2 | 3 | 4 | null;   // null on the first turn
   previousDrawPrompt: string | null;     // the instruction that made the board on screen. null if no board yet
@@ -116,6 +118,16 @@ The key ideas are the marking scheme. Claude scores each one every turn. The stu
 
 Other topics shown on the Start screen, not built: How the heart pumps blood, How a neuron fires, Photosynthesis.
 
+## Level of detail
+
+Chosen on the Start screen, remembered in the browser. It sets which key ideas are marked and how strict "clear" is. The default is Basics, because Exam was too hard to finish when spoken out loud.
+
+| Level | Key ideas marked | An idea is clear when |
+|---|---|---|
+| Basics | The core ones: `membrane`, `energy`, `nucleus` | The part and its job are described in everyday words. No proper name needed |
+| Exam | All five | The part is named and its job is stated correctly |
+| Deep | All five | Named, job stated, and linked to at least one other part |
+
 ## Crayon levels
 
 | Level | Name | When | Board looks like | Milo's age |
@@ -173,7 +185,8 @@ Checked against the ElevenLabs docs and the installed SDK types on Sat 14 Nov.
 - `onMessage` receives `{ message, source: "user" | "ai", … }`: the student's transcript and Milo's replies. `source` is marked deprecated in favour of `role`. Read the type before using it.
 - `sendContextualUpdate(text)` gives the agent information without making it speak. `sendUserMessage(text)` makes it reply.
 - `isSpeaking` and `onModeChange` tell you when Milo is talking or listening. Use them for the status badge.
-- Agent settings: interruptions on, turn eagerness Eager / Normal / Patient (use Patient), turn timeout 1 to 30 s.
+- Agent settings: interruptions on, turn eagerness Eager / Normal / Patient, turn timeout 1 to 30 s. We use Eager with speculative turn on, so Milo comes in at the first small pause.
+- An existing agent is updated with `PATCH https://api.elevenlabs.io/v1/convai/agents/{agent_id}`.
 - Client tools exist: the agent can call a function in the browser. Names must match the dashboard exactly. Tick "Wait for response" on the tool if the agent should get the return value.
 - The agent's LLM can be set to "Custom LLM": ElevenLabs then calls our own server for every reply. The server must expose an OpenAI-style `/v1/chat/completions` endpoint, answer as a server-sent event stream, and be reachable from the internet (a tunnel such as ngrok during development).
 

@@ -6,7 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
 import { turnSystemPrompt, turnUserMessage } from "@/lib/prompts";
-import { getTopic } from "@/lib/topics";
+import { getTopic, ideasFor } from "@/lib/topics";
 import { TurnRequestSchema, TurnResultSchema, type TurnResult } from "@/lib/turn";
 
 const DEFAULT_MODEL = "claude-opus-5-5";
@@ -42,7 +42,12 @@ export async function POST(request: Request) {
         ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
         : {}),
       system: turnSystemPrompt(),
-      messages: [{ role: "user", content: turnUserMessage({ topic, ...body.data }) }],
+      messages: [
+        {
+          role: "user",
+          content: turnUserMessage({ topic, keyIdeas: ideasFor(topic, body.data.detail), ...body.data }),
+        },
+      ],
     });
 
     if (response.stop_reason === "refusal") {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 
+import { DetailPicker } from "@/components/detail-picker";
 import { MiloPic, Page, pill } from "@/components/ui";
 import { SUBJECTS, TOPICS } from "@/lib/topics";
 
@@ -52,6 +53,8 @@ export default function StartPage() {
             ))}
           </div>
         </div>
+
+        <DetailPicker />
 
         <div className="flex flex-col gap-3.5">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

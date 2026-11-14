@@ -13,7 +13,7 @@ export const DEMO_FRAMES: Frame[] = [
     said: "The cell does stuff and keeps the body alive.",
     imageUrl: "/boards/level-1.jpg",
     at: 20,
-    hint: "Mmhh… but what is the cell actually doing?",
+    hint: "Wait, it does stuff? Like what, give me one thing it does.",
     gaps: ["What the cell is made of", "What lets things in", "Where the energy comes from", "Who gives the instructions"],
   },
   {
@@ -22,7 +22,7 @@ export const DEMO_FRAMES: Frame[] = [
     said: "The cell takes in things and makes energy.",
     imageUrl: "/boards/level-2.jpg",
     at: 55,
-    hint: "Mmhh… but what lets things in, and where does the energy come from?",
+    hint: "Ooh, it takes things in! Through what, is it like a wall or more like a door?",
     gaps: ["What lets things in", "How the energy is made", "Who gives the instructions"],
   },
   {
@@ -31,7 +31,7 @@ export const DEMO_FRAMES: Frame[] = [
     said: "The membrane controls what enters, and mitochondria make the energy.",
     imageUrl: "/boards/level-3.jpg",
     at: 100,
-    hint: "Mmhh… but who gives the instructions, and how do proteins get made?",
+    hint: "Okay, so it has a door and a power bit. But who tells it what to do?",
     gaps: ["Who gives the instructions", "How proteins get made"],
   },
   {
@@ -40,7 +40,7 @@ export const DEMO_FRAMES: Frame[] = [
     said: "DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out.",
     imageUrl: "/boards/level-4.jpg",
     at: 150,
-    hint: "That is all of it. I have nothing left to ask.",
+    hint: "Ohh, I finally get it! The boss bit gives instructions, things get built, packed and sent out.",
     gaps: [],
   },
 ];

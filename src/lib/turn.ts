@@ -11,9 +11,13 @@ export type IdeaStatus = z.infer<typeof IdeaStatusSchema>;
 
 export const LevelSchema = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 
+/** How much detail the student is asked for. It sets which key ideas count and how strict "clear" is. */
+export const DetailSchema = z.enum(["basics", "exam", "deep"]);
+
 /** What the browser sends after the student finishes a turn. */
 export const TurnRequestSchema = z.object({
   topicId: z.string(),
+  detail: DetailSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
   studentTurns: z.array(z.string()).min(1),
   /** The level before this turn. Null on the first turn. */
