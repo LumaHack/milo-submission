@@ -69,7 +69,7 @@ The student picks this on the Start screen. It changes which key ideas count and
 
 | Level | Key ideas marked | An idea is clear when |
 |---|---|---|
-| Basics (default) | The core ones only. For the cell: membrane, energy, nucleus | The part and its job are described in everyday words. The proper name is not needed. Be generous |
+| Basics (default) | The core ones only. For the cell: membrane, energy, nucleus | What the part does is described in everyday words. The name does not matter: none, a made-up one or a slightly wrong one ("cell wall" for the membrane) all count, and a wrong name is not flagged by the fact check |
 | Exam | All of them | The part is named and its job is stated correctly |
 | Deep | All of them | Named, job stated, and linked to at least one other part |
 

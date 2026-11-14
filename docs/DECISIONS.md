@@ -92,6 +92,20 @@ Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipe
 
 **D33. Nolan is its own product, in `nolan/`.** Ali's call on Sat 14 Nov, late evening. It replaces the "ten-second mention" in D1. Nolan takes witness accounts for an investigator: he interviews each witness alone, then shows where the accounts agree and differ. It is a separate Next.js app with its own dependencies, dev server (port 3001) and README, built from the "Nolan" design artifact. Milo's code does not import it and is not changed by it. Milo is still the submission unless the humans decide otherwise.
 
+## After the 23:10 cell call
+
+Ali ran the cell at Basics by voice and nine boards came out. What went wrong, and what changed:
+
+**D36. At Basics, names do not matter.** Ali said things get in "through the cell wall, it's semi-permeable". The brain held the idea back because "wall" is the wrong name, Milo asked the same thing again, and Ali said "I just told you". At Basics an idea is now clear once its job is described, with no name, a made-up name or a slightly wrong one. A wrong name is not a wrong claim at that level, and only the false part of a sentence is flagged (semi-permeable was right). Replayed with Ali's own words: Mastered on turn 6 instead of turn 9.
+
+**D37. Two tries after a hint, enforced in code.** Milo said "this is as far as we got today" one turn after his hint, and the next answer took the board to Mastered. The engine now counts turns since the hint and ignores an early wrap-up, and never speaks a wrap-up line over a finished explanation.
+
+**D38. Milo switches himself off when the lesson is done.** After Mastered he kept answering a side conversation about coffee. Once he has said his wrap-up he is switched off. He is also told not to join talk that is not about the topic.
+
+**D39. No repeated questions and no "You said".** The app note now lists what is already clear, and Milo may not ask about it again. Opening with "You said…" or "The … you mentioned" is out.
+
+**D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, restate labels when the board is crowded, and draw the hint a quarter of the sheet tall.
+
 ## Still open
 
 | Question | Who can settle it |

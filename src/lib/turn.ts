@@ -29,6 +29,8 @@ export const TurnRequestSchema = z.object({
   studentTurns: z.array(z.string()).min(1),
   /** Gaps Milo has already sketched a hint for. He helps once per gap. */
   helpedGapIds: z.array(z.string()),
+  /** How many scored turns the student has had since Milo's last hint. Null if he has not given one. */
+  turnsSinceHint: z.number().int().nullable(),
   /** The level before this turn. Null on the first turn. */
   previousLevel: LevelSchema.nullable(),
   /** The instruction that produced the board now on screen. Null if there is no board yet. */

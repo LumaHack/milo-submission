@@ -50,11 +50,11 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const [switchedOff, setSwitchedOff] = useState(false);
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
-  const sendNote = useRef<(hint: string, over: boolean) => boolean>(() => false);
+  const sendNote = useRef<(hint: string, over: boolean, settled: string[]) => boolean>(() => false);
   const showFinal = useRef<(drew: string) => void>(() => {});
   const showHelp = useRef<(line: string) => void>(() => {});
   const session = useMiloSession(topic, detail, {
-    onHint: (hint, over) => sendNote.current(hint, over),
+    onHint: (hint, over, settled) => sendNote.current(hint, over, settled),
     onFinalBoard: (drew) => showFinal.current(drew),
     onHelpBoard: (line) => showHelp.current(line),
   });
@@ -63,6 +63,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   // When the student was last heard speaking, so the wrap-up cue does not land on top of them.
   const lastSpeech = useRef(0);
   const pendingShow = useRef<{ since: number; cue: string } | null>(null);
+  // Set once the last board has landed. When Milo has said his goodbye, he is switched off, so
+  // chatter in the room after the lesson cannot start him talking again.
+  const closing = useRef<{ since: number; spoke: boolean } | null>(null);
 
   const conversation = useConversation({
     onMessage: (payload) => {
@@ -103,9 +106,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
-    sendNote.current = (hint, over) => {
+    sendNote.current = (hint, over, settled) => {
       if (!connected) return false;
-      sendContextualUpdate(miloAppNote(hint, over));
+      sendContextualUpdate(miloAppNote(hint, over, settled));
       return true;
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
@@ -116,6 +119,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       if (!connected) return;
       sendContextualUpdate(miloFinalNote(drew));
       pendingShow.current = { since: Date.now(), cue: MILO_SHOW_FINAL };
+      closing.current = { since: Date.now(), spoke: false };
     };
     // The other exception: his hint sketch has landed, so he gets a cue to point at it and teach a little.
     showHelp.current = (line) => {
@@ -130,6 +134,18 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     if (!connected) return;
     const timer = setInterval(() => {
       const pending = pendingShow.current;
+      const end = closing.current;
+      if (end && !pending) {
+        if (isSpeaking) end.spoke = true;
+        const waited = Date.now() - end.since;
+        // He has wrapped up and gone quiet, or something went wrong and half a minute has passed.
+        if ((end.spoke && !isSpeaking && waited > 5000) || waited > 40000) {
+          closing.current = null;
+          setSwitchedOff(true);
+          endSession();
+        }
+        return;
+      }
       if (!pending) return;
       if (Date.now() - pending.since > 15000) {
         pendingShow.current = null;
@@ -148,7 +164,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       }
     }, 400);
     return () => clearInterval(timer);
-  }, [connected, isSpeaking, sendUserMessage, getInputVolume]);
+  }, [connected, isSpeaking, sendUserMessage, getInputVolume, endSession]);
 
   // Hang up when the student leaves the page.
   const endRef = useRef(endSession);

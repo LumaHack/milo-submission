@@ -43,8 +43,8 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
 6. **Milo speaks.** Milo asks about the biggest gap. See "Who writes Milo's line" below.
    - **Two failed tries at the same gap:** the brain sets `help`. The redraw adds a small blue dashed hint sketch, and when it lands Milo gets a cue to say his teacher line. The frame is labelled "Milo's hint".
-   - **Still stuck after the hint:** the brain sets `stuck`. Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black.
-7. Repeat until every key idea is clear. Then Milo says he gets it, and the revision sheet is offered.
+   - **Still stuck two turns after the hint:** the brain sets `stuck`, and the engine ignores it if fewer than two turns have passed. Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black.
+7. Repeat until every key idea is clear. Then Milo says he gets it, switches himself off, and the revision sheet is offered.
 
 While step 3 and 4 run, the old board stays visible. From about 2.6 seconds in it carries Milo's jotted note of what the student said, with "Milo is drawing this…" under it. The student can keep talking.
 
@@ -63,6 +63,7 @@ type TurnRequest = {
   detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
   helpedGapIds: string[];        // gaps Milo has already sketched a hint for. He helps once per gap
+  turnsSinceHint: number | null; // scored turns since his last hint. He may only wrap up after two
   previousLevel: 1 | 2 | 3 | 4 | null;   // null on the first turn
   previousDrawPrompt: string | null;     // the instruction that made the board on screen. null if no board yet
 };

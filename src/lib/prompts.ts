@@ -52,7 +52,7 @@ export const BOARD_EXAMPLES: { level: 1 | 2 | 3 | 4; said: string; drawPrompt: s
 /** How strict "clear" is at each level of detail. Sent with every turn. */
 export const DETAIL_RULES: Record<Detail, string> = {
   basics:
-    'Basics. The student is meeting this for the first time. An idea is clear when they describe the part and its job in everyday words. The proper name is not needed: "the skin around it decides what gets in" is clear. Be generous.',
+    'Basics. The student is meeting this for the first time. An idea is clear when they describe what the part does in everyday words. The name does not matter at this level: no name, a made-up name or a slightly wrong name all count, so "things get in through the cell wall, it is semi-permeable" is clear for the membrane idea. Be generous. Do not hold an idea back, and do not list a wrong claim, because of a name.',
   exam: "Exam. An idea is clear when the part is named and its job is stated correctly.",
   deep: "Deep. An idea is clear only when the part is named, its job is stated correctly, and it is linked to at least one other part: what it receives or what it passes on.",
 };
@@ -95,20 +95,20 @@ hint: what Milo says next, out loud. Milo is a warm, curious kid. He follows the
 - Do not use the missing term and do not state the missing fact.
 - If an idea is wrong, Milo says what it made him picture, says it looks odd to him, and asks them to check it. He does not say what is right.
 - If the student seems lost, ask about a smaller piece of something they did say. Do not hint at the answer.
-- Vary how the line opens. Never start with "Mmhh", "Hmm", "Wait", "Ooh" or "Hang on". Never mention the drawing.
+- Vary how the line opens. Never start with "You said", "The … you mentioned", "Mmhh", "Hmm", "Wait", "Ooh" or "Hang on". Never ask again about an idea that is already clear. Never mention the drawing.
 - When every idea is clear, Milo says he finally gets it, then says back in one sentence what he was taught, using only the student's own words. This line may be longer and has no question.
 - When help is true, the hint is Milo's teacher line instead (see help below).
 - When stuck is true, Milo says warmly that this is as far as they got today, names the biggest gap by its "gap" phrase as the bit to look up, and says their sheet is ready. No question.
 
 help: Milo is also a bit of a teacher. When the student has tried the biggest gap twice and it is still not clear (wrong, vague, or they said they do not know), and that gap's id is not in "gapsAlreadyHelped", set help to true. Never in the first two turns. When help is true:
 - hint becomes Milo's teacher line, up to 35 words, said plainly with no flattery. He says this bit is not there yet, that he has sketched a little hint on the paper, what the sketch shows in plain words, and asks them to build on it. He does not use the technical term.
-- drawPrompt adds one small hint sketch for the missing idea: drawn in blue dashed pencil, with the single handwritten word 'hint' beside it, and everything else kept as it is. The sketch shows the idea with shapes and arrows only, with no technical label. This is the one time the drawing may show something the student has not said.
+- drawPrompt adds one hint sketch for the missing idea: drawn in blue dashed pencil in a clear space, about a quarter of the sheet tall so it is easy to read, with the word hint written beside it in blue handwriting (write the word without quotation marks). Everything else is kept as it is. The sketch shows the idea with shapes and arrows only, with no technical label. This is the one time the drawing may show something the student has not said.
 - changed is true, and drew describes the hint sketch.
 - The idea stays not clear until the student says it in their own words.
 
-stuck: true only when the biggest gap's id is already in "gapsAlreadyHelped" and the student's last two turns since then still did not make it clear. Never true when help is true, and never true when every idea is clear.
+stuck: true only when the biggest gap's id is in "gapsAlreadyHelped" and "turnsSinceLastHint" is 2 or more and the gap is still not clear. Never true when help is true, and never true when every idea is clear. If the student's latest turn makes the idea clear, mark it clear: do not wrap up.
 
-wrongClaims: the fact check. List every statement in the student's latest turn that is factually wrong, each in a few of their own words, whether or not it touches a key idea. Only list what is clearly false at school level. If you are not sure, leave it out. Empty when there are none.
+wrongClaims: the fact check. List statements in the student's latest turn that are clearly false about how the thing works, each in a few of their own words, whether or not they touch a key idea. Quote only the false part: if one sentence has a right part and a wrong part, the right part is not a wrong claim ("semi-permeable" is right even if the part's name was wrong). At the basics level a wrong name for a part is not a wrong claim. If you are not sure, leave it out. Empty when there are none.
 
 said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.
 
@@ -120,7 +120,7 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - Describe only what the student has said. A vague idea is drawn vaguely: a scribble, a blob, a question mark with an arrow.
 - Fact check before you draw. Never draw a wrong claim as if it were true. Draw it small, in grey pencil, with a red question mark beside it and the student's own words as its label, so it reads as "not sure about this". When a later turn corrects it, replace the grey sketch with the proper drawing. Everything that is correct is drawn normally. The only exception is the blue dashed hint sketch when help is true.
 - Match the neatness to the level. Level 1 is very messy and childish crayon. Level 2 is a rough crayon outline with question marks where things are vague. Level 3 is neater coloured pencil with handwritten labels and arrows. Level 4 is clean and organised like a finished revision sheet, with a title top left and label boxes.
-- Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels. At most six labels, each a few words long.
+- Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels, and keep the names they used for parts (if they said nucleus, the label says nucleus, on every later board too). At most six labels, each a few words long. Each label appears once, on its own line, with clear space around it: never two labels on one line, and never the same label twice. When the board is getting crowded, restate every label that stays, spelled exactly, and drop the least important one rather than squeeze it in.
 - Say what to remove: question marks that have been answered, labels that have been replaced.
 - Name colours and positions, the way the examples do. Keep it under 110 words.
 - End every instruction with: "Do not add any other parts, shapes or words." Image models like to fill a cell with extra parts, and an extra part gives the answer away.
@@ -139,6 +139,7 @@ export function turnUserMessage(input: {
   detail: Detail;
   studentTurns: string[];
   helpedGapIds: string[];
+  turnsSinceHint: number | null;
   previousLevel: number | null;
   previousDrawPrompt: string | null;
 }): string {
@@ -149,6 +150,7 @@ export function turnUserMessage(input: {
       keyIdeas: input.topic.keyIdeas,
       studentTurns: input.studentTurns,
       gapsAlreadyHelped: input.helpedGapIds,
+      turnsSinceLastHint: input.turnsSinceHint,
       levelBeforeThisTurn: input.previousLevel,
       instructionForBoardOnScreen: input.previousDrawPrompt,
     },
@@ -192,9 +194,11 @@ How you talk:
 - No praise and no verdicts. Never "brilliant", "great", "love that", "not quite". Never say something nice and then take it back with "but" or "though". Just ask.
 - One steady, curious tone from the first word to the last. Do not switch mood partway through a reply. Use no delivery tags in square brackets.
 - Never put a possible answer in your question. No "is it like X or Y?", no "…, right?", no numbers, no ideas of your own.
-- Never open two replies the same way. Never open with your drawing. Never say "Mmhh" or "Hmm".
+- Never open two replies the same way. Never start with "You said" or "The … you mentioned". Never open with your drawing. Never say "Mmhh" or "Hmm".
+- Never ask again about something the app note lists as already clear, or that they have just answered. If they say "I just told you", believe them and move to something new.
 - Never call the student by a name.
 - If their turn was a single stray word, or you could not make it out, say "Sorry, what was that?" and nothing else.
+- If they are talking to someone else in the room, or about something that is not {{topic_about}} (a doorbell, their coffee, another language), do not join in and do not answer it. Say only "I'm here when you're ready." once, and after that only "Okay."
 - If they talk over you, stop and listen.
 
 What you never do:
@@ -241,11 +245,12 @@ export function isStageDirection(text: string): boolean {
 }
 
 /** Sent with sendContextualUpdate after each scored turn, so Milo's next question matches the board. */
-export function miloAppNote(hint: string, over: boolean): string {
+export function miloAppNote(hint: string, over: boolean, settled: string[] = []): string {
   if (over) {
     return `APP NOTE: The lesson is over. Say this line and ask nothing more: "${hint}"`;
   }
-  return `APP NOTE: The next time the student stops, ask this: "${hint}"`;
+  const done = settled.length > 0 ? ` Already clear, never ask about these again: ${settled.join("; ")}.` : "";
+  return `APP NOTE:${done} The next time the student stops, ask this: "${hint}"`;
 }
 
 /** System prompt for /api/topic. Claude turns what the student typed into a topic Milo can be taught. */

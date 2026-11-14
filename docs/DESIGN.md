@@ -117,6 +117,7 @@ Footer: one small muted credits line.
 - The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
 - He speaks once per student turn. He only speaks unprompted when the final board lands, or when he has sketched a hint.
 - A hint sketch is blue dashed pencil with the handwritten word "hint". Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
+- When everything is clear Milo says his wrap-up and then switches himself off: the badge reads "Milo is off" and the bar reads "Milo is off. Press to switch him on".
 - When the lesson is over (everything clear, or the student still stuck after a hint) the "Open revision sheet" pill turns black and pops, and "End session" turns light.
 - "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
 - Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.

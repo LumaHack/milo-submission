@@ -37,7 +37,7 @@ export type Live = {
 
 export type MiloCallbacks = {
   /** Milo's next line, after a turn is scored. Over means the lesson has ended. Return true if it reached the voice agent. */
-  onHint?: (hint: string, over: boolean) => boolean;
+  onHint?: (hint: string, over: boolean, settled: string[]) => boolean;
   /** The final board is on screen. The text is what Milo can say about it. */
   onFinalBoard?: (drew: string) => void;
   /** A board with Milo's hint sketch is on screen. The text is his teacher line. */
@@ -113,6 +113,8 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   const wanted = useRef<{ prompt: string; said: string; drew: string; help: string | null } | null>(null);
   // Gaps Milo has already sketched a hint for. He helps once per gap.
   const helped = useRef<string[]>([]);
+  // The number of scored turns at the moment of the last hint, to give the student two tries after it.
+  const hintedAtTurn = useRef<number | null>(null);
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -173,6 +175,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           detail,
           studentTurns,
           helpedGapIds: helped.current,
+          turnsSinceHint: hintedAtTurn.current === null ? null : studentTurns.length - hintedAtTurn.current,
           previousLevel: level.current,
           previousDrawPrompt: board.current.prompt,
         };
@@ -207,7 +210,10 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
         const grewUp = level.current !== null && result.level > level.current;
         const helping = result.help && gaps.length > 0 && Boolean(result.biggestGapId);
-        if (helping && result.biggestGapId) helped.current = [...helped.current, result.biggestGapId];
+        if (helping && result.biggestGapId) {
+          helped.current = [...helped.current, result.biggestGapId];
+          hintedAtTurn.current = studentTurns.length;
+        }
         if (gaps.length === 0) react("I get it!");
         else if (helping) react("A hint!");
         else if (grewUp) react("I'm growing!");
@@ -217,12 +223,23 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         ideasBefore.current = ideas;
 
         level.current = result.level;
-        const stuck = result.stuck && gaps.length > 0 && !helping;
-        setLive({ level: result.level, hint: result.hint, gaps, ideas, stuck });
+        // Wrapping up is only allowed once the student has had two tries after the hint. The model
+        // has been seen to give up after one, so the rule is enforced here as well.
+        const triesSinceHint = hintedAtTurn.current === null ? 0 : studentTurns.length - hintedAtTurn.current;
+        const stuck = result.stuck && gaps.length > 0 && !helping && triesSinceHint >= 2;
+        // A wrap-up line that came too early, or alongside a finished explanation, must not be spoken.
+        const badLine = result.stuck && !stuck;
+        const line = badLine
+          ? gaps.length === 0
+            ? "I finally get it. That all fits together now."
+            : "Tell me a bit more about that."
+          : result.hint;
+        const settled = keyIdeas.filter((idea) => statusOf(idea.id) === "clear").map((idea) => idea.gapLabel);
+        setLive({ level: result.level, hint: line, gaps, ideas, stuck });
         // The voice side can drop at any moment. A failed note must never stop the drawing.
         try {
           // On a helping turn Milo's line waits for the hint sketch, so he speaks when it is on the paper.
-          if (!helping && callbacksRef.current.onHint?.(result.hint, gaps.length === 0 || stuck)) {
+          if (!helping && callbacksRef.current.onHint?.(line, gaps.length === 0 || stuck, settled)) {
             logStep(stuck ? "Told Milo to wrap up" : "Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
           }
         } catch {
@@ -274,7 +291,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           said: owed.said,
           imageUrl: drawn.imageUrl,
           at: startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0,
-          hint: result.hint,
+          hint: line,
           gaps,
           hinted: Boolean(owed.help),
         };
