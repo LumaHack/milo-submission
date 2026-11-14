@@ -46,6 +46,9 @@ export const TurnResultSchema = z.object({
     .string()
     .nullable()
     .describe("Id of the most important key idea that is not clear yet. Null when nothing is left."),
+  wrongClaims: z
+    .array(z.string())
+    .describe("The fact check: statements in the latest turn that are clearly false, in the student's words. Empty when none."),
   hint: z.string().describe("Milo's next spoken line. One short sentence. Never contains the answer."),
   help: z
     .boolean()

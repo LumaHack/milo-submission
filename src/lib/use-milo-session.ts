@@ -192,6 +192,13 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         });
         openStep = null;
 
+        // The fact check runs in the same call, before anything is drawn. A wrong claim is drawn as a
+        // grey question, never as a fact.
+        const wrongClaims = result.wrongClaims ?? [];
+        if (wrongClaims.length > 0) {
+          logStep("Fact check: something to check", `“${shorten(wrongClaims[0], 56)}”`);
+        }
+
         // Milo reacts to what changed: he grew up, an idea clicked, something is wrong, or nothing landed.
         const before = ideasBefore.current;
         const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
@@ -201,7 +208,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         if (gaps.length === 0) react("I get it!");
         else if (helping) react("A hint!");
         else if (grewUp) react("I'm growing!");
-        else if (ideas.includes("wrong")) react("Huh?!");
+        else if (ideas.includes("wrong") || wrongClaims.length > 0) react("Huh?!");
         else if (clicked) react("Ohh!");
         else if (!result.changed) react("?");
         ideasBefore.current = ideas;
