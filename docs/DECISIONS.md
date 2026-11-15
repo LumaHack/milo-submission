@@ -92,7 +92,7 @@ Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipe
 
 **D33. Nolan is its own product, in `nolan/`.** Ali's call on Sat 14 Nov, late evening. It replaces the "ten-second mention" in D1. Nolan takes witness accounts for an investigator: he interviews each witness alone, then shows where the accounts agree and differ. It is a separate Next.js app with its own dependencies, dev server (port 3001) and README, built from the "Nolan" design artifact. Milo's code does not import it and is not changed by it. Milo is still the submission unless the humans decide otherwise.
 
-**D34. The Yusuf branch is Milo only.** Yusuf's call on Sun 15 Nov: the Yusuf branch takes everything from Ali's branch except `nolan/`. Nolan stays on Ali's branch.
+**D41. The Yusuf branch is Milo only.** Yusuf's call on Sun 15 Nov: the Yusuf branch takes everything from Ali's branch except `nolan/`. Nolan stays on Ali's branch.
 
 ## After the 23:10 cell call
 
@@ -107,6 +107,18 @@ Ali ran the cell at Basics by voice and nine boards came out. What went wrong, a
 **D39. No repeated questions and no "You said".** The app note now lists what is already clear, and Milo may not ask about it again. Opening with "You said…" or "The … you mentioned" is out.
 
 **D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, and draw the hint a quarter of the sheet tall. Whenever a label changes, the instruction says to erase every word on the paper and lists all the labels again, because the fast fal model leaves old writing behind otherwise. Checked by eye on two replays of Ali's words: names kept and nothing garbled in both. Duplicates were gone in one and reduced in the other, so this is better, not guaranteed. The careful model was tried for the final sheet again: cleaner, but 20 s and it redraws the whole picture in another style, so Basics keeps the fast one.
+
+## Overnight on the Yusuf branch (Sun 15 Nov)
+
+Yusuf's goal: Milo should hold up on any topic, not only the filmed cell. A three-topic sweep (cell, Pythagoras, pyramids; `scripts/topic-sweep/sweep.py`) showed the pipeline already worked on typed topics, so the night went on these.
+
+**D42. Explain your own notes.** Reverses "slide upload: not doing". The student uploads slides as PDF, notes, a transcript or photos of slides, and the notes become the marking scheme. Notes first with a safety net: a claim that contradicts the notes is flagged, a claim they don't mention is not scored, and anything clearly false is still flagged so Milo never draws a false fact. It sits alongside the suggested topics, behind `NEXT_PUBLIC_MILO_NOTES`. The files are never stored. A session without notes gets exactly the tested prompt (checked byte for byte).
+
+**D43. Swapping two parts is wrong, even at Basics, when the notes are the marking scheme.** "The mitochondria hold the DNA" was first scored as a naming slip under D36 and marked the nucleus idea clear. With notes it is now flagged. Only in sessions from notes: the cell path keeps D36 as Ali tuned it.
+
+**D44. Milo never says an answer word first.** Each key idea lists its terms. The brain is told not to use them, and the server checks Milo's lines and swaps a leaking one for a plain line. In the sweep the brain never needed the swap.
+
+**D45. Off-topic turns are not part of the explanation.** Small talk, jokes, other subjects and "just tell me the answer" are flagged, not scored, not drawn, and dropped so they never count as a try towards a hint. Before this, "just tell me the answer" was marked as something to draw. Milo's ElevenLabs agent prompt is not changed: whether Ali's branch shares the same agent was not known.
 
 ## Still open
 

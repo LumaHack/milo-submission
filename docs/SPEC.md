@@ -22,7 +22,7 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 
 | Screen | Route (suggested) | What happens |
 |---|---|---|
-| Start | `/` | Pick a subject, how much detail, then one of four topics |
+| Start | `/` | Upload your own notes, or pick a subject, how much detail, then one of four topics |
 | Session | `/session` | Talk to Milo. Board on the right, Milo on the left |
 | Revision sheet | `/sheet` | The final board, the explanation in the student's words, how the level climbed |
 | Replay | inside Session | The history strip plays the boards in order, 1.4 s each |
@@ -32,12 +32,16 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 
 **Biology, "How a cell works"** is the hand-written, most-tested topic and opens at once. Every other topic on the Start screen (eight per subject, four shown at a time) is set up on the spot, and the student can also **type any topic**: `/api/topic` has Claude turn it into a title, Milo's opening question and five key ideas (three core), and refuses anything that is not a school topic or is not safe to draw.
 
+**Your own notes.** The student can upload their slides (saved as PDF), lecture notes, a transcript (`.txt`, `.md`, `.vtt`, `.srt`) or photos of slides: up to 5 files, 20 MB. `/api/notes` reads them in one Claude call (about 8 to 11 s for an 8-slide deck) and sets up to four topics, each with five key ideas taken only from the notes, every idea and fact tagged with where it is ("slide 6"). The files are never stored; the topics are kept in `localStorage`. In a session from notes the notes are the marking scheme: a claim that contradicts them is flagged, a claim they don't mention is not scored unless it is clearly false, swapping two parts from the notes counts as wrong even at Basics, and the wrap-up and the revision sheet say which slide to look at. `NEXT_PUBLIC_MILO_NOTES=0` hides the upload.
+
 ## One turn, step by step
 
 1. **The student talks.** Milo's ElevenLabs agent is listening. It is a back-and-forth, not a speech: Milo comes in at the first small pause. The student can interrupt him at any time.
 2. **The turn ends.** The agent decides the student has paused (turn-taking set to eager). The browser receives the final transcript of what the student said.
 3. **The brain scores it.** The browser sends everything the student has said so far to our server. Claude returns: the status of each key idea, the crayon level, the biggest gap, Milo's hint, a one-line version of what the student said, and the drawing instruction. See "The turn contract".
    - **Fact check first.** The same call lists anything clearly false in the turn (`wrongClaims`), before any drawing is asked for. A wrong claim is never drawn as a fact: it goes on the paper small, in grey pencil, with a red question mark, and Milo asks about it first.
+   - **Off topic.** Small talk, jokes, another subject or "just tell me the answer" sets `offTopic`. The turn is not scored or drawn, and it is dropped from the explanation so it never counts as a try towards a hint. Milo's next line brings the student back to the gap.
+   - **No answer words.** Each key idea lists its `terms` (the proper names that would give it away). The brain is told not to use them before the student does, and the server checks Milo's lines and swaps one that leaks for a plain line.
    - **A note within about 2.6 s.** As soon as the brain answers, Milo jots the student's words on the paper in his handwriting. The real drawing replaces the note when fal returns.
 4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet.
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
@@ -295,6 +299,7 @@ Suggested server routes, all `POST`, all reading keys from the environment:
 | `/api/draw` | DrawRequest in, DrawResult out. Calls fal |
 | `/api/elevenlabs/token` | Returns a conversation token for Milo's agent |
 | `/api/topic` | `{ title }` in, a Topic out. Claude writes the key ideas for a typed topic |
+| `/api/notes` | Multipart `files` in (PDF, text, transcript, PNG/JPG/WebP; up to 5, 20 MB). `{ files, topics, seconds }` out. Claude sets up topics from the notes alone. Files are held in memory only |
 | `/api/film` | `POST { firstImageUrl, lastImageUrl }` starts a film and returns `{ requestId }`. `GET ?id=` returns `{ status: "working" }` or `{ status: "done", videoUrl }`. fal `bytedance/seedance-2.0/fast/image-to-video` with a start and an end frame |
 | `/api/elevenlabs/setup` | Development. Creates Milo's agent, or updates it from `src/lib/prompts.ts` |
 | `/api/anam/token` | Optional. Returns an Anam session token |
@@ -306,7 +311,6 @@ Milo's agent prompt and first line have blanks (`{{topic_about}}`, `{{topic_titl
 ## Out of scope
 
 - Nolan, the witness-interview product. It is not part of Milo and is not on this branch (it lives in `nolan/` on Ali's branch).
-- Uploading slides or notes.
 - A moving Milo. We tried turning his picture into a video with fal. The video model refused it as a possible likeness of a real person.
 - Points, streaks, leaderboards.
 - Accounts and login.

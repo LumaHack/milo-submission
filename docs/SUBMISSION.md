@@ -66,7 +66,8 @@ Fill this in before recording. The video must match it.
 | Board redraw (fal) | Real | One edit per turn |
 | Milo's face | Four fal images, swapped by level | Live avatar only if Anam is wired |
 | Grading | Claude's level | Adaption only if the fine-tune is done |
-| Topics other than the cell | Real, less tested | Set up by Claude when picked. Film the cell |
+| Topics other than the cell | Real, less tested | Set up by Claude when picked. Swept on Sun 15 Nov: Pythagoras and the pyramids climbed 1 to 4 like the cell |
+| Topics from uploaded notes | Real | `/api/notes`, tested on our own 8-slide test notes (`scripts/notes-test/`, written for testing, not real course material). Say so if they appear in the video |
 | `/demo` | Scripted | Stored boards, no voice, no calls. Its own credits line says so |
 
 ## Numbers for the questions
@@ -102,6 +103,10 @@ Fill in from your own runs.
 | The hint after two failed tries | Yes, by voice | `node scripts/voice-test/talk.js hint`. Wrong twice about the energy: Milo said "Not quite yet, but you're onto something… I sketched a hint: little beans inside giving off sparks. What might they do?", and the student's next answer made the idea clear. One run. That call dropped near its end, and the screen said so |
 | Custom topic, history, slideshow | Yes | In the browser |
 | Film | Yes | Started from the button, survived a reload, played in the page. 214 s for the first one |
+| Notes upload | Yes, typed, Sun 15 Nov | 8-slide PDF read in 7 to 11 s into two topics, every slide reference right. A .pptx, a 25 MB file, a shopping list, an empty form and a title-slide photo each got a plain message. An injected "ignore all previous instructions" line was ignored. Not yet tried by voice |
+| Notes as the marking scheme | Yes, typed | `sweep.py notes`: a matching turn was clear, a part swap was flagged, a true claim not in the notes was ignored, "made of tiny bits of metal" was flagged, the fix reached Mastered. Turns 2.1 to 4.4 s |
+| Off-topic turns | Yes, typed | Football, "just tell me the answer" and a cat joke, mid-session on three topics: all flagged, none drawn, none counted as a try. Not yet tried by voice |
+| Answer-word check | Unit tests only | 20 cases pass. The brain never leaked in the sweep, so the swap never fired for real |
 
 ## Likely questions
 
@@ -110,6 +115,8 @@ Fill in from your own runs.
 - **What does ElevenLabs do beyond text to speech?** Milo is an ElevenLabs agent: it handles turn-taking, answers a second or two after you stop, can be interrupted, speaks up by itself when he finishes a drawing or you go quiet, and takes notes from the app mid-conversation about the student's weakest point.
 - **Why fal?** The board is the feedback. Each board is an edit of the previous image, so the student watches the same drawing grow up.
 - **Does it detect emotion?** No. We do not claim that.
+- **Does it work for my course?** Upload the slides as a PDF: Milo marks you only against them, and tells you which slide to look at for what you missed.
+- **What if I talk about something else?** It isn't scored or drawn, and Milo brings you back to the gap.
 
 ## Devpost checklist
 

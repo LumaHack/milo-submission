@@ -75,6 +75,12 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [ ] **A second topic.** Key ideas and a test run for "Photosynthesis".
 - **Nolan.** Built by Ali as its own product in `nolan/` (D33). Left off the Yusuf branch on purpose: this branch is Milo only.
 
+## Added on the Yusuf branch, overnight Sun 15 Nov
+
+- [x] **Explain your own notes** (D42). Upload on the Start screen, `/api/notes`, notes as the marking scheme, slide references on the sheet. Run with typed turns in the browser and with `sweep.py notes`. *A human must check:* one spoken session from notes with a real microphone, and how the 8 to 11 s "Reading your notes…" wait feels on venue wifi.
+- [x] **Off-topic turns** (D45). *A human must check:* how Milo sounds steering back by voice. His instant reply still comes from the unchanged agent prompt.
+- [x] **No answer words** (D44). Unit-tested. The brain never leaked in the sweep, so the swap has only been seen in unit tests.
+
 ## Not doing
 
-Slide upload. Points and streaks. Accounts. Mobile layout beyond not breaking. Any language other than English.
+Points and streaks. Accounts. Mobile layout beyond not breaking. Any language other than English.

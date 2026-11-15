@@ -81,6 +81,8 @@ Spacing: page padding 20px top, 28px sides, 24px bottom. Panel padding 12px, 12p
   - How a neuron fires. "From a touch to a signal in the brain."
   - Photosynthesis. "How a leaf turns light into sugar."
 - Under the four cards, inside the same grey panel, one white row: "Or your own", a text field and a dark pill "Explain this". Added after v3.
+- The first thing inside the grey panel is one white row in the same style: "Your notes", the muted line "Slides as a PDF, lecture notes or a transcript. Milo only uses what is in them." and a dark pill "Upload notes" (a file picker; dropping files on the row works too, and shows a 2px ink outline). While Milo reads, the pill says "Reading your notes…" and the line says "Milo is reading 2 files. This can take half a minute." Added after v3, on the Yusuf branch.
+- Once notes are loaded the screen is in notes mode: the heading reads "Topics in your notes", "Give me four others" becomes a light pill "Use suggested topics", the Subject row and "Or your own" are hidden, the notes row says "Topics from <file names>. Milo only uses what is in them." with a light pill "Upload other notes", and the cards are the topics from the notes (title, and where they are, such as "Slides 2 to 5"). The session header ends ", from your notes", and "Look these up next" on the revision sheet adds the slide in muted text: "What is in charge of the cell, slide 4".
 - Content max width 1180px, centred.
 
 ### Session (`MainV3.dc.html`)
