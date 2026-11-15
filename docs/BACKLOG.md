@@ -79,7 +79,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 
 - [x] **Explain your own notes** (D42). Upload on the Start screen, `/api/notes`, notes as the marking scheme, slide references on the sheet. Run with typed turns in the browser and with `sweep.py notes`. *A human must check:* one spoken session from notes with a real microphone, and how the 8 to 11 s "Reading your notes…" wait feels on venue wifi.
 - [x] **Off-topic turns** (D45). *A human must check:* how Milo sounds steering back by voice. His instant reply still comes from the unchanged agent prompt.
-- [x] **No answer words** (D44). Unit-tested. The brain never leaked in the sweep, so the swap has only been seen in unit tests.
+- [x] **No answer words** (D44). Unit tests in `scripts/line-check/test.cjs` (21 cases, `node scripts/line-check/test.cjs`). The brain never leaked in the sweep, so the swap has only been seen in those tests.
 
 ## Not doing
 

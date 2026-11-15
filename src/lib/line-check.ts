@@ -60,7 +60,8 @@ export function checkLines(result: TurnResult, request: TurnRequest): { leaks: s
       result.hint = lower ? `I can't picture this bit yet: ${lower}?` : "Can you tell me a bit more about that?";
     }
   }
-  if (drewLeaks.length > 0) result.drew = "";
+  // Swapped, never emptied: the final-board cue that makes Milo wrap up needs this line.
+  if (drewLeaks.length > 0) result.drew = "Look, I drew what you told me. Did I get it right?";
 
   const leaks = [...new Set([...hintLeaks, ...drewLeaks])];
   if (leaks.length > 0) console.info(`/api/turn: swapped a line that would have said ${leaks.join(", ")}`);

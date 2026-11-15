@@ -106,7 +106,7 @@ Fill in from your own runs.
 | Notes upload | Yes, typed, Sun 15 Nov | 8-slide PDF read in 7 to 11 s into two topics, every slide reference right. A .pptx, a 25 MB file, a shopping list, an empty form and a title-slide photo each got a plain message. An injected "ignore all previous instructions" line was ignored. Not yet tried by voice |
 | Notes as the marking scheme | Yes, typed | `sweep.py notes`: a matching turn was clear, a part swap was flagged, a true claim not in the notes was ignored, "made of tiny bits of metal" was flagged, the fix reached Mastered. Turns 2.1 to 4.4 s |
 | Off-topic turns | Yes, typed | Football, "just tell me the answer" and a cat joke, mid-session on three topics: all flagged, none drawn, none counted as a try. Not yet tried by voice |
-| Answer-word check | Unit tests only | 20 cases pass. The brain never leaked in the sweep, so the swap never fired for real |
+| Answer-word check | Unit tests only | `node scripts/line-check/test.cjs`: 21 cases pass. The brain never leaked in the sweep, so the swap never fired for real |
 
 ## Likely questions
 

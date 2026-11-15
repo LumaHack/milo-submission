@@ -160,6 +160,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
     try {
       while (scored.current < turns.current.length) {
         const studentTurns = turns.current.slice();
+        const scoredBefore = scored.current;
         scored.current = studentTurns.length;
         setError(null);
 
@@ -194,6 +195,14 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         if (result.offTopic) {
           const index = studentTurns.length - 1;
           turns.current = turns.current.filter((_, i) => i !== index);
+          if (studentTurns.length - scoredBefore > 1) {
+            // Several turns were scored together and only the newest was off topic. The fact check only
+            // looks at the newest turn, so the others are scored again on the next pass, without it.
+            scored.current = scoredBefore;
+            endStep(openStep, { label: "Off topic, not counted", detail: "Checking the rest again" });
+            openStep = null;
+            continue;
+          }
           scored.current = Math.max(0, scored.current - 1);
         }
 
@@ -336,7 +345,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         });
         try {
           if (owed.help) callbacksRef.current.onHelpBoard?.(owed.help);
-          else if (owed.drew && gaps.length === 0) callbacksRef.current.onFinalBoard?.(owed.drew);
+          else if (gaps.length === 0) callbacksRef.current.onFinalBoard?.(owed.drew || "Look, I drew what you told me.");
         } catch {
           // Milo does not wrap up out loud. The final board is still on screen.
         }
