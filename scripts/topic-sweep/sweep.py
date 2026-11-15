@@ -56,11 +56,11 @@ def upload(path):
 CELL = {
     "title": "How a cell works",
     "keyIdeas": [
-        {"id": "membrane", "idea": "The cell membrane surrounds the cell and controls what enters and leaves.", "gapLabel": "What lets things in", "core": True},
-        {"id": "energy", "idea": "Mitochondria release the cell's energy, as ATP.", "gapLabel": "Where the energy comes from", "core": True},
-        {"id": "nucleus", "idea": "The nucleus holds the DNA, which carries the instructions for the cell.", "gapLabel": "Who gives the instructions", "core": True},
-        {"id": "ribosomes", "idea": "Ribosomes build proteins by following those instructions.", "gapLabel": "How proteins get made", "core": False},
-        {"id": "golgi", "idea": "The rough ER and the Golgi process, pack and send the proteins where they are needed.", "gapLabel": "Where the proteins go next", "core": False},
+        {"id": "membrane", "idea": "The cell membrane surrounds the cell and controls what enters and leaves.", "gapLabel": "What lets things in", "core": True, "terms": ["membrane", "cell membrane"]},
+        {"id": "energy", "idea": "Mitochondria release the cell's energy, as ATP.", "gapLabel": "Where the energy comes from", "core": True, "terms": ["mitochondria", "mitochondrion", "ATP"]},
+        {"id": "nucleus", "idea": "The nucleus holds the DNA, which carries the instructions for the cell.", "gapLabel": "Who gives the instructions", "core": True, "terms": ["nucleus", "nuclei", "DNA"]},
+        {"id": "ribosomes", "idea": "Ribosomes build proteins by following those instructions.", "gapLabel": "How proteins get made", "core": False, "terms": ["ribosome"]},
+        {"id": "golgi", "idea": "The rough ER and the Golgi process, pack and send the proteins where they are needed.", "gapLabel": "Where the proteins go next", "core": False, "terms": ["Golgi", "endoplasmic reticulum", "rough ER"]},
     ],
 }
 
@@ -224,7 +224,7 @@ def main():
     for name in wanted:
         print(f"\n== {name} ({detail})")
         spec = TOPICS[name]
-        if "--offtopic-early" in sys.argv:
+        if "--offtopic-early" in sys.argv and name != "notes":
             # The off-topic line second, so it lands mid-session instead of after Mastered.
             turns = spec["turns"]
             spec = {**spec, "turns": [turns[0], turns[-1], *turns[1:-1]]}

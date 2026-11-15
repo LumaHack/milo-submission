@@ -58,7 +58,14 @@ These shapes are shared by all three branches. Change them only together with th
 type TurnRequest = {
   topic: {                       // sent by the browser, so topics the student typed work too
     title: string;
-    keyIdeas: { id: string; idea: string }[];   // the ideas marked at the chosen level of detail
+    keyIdeas: {
+      id: string;
+      idea: string;
+      gap?: string;        // the gap label on screen
+      where?: string;      // topics from notes only: where the notes say it, "slide 6"
+      terms?: string[];    // words that would give the idea away. Milo may only say them once the student has
+    }[];                   // the ideas marked at the chosen level of detail
+    notes?: { facts: { text: string; where: string }[] };   // topics from notes only: the notes are the marking scheme
   };
   detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
@@ -80,10 +87,12 @@ type TurnResult = {
   hint: string;                  // Milo's next line. At most 20 words, one question. On a help turn: his teacher line
   help: boolean;                 // true after two failed tries at the same gap: Milo sketches a hint
   stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up
+  offTopic: boolean;             // small talk, a joke, another subject, "just tell me": not scored, not drawn, dropped from studentTurns
   said: string;                  // the latest turn as one sentence, max 20 words, in the student's words
   changed: boolean;              // false = nothing new to draw, leave the board alone
   drawPrompt: string;            // instruction for fal. Repeats the previous one when changed is false
   drew: string;                  // one sentence Milo says about what he just drew. Empty when changed is false
+  checked?: { leaks: string[]; fallback: boolean };   // added by the server: a line that used a term was swapped for a safe one
 };
 ```
 
@@ -117,6 +126,8 @@ type Frame = {
 **Rules the code enforces, whatever the model returns**
 
 - The level never goes down within a session. Milo does not shrink.
+- An off-topic turn never changes the board, never counts as a try towards a hint or a wrap-up, and is removed from `studentTurns` before the next turn.
+- If `hint` or `drew` uses one of the topic's `terms` that the student has not said (and that is not in a gap label or the title), the server swaps it for a plain line that cannot give anything away (`src/lib/line-check.ts`).
 - If `changed` is false, do not call fal.
 - One redraw in flight. If a newer result arrives while fal is drawing, keep only the newest and drop anything in between.
 - The old board stays on screen until the new image has finished loading.

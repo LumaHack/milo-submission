@@ -171,7 +171,13 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           topic: {
             title: topic.title,
             // "where" is only set for topics made from notes, so other requests are unchanged.
-            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel, where: idea.where })),
+            keyIdeas: keyIdeas.map((idea) => ({
+              id: idea.id,
+              idea: idea.idea,
+              gap: idea.gapLabel,
+              where: idea.where,
+              terms: idea.terms,
+            })),
             notes: topic.notes ? { facts: topic.notes.facts } : undefined,
           },
           detail,
@@ -182,6 +188,14 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           previousDrawPrompt: board.current.prompt,
         };
         const result = await postJson<TurnResult>("/api/turn", request);
+
+        // Small talk, jokes or "just tell me" are not part of the explanation. The turn is dropped, so it
+        // never counts as a try towards a hint or a wrap-up, and later scoring never sees it.
+        if (result.offTopic) {
+          const index = studentTurns.length - 1;
+          turns.current = turns.current.filter((_, i) => i !== index);
+          scored.current = Math.max(0, scored.current - 1);
+        }
 
         const statusOf = (id: string): IdeaStatus => result.ideas.find((idea) => idea.id === id)?.status ?? "missing";
         const ideas = keyIdeas.map((idea) => statusOf(idea.id));
@@ -199,6 +213,9 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           detail: `${clear} of ${total} clear. ${levelInfo(result.level).label}`,
         });
         openStep = null;
+
+        if (result.offTopic) logStep("Off topic, not counted", gaps[0] ? `Back to: ${gaps[0].toLowerCase()}` : undefined);
+        if (result.checked?.fallback) logStep("Checked Milo's line", "Swapped a word you haven't said yet");
 
         // The fact check runs in the same call, before anything is drawn. A wrong claim is drawn as a
         // grey question, never as a fact.

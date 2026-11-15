@@ -178,6 +178,7 @@ export async function POST(request: Request) {
             // Exactly three core ideas, whatever the model marked, so Basics always has the same size.
             core: i < 3,
             where: clip(idea.where, 40),
+            terms: (idea.terms ?? []).map((term) => clip(term, 40)).filter(Boolean).slice(0, 8),
           };
         });
         const facts: NoteFact[] = topic.facts

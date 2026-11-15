@@ -5,6 +5,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
+import { checkLines } from "@/lib/line-check";
 import { turnSystemPrompt, turnUserMessage } from "@/lib/prompts";
 import { TurnRequestSchema, TurnResultSchema, type TurnResult } from "@/lib/turn";
 
@@ -58,6 +59,17 @@ export async function POST(request: Request) {
     }
 
     const result: TurnResult = response.parsed_output;
+
+    // An off-topic turn is not part of the explanation: nothing is flagged, drawn, hinted or wrapped up.
+    if (result.offTopic) {
+      result.changed = false;
+      result.wrongClaims = [];
+      result.help = false;
+      result.stuck = false;
+    }
+
+    // Milo may not say a word that gives the answer away before the student has said it.
+    result.checked = checkLines(result, body.data);
 
     // Milo never shrinks. A weaker turn leaves the level where it was.
     if (body.data.previousLevel && result.level < body.data.previousLevel) {

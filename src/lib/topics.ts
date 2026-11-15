@@ -12,6 +12,11 @@ export type KeyIdea = {
   core: boolean;
   /** Where the student's own notes say this, such as "slide 6". Only for topics made from notes. */
   where?: string;
+  /**
+   * The proper names and technical words that would give this idea away if Milo said them first.
+   * Milo's lines are checked against them (src/lib/line-check.ts).
+   */
+  terms?: string[];
 };
 
 /** One short statement taken from the student's notes, and where it is. The fact check uses these. */
@@ -53,30 +58,35 @@ export const TOPICS: Topic[] = [
         idea: "The cell membrane surrounds the cell and controls what enters and leaves.",
         gapLabel: "What lets things in",
         core: true,
+        terms: ["membrane", "cell membrane"],
       },
       {
         id: "energy",
         idea: "Mitochondria release the cell's energy, as ATP.",
         gapLabel: "Where the energy comes from",
         core: true,
+        terms: ["mitochondria", "mitochondrion", "ATP"],
       },
       {
         id: "nucleus",
         idea: "The nucleus holds the DNA, which carries the instructions for the cell.",
         gapLabel: "Who gives the instructions",
         core: true,
+        terms: ["nucleus", "nuclei", "DNA"],
       },
       {
         id: "ribosomes",
         idea: "Ribosomes build proteins by following those instructions.",
         gapLabel: "How proteins get made",
         core: false,
+        terms: ["ribosome"],
       },
       {
         id: "golgi",
         idea: "The rough ER and the Golgi process, pack and send the proteins where they are needed.",
         gapLabel: "Where the proteins go next",
         core: false,
+        terms: ["Golgi", "endoplasmic reticulum", "rough ER"],
       },
     ],
   },

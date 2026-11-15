@@ -37,7 +37,11 @@ export async function POST(request: Request) {
     }
 
     // Exactly three core ideas, whatever the model marked, so Basics always has the same size.
-    const keyIdeas = made.keyIdeas.slice(0, 5).map((idea, i) => ({ ...idea, core: i < 3 }));
+    const keyIdeas = made.keyIdeas.slice(0, 5).map((idea, i) => ({
+      ...idea,
+      core: i < 3,
+      terms: (idea.terms ?? []).map((term) => term.trim().slice(0, 40)).filter(Boolean).slice(0, 8),
+    }));
     const topic: Topic = {
       id: `custom-${Date.now().toString(36)}`,
       subject: made.subject,

@@ -27,6 +27,8 @@ export const TurnRequestSchema = z.object({
           gap: z.string().optional(),
           /** Where the student's notes say it, such as "slide 6". Only for topics made from notes. */
           where: z.string().max(40).optional(),
+          /** Words that would give this idea away. Milo may only use them once the student has. */
+          terms: z.array(z.string().max(40)).max(12).optional(),
         }),
       )
       .min(1)
@@ -70,6 +72,9 @@ export const TurnResultSchema = z.object({
     .boolean()
     .describe("True when the student has tried the biggest gap twice without getting there, so Milo sketches a hint and teaches a little."),
   stuck: z.boolean().describe("True when the student has run out of things to say and the session should wrap up."),
+  offTopic: z
+    .boolean()
+    .describe("True only when the latest turn is clearly not about this topic: small talk, a joke, another subject, or asking for the answer."),
   said: z.string().describe("The student's latest turn as one sentence of at most 20 words, in their own words."),
   changed: z
     .boolean()
@@ -79,7 +84,10 @@ export const TurnResultSchema = z.object({
     .string()
     .describe("One short spoken sentence in which Milo says what he just drew, in the student's words. Empty when changed is false."),
 });
-export type TurnResult = z.infer<typeof TurnResultSchema>;
+export type TurnResult = z.infer<typeof TurnResultSchema> & {
+  /** Filled in by /api/turn, not the model: words in Milo's lines that would have given the answer away. */
+  checked?: { leaks: string[]; fallback: boolean };
+};
 
 /** What the browser sends to get a board drawn. */
 export const DrawRequestSchema = z.object({
@@ -129,6 +137,9 @@ export const NewTopicSchema = z.object({
         idea: z.string().describe("One sentence a complete explanation says."),
         gapLabel: z.string().describe("A short phrase naming the gap as a question, without the answer. For example: What lets things in."),
         core: z.boolean().describe("True for the three most basic ideas."),
+        terms: z
+          .array(z.string())
+          .describe("Proper names and technical words that would give this idea away, singular and plural. Never everyday words. Up to six."),
       }),
     )
     .describe("Exactly five, from most basic to most detailed. Exactly three are core."),
@@ -155,6 +166,9 @@ export const NotesResultSchema = z.object({
               gapLabel: z.string().describe("A short phrase naming the gap as a question, without the answer."),
               core: z.boolean().describe("True for the three most basic ideas."),
               where: z.string().describe("Where the notes say it: 'slide 4', 'page 2' or 'transcript 12:40'."),
+              terms: z
+                .array(z.string())
+                .describe("Proper names and technical words that would give this idea away, singular and plural. Never everyday words. Up to six."),
             }),
           )
           .describe("Exactly five, from most basic to most detailed. Exactly three are core."),
