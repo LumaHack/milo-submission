@@ -6,6 +6,8 @@ Built at Imperial AI Hack, 14 to 15 November 2026. Track 03: Voice, Vision and G
 
 The app is on the [`Ali` branch](https://github.com/LumaHack/milo-submission/tree/Ali). The Devpost text is in [docs/DEVPOST.md](docs/DEVPOST.md).
 
+**Demo video (1:52):** https://www.youtube.com/watch?v=Z5pfUKr4XBE
+
 | What you said | What Milo drew |
 |---|---|
 | A vague first try | ![A crayon scribble of a cell](design/boards/level-1.jpg) |

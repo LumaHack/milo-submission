@@ -10,7 +10,7 @@ Everything here describes the `Ali` branch as it stood on Sunday 15 November, 11
 | Track | 03, Voice, Vision and Generative Media |
 | Bounties | fal, ElevenLabs |
 | Repo | https://github.com/LumaHack/milo-submission |
-| Video | add the link, two minutes or less |
+| Video | https://www.youtube.com/watch?v=Z5pfUKr4XBE (1:52) |
 | Team | add every member: full name, Luma email, university email |
 
 ## Tagline
