@@ -75,8 +75,8 @@ Fill in from your own runs.
 
 | Measure | Value |
 |---|---|
-| Runs that worked out of 10 | |
-| End of speech to Milo's reply | 1.3 to 2.7 s after the transcript, spoken test on Sun 15 Nov. He waits for Claude's line, so this is about a second slower than on Saturday |
+| Runs that worked out of 10 | 10 of 10, Sun 15 Nov 10:34 to 10:54. Scripted spoken runs (`scripts/voice-test/talk.js`, recorded speech into the page's microphone, live agent): five straight explanations and five hint runs. Every run reached Mastered with no error on screen. Not a person at a microphone |
+| End of speech to Milo's reply | Usually 1.5 to 2.8 s after the transcript, slowest 4.8 s, across the ten spoken runs on Sun 15 Nov. He waits for Claude's line, so this is about a second slower than on Saturday |
 | Claude scoring one turn (`claude-opus-5-5`, low effort, fast mode) | Streamed. Milo's line is ready after 1.0 to 1.8 s, the full result after 1.8 to 3 s, once or twice 5 s. At standard speed the full result took 3.9 to 7.9 s |
 | fal, first board | 3.9 s, one run |
 | fal, edit at levels 2 and 3 | 7.2 and 8.0 s |

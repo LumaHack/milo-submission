@@ -14,6 +14,7 @@ Built at Imperial AI Hack, 14 to 15 November 2026. Track 03: Voice, Vision and G
 | [docs/BACKLOG.md](docs/BACKLOG.md) | What to build, in order, with checkpoints |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | What we already decided and why. Don't reopen these |
 | [docs/SUBMISSION.md](docs/SUBMISSION.md) | Deadlines, rules, the video script, the Devpost checklist |
+| [docs/DEVPOST.md](docs/DEVPOST.md) | The Devpost entry: problem, what we built, how it works, APIs and models |
 | [CLAUDE.md](CLAUDE.md) | Rules for any AI working in this repo |
 
 The design itself: [Milo v3 on Claude Design](https://claude.ai/artifact/KAwE1srdFEsi4zZrdwsW3R?sk=u5se3NDV8fmoEE4lxJQz3w#page-717156d19b2e), page "v3, final". That is the look we are going for. A snapshot of those screens is in [design/](design/).
