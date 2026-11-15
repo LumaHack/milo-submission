@@ -32,7 +32,7 @@ All in the v3 look, with the tokens in `docs/DESIGN.md` and nothing new.
 
 | Screen | Address | What is on it |
 |---|---|---|
-| Your courses | `/v2`, "Your courses" selected | One card per course (title, number of parts, and "9 of 25 ideas explained" over all its parts in the chosen mode), a "New course" card, and the two sample courses |
+| Your courses | `/v2`, "Your courses" selected | A "New course" card, always first, then one card per course (title, number of parts, and "9 of 25 ideas explained" over all its parts in the chosen mode), and the two sample courses |
 | New course | `/v2/course/new` | Name, file picker, the limits, "Read my course". Then progress while Claude reads, and a plain message if something is wrong with a file |
 | Course | `/v2/course?id=<id>` | Milo with a line about the course, how much of the course is explained so far in the chosen mode ("5 of 36 ideas explained so far." or "Nothing explained in exam mode yet.", always one line of its own so the cards stay put when the mode changes), the mode choice, one card per part (title, one line, number of ideas, progress in the chosen mode; a finished part opens its sheet), what Claude left out and why, the "I want to work on…" box, and "Remove this course" |
 | Session | `/v2/session?course=<id>&part=<id>&mode=<coach or exam>` | The same session screen. The subject line shows the course's title |
