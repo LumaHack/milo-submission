@@ -6,7 +6,37 @@
 //
 //   curl -X POST http://localhost:3000/api/elevenlabs/setup
 
-import { MILO_AGENT_PROMPT, MILO_FIRST_MESSAGE } from "@/lib/prompts";
+import { MILO_AGENT_PROMPT, MILO_FIRST_MESSAGE, NEXT_LINE_TOOL } from "@/lib/prompts";
+
+// Milo calls this after every student turn. The browser answers with the line the brain wrote for
+// that turn, so the conversation waits for it instead of Milo asking a question of his own.
+const nextLineTool = {
+  type: "client",
+  name: NEXT_LINE_TOOL,
+  description:
+    "Call this every time the student finishes speaking, before you say anything. It returns the exact line to say next.",
+  parameters: { type: "object", properties: {}, required: [] },
+  expects_response: true,
+  response_timeout_secs: 12,
+  pre_tool_speech: "off",
+  interruption_mode: "allow",
+};
+
+/** Finds Milo's tool in the workspace, or creates it. Returns its id. */
+async function ensureTool(apiKey: string): Promise<string | null> {
+  const headers = { "Content-Type": "application/json", "xi-api-key": apiKey };
+  const list = await fetch("https://api.elevenlabs.io/v1/convai/tools", { headers, cache: "no-store" });
+  const found = (await list.json().catch(() => null)) as { tools?: { id: string; tool_config?: { name?: string } }[] } | null;
+  const existing = found?.tools?.find((tool) => tool.tool_config?.name === NEXT_LINE_TOOL);
+  const response = await fetch(`https://api.elevenlabs.io/v1/convai/tools${existing ? `/${existing.id}` : ""}`, {
+    method: existing ? "PATCH" : "POST",
+    headers,
+    body: JSON.stringify({ tool_config: nextLineTool }),
+    cache: "no-store",
+  });
+  const data = (await response.json().catch(() => null)) as { id?: string } | null;
+  return response.ok && data?.id ? data.id : null;
+}
 
 export async function POST() {
   const apiKey = process.env.ELEVENLABS_API_KEY;
@@ -16,6 +46,10 @@ export async function POST() {
 
   const agentId = process.env.ELEVENLABS_AGENT_ID;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
+  const toolId = await ensureTool(apiKey);
+  if (!toolId) {
+    return Response.json({ error: "ElevenLabs did not save Milo's next_line tool." }, { status: 502 });
+  }
   const conversationConfig = {
     agent: {
       first_message: MILO_FIRST_MESSAGE,
@@ -32,13 +66,14 @@ export async function POST() {
         prompt: MILO_AGENT_PROMPT,
         // Milo says a sentence or two at a time, so a fast model keeps the conversation live.
         llm: process.env.ELEVENLABS_AGENT_LLM || "claude-haiku-5-5",
+        tool_ids: [toolId],
       },
     },
     ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
     // Eager: Milo jumps in at the first small pause instead of waiting politely.
-    // Speculative turn: his reply starts generating during the pause, so he answers faster.
+    // No speculative turn: his reply now comes from a tool call, which must only run on a finished turn.
     // Turn timeout: if the student goes quiet for eight seconds, Milo helps them along instead of waiting.
-    turn: { turn_eagerness: "eager", speculative_turn: true, turn_timeout: 8 },
+    turn: { turn_eagerness: "eager", speculative_turn: false, turn_timeout: 8 },
   };
 
   const response = await fetch(
@@ -71,7 +106,7 @@ export async function POST() {
   }
   return Response.json(
     agentId
-      ? { agentId: data.agent_id, updated: true, firstMessage: MILO_FIRST_MESSAGE, promptLength: MILO_AGENT_PROMPT.length }
+      ? { agentId: data.agent_id, updated: true, toolId, firstMessage: MILO_FIRST_MESSAGE, promptLength: MILO_AGENT_PROMPT.length }
       : { agentId: data.agent_id, created: true, next: "Add ELEVENLABS_AGENT_ID to .env.local." },
   );
 }

@@ -36,14 +36,16 @@ The exact look of each is in [DESIGN.md](DESIGN.md).
 
 1. **The student talks.** Milo's ElevenLabs agent is listening. It is a back-and-forth, not a speech: Milo comes in at the first small pause. The student can interrupt him at any time.
 2. **The turn ends.** The agent decides the student has paused (turn-taking set to eager). The browser receives the final transcript of what the student said.
-3. **The brain scores it.** The browser sends everything the student has said so far to our server. Claude returns: the status of each key idea, the crayon level, the biggest gap, Milo's hint, a one-line version of what the student said, and the drawing instruction. See "The turn contract".
+3. **The brain scores it.** The browser sends everything the student has said so far, and everything Milo has said, to our server. Claude returns: the status of each key idea, the crayon level, the biggest gap, Milo's hint, a one-line version of what the student said, and the drawing instruction. See "The turn contract".
    - **Fact check first.** The same call lists anything clearly false in the turn (`wrongClaims`), before any drawing is asked for. A wrong claim is never drawn as a fact: it goes on the paper small, in grey pencil, with a red question mark, and Milo asks about it first.
-   - **A note within about 2.6 s.** As soon as the brain answers, Milo jots the student's words on the paper in his handwriting. The real drawing replaces the note when fal returns.
-4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet.
+   - **Milo's line comes out first.** The answer is streamed. The marks and Milo's line arrive after 1 to 2 seconds, before the drawing instruction is written, and Milo says that line (see "Who writes Milo's line").
+   - **A note on the paper.** As soon as the whole answer is in (2 to 4 s), Milo jots the student's words on the paper in his handwriting. The real drawing replaces the note when fal returns.
+4. **The board redraws.** If the turn added something drawable, our server calls fal with the drawing instruction and the current board image. fal returns the edited board. This takes 5 to 9 seconds on the fast model and about 22 seconds for the final sheet. Drawing runs beside the conversation: the next turn is scored and answered even while fal is still drawing.
 5. **The screen updates.** The new board replaces the old one. A new frame is added to the history strip. The crayon level, the gap list and Milo's age update.
-6. **Milo speaks.** Milo asks about the biggest gap. See "Who writes Milo's line" below.
-   - **Two failed tries at the same gap:** the brain sets `help`. The redraw adds a small blue dashed hint sketch, and when it lands Milo gets a cue to say his teacher line. The frame is labelled "Milo's hint".
-   - **Still stuck two turns after the hint:** the brain sets `stuck`, and the engine ignores it if fewer than two turns have passed. Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black.
+6. **Milo speaks.** Milo asks about the biggest gap, starting from what the student just said. See "Who writes Milo's line" below.
+   - **At most two questions per gap.** The engine counts how often Milo has asked about each gap. After two, or as soon as the student says they do not know, the brain sets `help`: Milo says "One second, let me sketch something for you.", the redraw adds a blue dashed hint sketch, and when it lands he gets a cue to say his teacher line. The frame is labelled "Milo's hint".
+   - **One try after the hint.** If the gap is still not clear on the student's next turn, Milo lets it go for good ("Okay, let's leave that bit.") and asks about another gap. It goes on the "look these up" list.
+   - **Nothing left to ask.** When every gap still open has been let go, Milo wraps up, the gaps heading becomes "Look these up next", and the sheet button turns black. The engine decides this, not the model.
 7. Repeat until every key idea is clear. Then Milo says he gets it, switches himself off, and the revision sheet is offered.
 
 While step 3 and 4 run, the old board stays visible. From about 2.6 seconds in it carries Milo's jotted note of what the student said, with "Milo is drawing this…" under it. The student can keep talking.
@@ -58,12 +60,15 @@ These shapes are shared by all three branches. Change them only together with th
 type TurnRequest = {
   topic: {                       // sent by the browser, so topics the student typed work too
     title: string;
-    keyIdeas: { id: string; idea: string }[];   // the ideas marked at the chosen level of detail
+    keyIdeas: { id: string; idea: string; gap?: string }[];   // the ideas marked at the chosen level of detail
   };
   detail: "basics" | "exam" | "deep";   // level of detail, chosen on the Start screen
   studentTurns: string[];        // everything the student has said, oldest first. Last entry is the new turn
+  miloLines: string[];           // everything Milo has said, oldest first. The last one is the line being answered
   helpedGapIds: string[];        // gaps Milo has already sketched a hint for. He helps once per gap
-  turnsSinceHint: number | null; // scored turns since his last hint. He may only wrap up after two
+  helpGapId: string | null;      // Milo has asked about this gap twice. Still not clear after this turn: he hints
+  leaveGapId: string | null;     // its hint is on the paper and has had one try. Still not clear: he lets it go
+  parkedGapIds: string[];        // gaps he has let go. Never asked about again
   previousLevel: 1 | 2 | 3 | 4 | null;   // null on the first turn
   previousDrawPrompt: string | null;     // the instruction that made the board on screen. null if no board yet
 };
@@ -78,14 +83,16 @@ type TurnResult = {
   biggestGapId: string | null;   // null when every idea is clear
   wrongClaims: string[];         // the fact check: clearly false statements in the latest turn, in the student's words
   hint: string;                  // Milo's next line. At most 20 words, one question. On a help turn: his teacher line
-  help: boolean;                 // true after two failed tries at the same gap: Milo sketches a hint
-  stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up
+  help: boolean;                 // true after two questions about the same gap, or "I don't know": Milo sketches a hint
+  stuck: boolean;                // true when every open gap has been let go. The engine works this out itself too
   said: string;                  // the latest turn as one sentence, max 20 words, in the student's words
   changed: boolean;              // false = nothing new to draw, leave the board alone
   drawPrompt: string;            // instruction for fal. Repeats the previous one when changed is false
   drew: string;                  // one sentence Milo says about what he just drew. Empty when changed is false
 };
 ```
+
+`POST /api/turn` answers with two lines of JSON (`application/x-ndjson`). First `{ part: "line", …TurnLine }`, which is the fields from `ideas` to `stuck`, sent the moment the model has written them. Then `{ part: "full", …TurnResult }`. `{ part: "error", error }` can replace either.
 
 **Request to draw**
 
@@ -118,7 +125,9 @@ type Frame = {
 
 - The level never goes down within a session. Milo does not shrink.
 - If `changed` is false, do not call fal.
-- One redraw in flight. If a newer result arrives while fal is drawing, keep only the newest and drop anything in between.
+- One redraw in flight. Each drawing instruction builds on the one before, so instructions that arrive while fal is drawing are joined and drawn together in the next redraw. Nothing the student said is dropped.
+- Milo asks about one gap at most twice, hints once, and lets it go after one more miss.
+- The lesson ends when every idea is clear or every open gap has been let go. Turns after that are not scored.
 - The old board stays on screen until the new image has finished loading.
 
 ## Topic and key ideas
@@ -217,17 +226,19 @@ Not available, so do not promise it:
 
 ### Who writes Milo's line
 
-The ElevenLabs agent replies as soon as the student stops. Claude's scored hint arrives a few seconds later. So:
+Claude writes it, and Milo waits for it. On this branch that is approach B from [BACKLOG.md](BACKLOG.md).
 
-- Milo's own agent prompt ([PROMPTS.md](PROMPTS.md)) makes him a confused kid who asks about the weakest part and never explains. That covers the reply he gives straight away.
-- After each scored turn, send Claude's hint to the agent with `sendContextualUpdate`. Milo uses it the next time the student stops. This keeps Milo's question in line with the gap shown on screen.
+- The agent has one client tool, `next_line`. Its prompt tells it to call the tool every time the student finishes, before saying a word, and to say exactly the line it gets back.
+- The tool runs in the browser. It waits for the brain's line for that very turn (1 to 2 s, because the line is streamed ahead of the drawing instruction) and returns it. If the brain takes more than 9 s, Milo asks a small question of his own.
+- Approach A was tried first and dropped: the agent replied at once from a note written for the turn before, so Milo kept asking for things the student had just told him. See D41 in [DECISIONS.md](DECISIONS.md).
+- A sound like "uh" or "okay" is not scored. The tool then hands Milo "Go on." or, after a silence, "Take your time."
 
-This is approach A. Two other live ways to do it are in [BACKLOG.md](BACKLOG.md), one per branch: the agent calls a browser tool and waits for the hint (B), or Claude is the agent's own LLM so one call writes both Milo's line and the score (C). All three are live conversations. None is hold-to-talk.
+Approach C, where Claude is the agent's own LLM, is still open on another branch. All three are live conversations. None is hold-to-talk.
 
 ### Claude: how to call it
 
 - Official SDK `@anthropic-ai/sdk`. Model `claude-opus-5-5`.
-- Ask for the `TurnResult` as structured output: `client.messages.parse({ …, output_config: { format: zodOutputFormat(TurnResultSchema) } })` with `zodOutputFormat` from `@anthropic-ai/sdk/helpers/zod`. Read `response.parsed_output`.
+- Ask for the `TurnResult` as structured output: `output_config: { format: betaZodOutputFormat(TurnResultSchema) }` with the helper from `@anthropic-ai/sdk/helpers/beta/zod`. The turn route streams it (`client.beta.messages.stream`) so Milo's line can go out early, then checks the finished text against the schema.
 - Thinking cannot be turned off on this model. Set `output_config.effort` to `"low"` to keep the turn fast.
 - Check `response.stop_reason` before reading the result. Handle `"refusal"` and `"max_tokens"`.
 - The system prompt and the user message are in [PROMPTS.md](PROMPTS.md).

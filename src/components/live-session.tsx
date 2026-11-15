@@ -14,12 +14,14 @@ import { useChosenTopic } from "@/lib/history";
 import {
   MILO_SHOW_FINAL,
   MILO_SHOW_HINT,
+  MILO_TOOL_FALLBACK,
+  NEXT_LINE_TOOL,
   isStageDirection,
-  miloAppNote,
   miloCatchUpNote,
   miloFinalNote,
   miloHelpNote,
   miloFirstMessage,
+  miloToolLine,
   miloVariables,
 } from "@/lib/prompts";
 import { DETAILS, type Detail, type Topic } from "@/lib/topics";
@@ -49,12 +51,10 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   // True once the student has switched Milo off with the button. He then stays off until they switch him on.
   const [switchedOff, setSwitchedOff] = useState(false);
 
-  // The engine calls this after each scored turn. It is filled in once the conversation exists.
-  const sendNote = useRef<(hint: string, over: boolean, settled: string[]) => boolean>(() => false);
+  // The engine calls these when a board lands. They are filled in once the conversation exists.
   const showFinal = useRef<(drew: string) => void>(() => {});
   const showHelp = useRef<(line: string) => void>(() => {});
   const session = useMiloSession(topic, detail, {
-    onHint: (hint, over, settled) => sendNote.current(hint, over, settled),
     onFinalBoard: (drew) => showFinal.current(drew),
     onHelpBoard: (line) => showHelp.current(line),
   });
@@ -67,11 +67,48 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   // chatter in the room after the lesson cannot start him talking again.
   const closing = useRef<{ since: number; spoke: boolean } | null>(null);
 
+  // Milo asks for his line after every student turn (the next_line tool). He gets the line the brain
+  // wrote for that very turn, so he never asks for something the student has just told him.
+  const answered = useRef(0);
+  const lastReply = useRef(0);
+  const wentQuiet = useRef(false);
+  const sessionRef = useRef(session);
+  useEffect(() => {
+    sessionRef.current = session;
+  });
+  const nextLine = async (): Promise<string> => {
+    const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    // The request can arrive a moment before the words the student just said.
+    const deadline = Date.now() + 1000;
+    while (sessionRef.current.turnCount() <= answered.current && Date.now() < deadline) await pause(60);
+    const engine = sessionRef.current;
+    const count = engine.turnCount();
+    lastReply.current = Date.now();
+    if (count <= answered.current) {
+      // Nothing new was said: silence, or a sound like "uh".
+      if (engine.isOver()) return "The lesson is over. Answer in a few warm words and ask nothing.";
+      return wentQuiet.current ? 'They are thinking. Say only: "Take your time."' : 'They added nothing yet. Say only: "Go on."';
+    }
+    answered.current = count;
+    const reply = await Promise.race([engine.lineFor(count), pause(9000).then(() => null)]);
+    lastReply.current = Date.now();
+    if (!reply) return MILO_TOOL_FALLBACK;
+    // Nothing is left to ask and no last drawing is coming, so he says goodbye and is switched off.
+    if (reply.stuck) closing.current ??= { since: Date.now(), spoke: false };
+    return miloToolLine(reply.line, reply.over);
+  };
+  const nextLineRef = useRef(nextLine);
+  useEffect(() => {
+    nextLineRef.current = nextLine;
+  });
+
   const conversation = useConversation({
+    clientTools: { [NEXT_LINE_TOOL]: () => nextLineRef.current() },
     onMessage: (payload) => {
       log.current.push({ who: payload.role, text: payload.message, at: Date.now() });
       // When the student stays quiet, ElevenLabs reports a turn of "...". That is not something they said.
-      if (payload.role === "user" && !/[\p{L}\p{N}]/u.test(payload.message)) return;
+      if (payload.role === "user") wentQuiet.current = !/[\p{L}\p{N}]/u.test(payload.message);
+      if (payload.role === "user" && wentQuiet.current) return;
       // Milo's lines carry delivery tags for his voice, such as [curious]. They are not for the screen.
       if (payload.role !== "user") setSpoken(payload.message.replace(/\[[^\]]{1,24}\]\s*/g, "").trim());
       // Our own stage direction is not something the student said.
@@ -106,11 +143,6 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
-    sendNote.current = (hint, over, settled) => {
-      if (!connected) return false;
-      sendContextualUpdate(miloAppNote(hint, over, settled));
-      return true;
-    };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
     // himself instead of waiting to be asked.
     // Milo speaks once per student turn. The one exception is the last board: the student has stopped
@@ -147,14 +179,16 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
         return;
       }
       if (!pending) return;
-      if (Date.now() - pending.since > 15000) {
+      if (Date.now() - pending.since > 20000) {
         pendingShow.current = null;
         return;
       }
       // The microphone level is the reliable sign that the student is talking.
       if (getInputVolume() > 0.04) lastSpeech.current = Date.now();
       const quiet = Date.now() - lastSpeech.current > 1500;
-      if (quiet && !isSpeaking) {
+      // Milo has just been handed a line. Give him time to start saying it before the next cue.
+      const settledIn = Date.now() - lastReply.current > 3500;
+      if (quiet && settledIn && !isSpeaking) {
         pendingShow.current = null;
         try {
           sendUserMessage(pending.cue);
@@ -345,7 +379,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       live={session.live}
       spokenLine={connected ? spoken : null}
       status={status}
-      drawing={session.busy === "drawing"}
+      drawing={session.drawing}
       boardNote={session.note}
       error={voiceError ?? session.error}
       seconds={seconds}

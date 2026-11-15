@@ -9,8 +9,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { saveSession } from "./history";
 import { levelInfo, type Level } from "./levels";
+import { MILO_SKETCHING_LINE, miloFirstMessage } from "./prompts";
 import { ideasFor, type Detail, type Topic } from "./topics";
-import type { DrawRequest, DrawResult, Frame, IdeaStatus, TurnRequest, TurnResult } from "./turn";
+import type { DrawRequest, DrawResult, Frame, IdeaStatus, TurnLine, TurnRequest, TurnResult } from "./turn";
 
 /** One line in the "What Milo is doing" feed. */
 export type Step = {
@@ -35,19 +36,38 @@ export type Live = {
   stuck: boolean;
 };
 
+/** What Milo says in reply to one student turn. Over means the lesson has ended. */
+export type MiloLine = { line: string; over: boolean; /** Over because nothing is left to ask, not because every idea is clear. */ stuck: boolean };
+
 export type MiloCallbacks = {
-  /** Milo's next line, after a turn is scored. Over means the lesson has ended. Return true if it reached the voice agent. */
-  onHint?: (hint: string, over: boolean, settled: string[]) => boolean;
   /** The final board is on screen. The text is what Milo can say about it. */
   onFinalBoard?: (drew: string) => void;
   /** A board with Milo's hint sketch is on screen. The text is his teacher line. */
   onHelpBoard?: (line: string) => void;
 };
 
+/** Sounds people make while thinking. A turn made only of these is not an answer and is not scored. */
+const FILLER = new Set(["uh", "um", "er", "erm", "ah", "oh", "hmm", "mm", "mhm", "okay", "ok", "yeah", "yep", "right", "so", "well", "like"]);
+
 /** A short burst over Milo's picture when something happens: an idea clicks, he is lost, he grows up. */
 export type Reaction = { id: number; text: string };
 
 const MAX_STEPS = 3;
+
+/** What a finished redraw needs to know about the turn that asked for it. */
+type Owed = {
+  /** Instructions not on the board yet, oldest first. Each one builds on the one before. */
+  prompts: string[];
+  said: string;
+  drew: string;
+  level: Level;
+  line: string;
+  gaps: string[];
+  /** Milo's teacher line, and the gap it is for, when one of these instructions adds his hint sketch. */
+  help: { line: string; gapId: string } | null;
+  final: boolean;
+};
+
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -62,6 +82,42 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     throw new Error(data?.error ?? `${url} failed (${response.status}).`);
   }
   return data;
+}
+
+/**
+ * Asks the brain about a turn. The answer comes in two lines: first the marks and Milo's reply, which
+ * is handed to `onLine` at once, then the whole result with the drawing instruction.
+ */
+async function postTurn(request: TurnRequest, onLine: (part: TurnLine) => void): Promise<TurnResult> {
+  const response = await fetch("/api/turn", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!response.ok || !response.body) {
+    const data = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(data?.error ?? `/api/turn failed (${response.status}).`);
+  }
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = "";
+  let full: TurnResult | null = null;
+  for (;;) {
+    const { value, done } = await reader.read();
+    buffer += value ?? "";
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const text of lines) {
+      if (!text.trim()) continue;
+      const message = JSON.parse(text) as { part: "line" | "full" | "error"; error?: string };
+      if (message.part === "error") throw new Error(message.error ?? "The brain failed.");
+      if (message.part === "line") onLine(message as unknown as TurnLine);
+      else full = message as unknown as TurnResult;
+    }
+    if (done) break;
+  }
+  if (!full) throw new Error("The brain did not finish its answer.");
+  return full;
 }
 
 /** Resolves once the browser has the image, so the old board stays up until the new one can show. */
@@ -95,7 +151,8 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
     ideas: null,
     stuck: false,
   });
-  const [busy, setBusy] = useState<"idle" | "thinking" | "drawing">("idle");
+  const [thinking, setThinking] = useState(false);
+  const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
   const [reaction, setReaction] = useState<Reaction | null>(null);
@@ -107,14 +164,27 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   const turns = useRef<string[]>([]);
   const scored = useRef(0);
   const running = useRef(false);
+  const drawingNow = useRef(false);
   const level = useRef<Level | null>(null);
   const board = useRef<{ url: string | null; prompt: string | null }>({ url: null, prompt: null });
-  // The newest drawing the brain asked for. If it differs from the board on screen, a redraw is owed.
-  const wanted = useRef<{ prompt: string; said: string; drew: string; help: string | null } | null>(null);
+  // What the brain has asked for that is not on the board yet. Null when the board is up to date.
+  const wanted = useRef<Owed | null>(null);
   // Gaps Milo has already sketched a hint for. He helps once per gap.
   const helped = useRef<string[]>([]);
-  // The number of scored turns at the moment of the last hint, to give the student two tries after it.
-  const hintedAtTurn = useRef<number | null>(null);
+  // The gap whose hint sketch is on the paper and has not been tried yet. One miss and he lets it go.
+  const justHelped = useRef<string | null>(null);
+  // Gaps he has let go of. He never asks about them again.
+  const parked = useRef<string[]>([]);
+  // How many times he has asked about each gap. A third question is nagging, so he hints instead.
+  const asked = useRef<Record<string, number>>({});
+  const lastAsked = useRef<string | null>(null);
+  // Everything Milo has said, so the brain can read the new turn as an answer and never repeat a question.
+  const miloLines = useRef<string[]>([miloFirstMessage(topic)]);
+  // Milo's reply to the newest scored turn, and whoever is waiting for one. The voice side waits here,
+  // so he never answers a turn with the question that was written for the turn before.
+  const latestLine = useRef<{ count: number; reply: MiloLine | null } | null>(null);
+  const waiters = useRef<{ count: number; resolve: (reply: MiloLine | null) => void }[]>([]);
+  const finished = useRef(false);
   const framesRef = useRef<Frame[]>([]);
   const startedAt = useRef<number | null>(null);
   const sessionId = useRef<string | null>(null);
@@ -128,6 +198,14 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   });
 
   const react = (text: string) => setReaction({ id: nextReactionId.current++, text });
+
+  /** Hands Milo's reply for the first `count` turns to everyone waiting on it. Null means the brain failed. */
+  const settle = (count: number, reply: MiloLine | null) => {
+    latestLine.current = { count, reply };
+    const ready = waiters.current.filter((waiter) => waiter.count <= count);
+    waiters.current = waiters.current.filter((waiter) => waiter.count > count);
+    for (const waiter of ready) waiter.resolve(reply);
+  };
 
   const beginStep = (label: string, detailText?: string): number => {
     const id = nextStepId.current++;
@@ -150,149 +228,56 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
     );
   };
 
-  const run = async () => {
-    // One run at a time. Turns that arrive meanwhile are scored together in the next pass,
-    // so only one redraw is ever in flight and the newest explanation wins.
-    if (running.current) return;
-    running.current = true;
+  // Drawing runs beside the scoring, never in front of it: Milo's reply must not wait for a picture.
+  // One redraw is in flight at a time. Instructions that arrive meanwhile are drawn together next.
+  const draw = async () => {
+    if (drawingNow.current) return;
+    drawingNow.current = true;
     let openStep: number | null = null;
-    let drawing = false;
     try {
-      while (scored.current < turns.current.length) {
-        const studentTurns = turns.current.slice();
-        scored.current = studentTurns.length;
-        setError(null);
-
-        drawing = false;
-        setBusy("thinking");
-        const total = keyIdeas.length;
-        openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
-        const request: TurnRequest = {
-          topic: {
-            title: topic.title,
-            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel })),
-          },
-          detail,
-          studentTurns,
-          helpedGapIds: helped.current,
-          turnsSinceHint: hintedAtTurn.current === null ? null : studentTurns.length - hintedAtTurn.current,
-          previousLevel: level.current,
-          previousDrawPrompt: board.current.prompt,
-        };
-        const result = await postJson<TurnResult>("/api/turn", request);
-
-        const statusOf = (id: string): IdeaStatus => result.ideas.find((idea) => idea.id === id)?.status ?? "missing";
-        const ideas = keyIdeas.map((idea) => statusOf(idea.id));
-        const clear = ideas.filter((status) => status === "clear").length;
-
-        // Gap labels still open, biggest first.
-        const open = keyIdeas.filter((idea) => statusOf(idea.id) !== "clear");
-        const gaps = [
-          ...open.filter((idea) => idea.id === result.biggestGapId),
-          ...open.filter((idea) => idea.id !== result.biggestGapId),
-        ].map((idea) => idea.gapLabel);
-
-        endStep(openStep, {
-          label: `Checked ${total} key ideas`,
-          detail: `${clear} of ${total} clear. ${levelInfo(result.level).label}`,
-        });
-        openStep = null;
-
-        // The fact check runs in the same call, before anything is drawn. A wrong claim is drawn as a
-        // grey question, never as a fact.
-        const wrongClaims = result.wrongClaims ?? [];
-        if (wrongClaims.length > 0) {
-          logStep("Fact check: something to check", `“${shorten(wrongClaims[0], 56)}”`);
-        }
-
-        // Milo reacts to what changed: he grew up, an idea clicked, something is wrong, or nothing landed.
-        const before = ideasBefore.current;
-        const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
-        const grewUp = level.current !== null && result.level > level.current;
-        const helping = result.help && gaps.length > 0 && Boolean(result.biggestGapId);
-        if (helping && result.biggestGapId) {
-          helped.current = [...helped.current, result.biggestGapId];
-          hintedAtTurn.current = studentTurns.length;
-        }
-        if (gaps.length === 0) react("I get it!");
-        else if (helping) react("A hint!");
-        else if (grewUp) react("I'm growing!");
-        else if (ideas.includes("wrong") || wrongClaims.length > 0) react("Huh?!");
-        else if (clicked) react("Ohh!");
-        else if (!result.changed) react("?");
-        ideasBefore.current = ideas;
-
-        level.current = result.level;
-        // Wrapping up is only allowed once the student has had two tries after the hint. The model
-        // has been seen to give up after one, so the rule is enforced here as well.
-        const triesSinceHint = hintedAtTurn.current === null ? 0 : studentTurns.length - hintedAtTurn.current;
-        const stuck = result.stuck && gaps.length > 0 && !helping && triesSinceHint >= 2;
-        // A wrap-up line that came too early, or alongside a finished explanation, must not be spoken.
-        const badLine = result.stuck && !stuck;
-        const line = badLine
-          ? gaps.length === 0
-            ? "I finally get it. That all fits together now."
-            : "Tell me a bit more about that."
-          : result.hint;
-        const settled = keyIdeas.filter((idea) => statusOf(idea.id) === "clear").map((idea) => idea.gapLabel);
-        setLive({ level: result.level, hint: line, gaps, ideas, stuck });
-        // The voice side can drop at any moment. A failed note must never stop the drawing.
-        try {
-          // On a helping turn Milo's line waits for the hint sketch, so he speaks when it is on the paper.
-          if (!helping && callbacksRef.current.onHint?.(line, gaps.length === 0 || stuck, settled)) {
-            logStep(stuck ? "Told Milo to wrap up" : "Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
-          }
-        } catch {
-          // Milo misses this hint. The next turn sends a fresh one.
-        }
-
-        if (result.changed || helping) {
-          wanted.current = { prompt: result.drawPrompt, said: result.said, drew: result.drew, help: helping ? result.hint : null };
-        }
+      while (wanted.current && wanted.current.prompts.length > 0) {
         const owed = wanted.current;
-        // Draw when there is something new, or when an earlier redraw failed and the board is behind.
-        if (!owed || owed.prompt === board.current.prompt) {
-          logStep("Nothing new to draw", "The board stays as it is");
-          continue;
-        }
-
-        drawing = true;
-        setBusy("drawing");
+        const count = owed.prompts.length;
+        setDrawing(true);
         setNote(owed.said);
         openStep = beginStep(
           owed.help ? "Sketching a hint for you" : "Redrawing the board",
-          result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
+          owed.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
         );
-        const draw: DrawRequest = {
-          prompt: owed.prompt,
+        const request: DrawRequest = {
+          prompt: owed.prompts.join(" Then, on the same paper: "),
           previousImageUrl: board.current.url,
-          level: result.level,
+          level: owed.level,
           detail,
         };
         // One retry: a single failed redraw should not leave an old board up while Milo says he gets it.
         let drawn: DrawResult | null = null;
         for (let attempt = 0; attempt < 2 && !drawn; attempt++) {
           try {
-            const tried = await postJson<DrawResult>("/api/draw", draw);
+            const tried = await postJson<DrawResult>("/api/draw", request);
             await preload(tried.imageUrl);
             drawn = tried;
           } catch (caught) {
             if (attempt === 1) throw caught;
           }
         }
-        if (!drawn) continue;
+        if (!drawn) break;
         endStep(openStep, { label: owed.help ? "Hint sketched" : "Board redrawn" });
         openStep = null;
 
-        board.current = { url: drawn.imageUrl, prompt: owed.prompt };
+        board.current = { url: drawn.imageUrl, prompt: owed.prompts[count - 1] };
+        // Anything the brain asked for while fal was drawing is still owed.
+        const newer = wanted.current;
+        wanted.current = newer && newer.prompts.length > count ? { ...newer, prompts: newer.prompts.slice(count), help: newer.help === owed.help ? null : newer.help } : null;
+
         const frame: Frame = {
           turn: framesRef.current.length + 1,
-          level: result.level,
+          level: owed.level,
           said: owed.said,
           imageUrl: drawn.imageUrl,
           at: startedAt.current ? (Date.now() - startedAt.current) / 1000 : 0,
-          hint: line,
-          gaps,
+          hint: owed.line,
+          gaps: owed.gaps,
           hinted: Boolean(owed.help),
         };
         framesRef.current = [...framesRef.current, frame];
@@ -311,25 +296,189 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           savedAt: Date.now(),
         });
         try {
-          if (owed.help) callbacksRef.current.onHelpBoard?.(owed.help);
-          else if (owed.drew && gaps.length === 0) callbacksRef.current.onFinalBoard?.(owed.drew);
+          if (owed.help) {
+            // The student can see the hint from now. Their next turn is their one try at it.
+            justHelped.current = owed.help.gapId;
+            callbacksRef.current.onHelpBoard?.(owed.help.line);
+          } else if (owed.final && !wanted.current) callbacksRef.current.onFinalBoard?.(owed.drew);
         } catch {
-          // Milo does not wrap up out loud. The final board is still on screen.
+          // Milo does not say it out loud. The board is still on screen.
         }
+      }
+    } catch (caught) {
+      console.error("Milo's drawing failed:", caught);
+      if (openStep !== null) endStep(openStep, { state: "error", detail: "Did not finish" });
+      setError("The drawing did not come back. Keep talking, Milo will try again on your next turn.");
+    } finally {
+      drawingNow.current = false;
+      setNote(null);
+      setDrawing(false);
+    }
+  };
+
+  const run = async () => {
+    // One scoring pass at a time. Turns that arrive meanwhile are scored together in the next pass.
+    if (running.current) return;
+    running.current = true;
+    let openStep: number | null = null;
+    try {
+      while (scored.current < turns.current.length) {
+        const studentTurns = turns.current.slice();
+        scored.current = studentTurns.length;
+        setError(null);
+
+        setThinking(true);
+        const total = keyIdeas.length;
+        openStep = beginStep(`Checking it against ${total} key ideas`, "Claude");
+        const basePrompt = wanted.current?.prompts.at(-1) ?? board.current.prompt;
+        const request: TurnRequest = {
+          topic: {
+            title: topic.title,
+            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel })),
+          },
+          detail,
+          studentTurns,
+          miloLines: miloLines.current,
+          helpedGapIds: helped.current,
+          // Asked twice already and never helped: one more miss gets a hint, not a third question.
+          helpGapId:
+            lastAsked.current && (asked.current[lastAsked.current] ?? 0) >= 2 && !helped.current.includes(lastAsked.current)
+              ? lastAsked.current
+              : null,
+          leaveGapId: justHelped.current,
+          parkedGapIds: parked.current,
+          previousLevel: level.current,
+          // The newest instruction, drawn or not, so each one builds on the one before.
+          previousDrawPrompt: basePrompt,
+        };
+        // The first half of the answer is enough for Milo to reply: the marks and his line.
+        const mark = openStep;
+        const judge = (part: TurnLine) => {
+          const statusOf = (id: string): IdeaStatus => part.ideas.find((idea) => idea.id === id)?.status ?? "missing";
+          const ideas = keyIdeas.map((idea) => statusOf(idea.id));
+          const clear = ideas.filter((status) => status === "clear").length;
+
+          // The gap he hinted at gets one try. Still not there: he lets it go for good.
+          const leaving = request.leaveGapId;
+          if (leaving) {
+            if (justHelped.current === leaving) justHelped.current = null;
+            if (statusOf(leaving) !== "clear" && !parked.current.includes(leaving)) parked.current = [...parked.current, leaving];
+          }
+
+          // Gap labels still open. The ones he can still ask about come first, biggest first.
+          const open = keyIdeas.filter((idea) => statusOf(idea.id) !== "clear");
+          const askable = open.filter((idea) => !parked.current.includes(idea.id));
+          const target = askable.find((idea) => idea.id === part.biggestGapId) ?? askable[0] ?? null;
+          const gaps = [
+            ...askable.filter((idea) => idea === target),
+            ...askable.filter((idea) => idea !== target),
+            ...open.filter((idea) => parked.current.includes(idea.id)),
+          ].map((idea) => idea.gapLabel);
+
+          endStep(mark, {
+            label: `Checked ${total} key ideas`,
+            detail: `${clear} of ${total} clear. ${levelInfo(part.level).label}`,
+          });
+
+          // The fact check runs in the same call, before anything is drawn. A wrong claim is drawn as a
+          // grey question, never as a fact.
+          const wrongClaims = part.wrongClaims ?? [];
+          if (wrongClaims.length > 0) {
+            logStep("Fact check: something to check", `“${shorten(wrongClaims[0], 56)}”`);
+          }
+
+          // The lesson ends when every idea is clear, or when every gap still open has been let go.
+          // That is decided here, not by the model, so he cannot give up early or carry on asking.
+          const done = open.length === 0;
+          const stuck = !done && askable.length === 0;
+          finished.current = done || stuck;
+          // He helps once per gap, never on the first turn, and only with a gap he has not let go.
+          const helping = part.help && target !== null && !helped.current.includes(target.id) && studentTurns.length > 1;
+          if (helping && target) helped.current = [...helped.current, target.id];
+
+          // Milo reacts to what changed: he grew up, an idea clicked, something is wrong, or nothing landed.
+          const before = ideasBefore.current;
+          const clicked = ideas.some((status, i) => status === "clear" && before?.[i] !== "clear");
+          const grewUp = level.current !== null && part.level > level.current;
+          if (done) react("I get it!");
+          else if (helping) react("A hint!");
+          else if (grewUp) react("I'm growing!");
+          else if (ideas.includes("wrong") || wrongClaims.length > 0) react("Huh?!");
+          else if (clicked) react("Ohh!");
+          ideasBefore.current = ideas;
+          level.current = part.level;
+
+          const lookUp = open[0]?.gapLabel ?? "";
+          let line = part.hint;
+          if (stuck && !part.stuck) {
+            line = `This is as far as we got today, and that's okay. The bit to look up is ${lookUp.charAt(0).toLowerCase()}${lookUp.slice(1)}. Your sheet is ready.`;
+          } else if (part.stuck && !stuck) {
+            // A wrap-up line that came too early must not be spoken.
+            line = done ? "I finally get it. That all fits together now." : "Tell me a bit more about that?";
+          }
+          setLive({ level: part.level, hint: line, gaps, ideas, stuck });
+
+          // What Milo says back. On a helping turn he only says he is sketching: the teacher line waits
+          // for the sketch to be on the paper.
+          if (!helping && !done && !stuck && target) {
+            asked.current = { ...asked.current, [target.id]: (asked.current[target.id] ?? 0) + 1 };
+            lastAsked.current = target.id;
+          }
+          miloLines.current = [...miloLines.current, line];
+          settle(studentTurns.length, { line: helping ? MILO_SKETCHING_LINE : line, over: done || stuck, stuck });
+          logStep(
+            stuck ? "Wrapping up" : done ? "Nothing left to ask" : helping ? "Time for a hint" : "Worked out what to ask next",
+            target?.gapLabel,
+          );
+          setThinking(false);
+          return { line, gaps, done, helping, target };
+
+        };
+        let early: ReturnType<typeof judge> | null = null;
+        const result = await postTurn(request, (part) => {
+          early ??= judge(part);
+        });
+        openStep = null;
+        const { line, gaps, done, helping, target } = early ?? judge(result);
+
+        if (result.changed || helping) {
+          const earlier = wanted.current;
+          wanted.current = {
+            prompts: [...(earlier?.prompts ?? []), result.drawPrompt],
+            said: result.said,
+            drew: result.drew,
+            level: result.level,
+            line,
+            gaps,
+            help: helping && target ? { line: result.hint, gapId: target.id } : (earlier?.help ?? null),
+            final: done,
+          };
+        } else if (wanted.current) {
+          // Nothing new, but a redraw is still owed. It carries the newest level and gaps.
+          wanted.current = { ...wanted.current, level: result.level, line, gaps, final: done };
+        } else {
+          logStep("Nothing new to draw", "The board stays as it is");
+          // The last board is already up, so Milo can show it straight away.
+          if (done && board.current.url) {
+            try {
+              callbacksRef.current.onFinalBoard?.(result.drew || "the finished sheet");
+            } catch {
+              // Milo does not say it out loud. The board is still on screen.
+            }
+          }
+        }
+        void draw();
       }
     } catch (caught) {
       // The technical reason goes to the console. The student gets a plain line.
       console.error("Milo's turn failed:", caught);
       if (openStep !== null) endStep(openStep, { state: "error", detail: "Did not finish" });
-      setError(
-        drawing
-          ? "The drawing did not come back. Keep talking, Milo will try again on your next turn."
-          : "Milo could not check that. Keep talking, he will try again on your next turn.",
-      );
+      // Nobody may wait on a line that is not coming.
+      settle(turns.current.length, null);
+      setError("Milo could not check that. Keep talking, he will try again on your next turn.");
     } finally {
       running.current = false;
-      setNote(null);
-      setBusy("idle");
+      setThinking(false);
     }
   };
 
@@ -341,8 +490,11 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   /** Add what the student just said. */
   const addTurn = (text: string) => {
     const said = text.trim();
-    // One or two stray words ("Uh", a misheard name) are not an explanation. Scoring them wastes a turn.
-    if (said.split(/\s+/).length < 3) return;
+    // "Uh" or "Okay" is not an answer. A short real answer ("Wheels.", "I don't know") is, and gets scored.
+    const words = said.toLowerCase().match(/[\p{L}\p{N}']+/gu) ?? [];
+    if (words.length === 0 || words.every((word) => FILLER.has(word))) return;
+    // The lesson has ended. Anything said after the goodbye is not part of the explanation.
+    if (finished.current) return;
     start();
     turns.current = [...turns.current, said];
     setHeard(said);
@@ -353,5 +505,22 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
   /** Everything the student has said so far, oldest first. */
   const said = () => turns.current.slice();
 
-  return { frames, live, busy, error, steps, reaction, heard, note, addTurn, start, said };
+  /** How many turns the student has had. */
+  const turnCount = () => turns.current.length;
+
+  /** True once the lesson has ended: every idea is clear, or there is nothing left to ask. */
+  const isOver = () => finished.current;
+
+  /** Milo's reply to the first `count` turns, as soon as the brain has it. Null if the brain failed. */
+  const lineFor = (count: number): Promise<MiloLine | null> => {
+    const latest = latestLine.current;
+    if (latest && latest.count >= count) return Promise.resolve(latest.reply);
+    return new Promise((resolve) => {
+      waiters.current = [...waiters.current, { count, resolve }];
+    });
+  };
+
+  const busy: "idle" | "thinking" | "drawing" = thinking ? "thinking" : drawing ? "drawing" : "idle";
+
+  return { frames, live, busy, drawing, error, steps, reaction, heard, note, addTurn, start, said, turnCount, isOver, lineFor };
 }

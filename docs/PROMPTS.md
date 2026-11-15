@@ -56,11 +56,11 @@ One call per student turn. It returns the `TurnResult` from [SPEC.md](SPEC.md) a
 - **Scoring.** Each key idea is missing, vague, clear or wrong, judged across everything said so far. What counts as clear depends on the level of detail (below).
 - **Level.** 1 no idea clear. 2 ideas vague, or one clear. 3 at least two clear and none wrong. 4 every idea clear.
 - **Biggest gap.** Wrong before vague before missing, because that is closest to what the student is already thinking about.
-- **Milo's line.** At most 20 words and one question. He repeats back a few of the student's words, then asks one small open question about the biggest gap. Never a question with the answer inside it ("is it X or Y?", "…, right?"), never the missing term, never his drawing. On a wrong idea he says what it made him picture, says it looks odd, and asks them to check.
+- **Milo's line.** At most 20 words and one question. The brain is given everything Milo has said, reads the new turn as an answer to his last line, and may never ask the same thing twice in any wording. He starts from a few of the student's latest words, then asks one small open question about the biggest gap. Never a question with the answer inside it ("is it X or Y?", "…, right?"), never the missing term, never his drawing. On a wrong idea he says what it made him picture, says it looks odd, and asks them to check.
 - **Fact check.** Every turn, the brain lists statements that are clearly false at school level, in the student's words, whether or not they touch a key idea. If unsure, it leaves them out. A wrong claim is drawn small in grey pencil with a red question mark and never as a fact, and Milo's next line asks about it first.
 - **No flattery.** No praise, no verdicts, no "nice… but". Milo's help line is plain too.
-- **Help.** After two failed tries at the same gap (once per gap): his line becomes a teacher line of up to 40 words, and the drawing gains a small hint sketch in blue dashed pencil marked 'hint'. No technical term. The idea still only counts when the student says it.
-- **Stuck.** Still not clear after the hint: he wraps up and names the gap to look up.
+- **Help.** After two questions about the same gap (the engine counts and sends `helpGapId`), or as soon as the student says they do not know (once per gap): his line becomes a teacher line of up to 40 words, and the drawing gains a small hint sketch in blue dashed pencil marked 'hint'. No technical term. The idea still only counts when the student says it.
+- **Letting go.** Still not clear on the turn after the hint (`leaveGapId`): he drops that gap, says so in a few words, and asks about another. Only when every open gap has been let go does he wrap up and name what to look up.
 - **Drawing instruction.** Only what the student said. Vague ideas drawn vaguely, wrong ideas drawn literally. Starts with "Keep the same drawing and style" on edits. Words on the paper in single quotes after "spelled exactly:". Says what to remove. Ends with "Do not add any other parts, shapes or words."
 
 ### Level of detail
@@ -107,27 +107,30 @@ That creates the agent the first time and updates it afterwards.
 | First message | `{{milo_first_line}}`, filled in by the browser. On a new session: "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?". When Milo is switched back on mid-session: "Okay, I'm back! Where were we?" | A concrete first question, so the student knows where to start, and no second introduction after a restart |
 | Turn timeout | 8 seconds | If the student goes quiet, Milo helps once with an easier question, then only says "Take your time". Five seconds cut into thinking time |
 | Turn eagerness | Eager | Milo jumps in at the first small pause instead of waiting politely |
-| Speculative turn | On | His reply starts generating during the pause, so he answers faster |
+| Speculative turn | Off | His reply comes from a tool call, which must only run on a finished turn |
+| Tool | `next_line`, a client tool that waits for a response (12 s timeout, no speech before it) | He says the line the brain wrote for the turn the student just finished |
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
 | Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
 
-**Who Milo is.** A warm, curious kid who follows the student. He does not praise and then backpedal: no compliments, no verdicts, one steady tone with no mood switches inside a reply. At most 20 words and exactly one question per reply. He repeats back their words and asks one small open question. He never puts an answer in a question, never uses a name, and never opens with his drawing. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
+**Who Milo is.** A warm, curious kid who follows the student. He does not praise and then backpedal: no compliments, no verdicts, one steady tone with no mood switches inside a reply. He calls `next_line` after every student turn and says exactly the line it returns, so his own rules (at most 15 words, one open question, no answer inside it) only apply if the tool fails. He never uses a name. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
 
 **Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.
 
 **What ElevenLabs cannot do.** There is no setting that makes the agent talk over the student mid-word. Eager turn-taking is the closest: he comes in the moment the student pauses. The student can always interrupt him.
 
-**The note the app sends after each scored turn** (with `sendContextualUpdate`):
+**What the `next_line` tool hands him** after each turn:
 
 ```
-APP NOTE: The weakest part of the explanation so far is the one this question is about. Ask it next, in your own words: "<hint>"
+Say exactly this and nothing else: "<the brain's line>"
 ```
 
-When every idea is clear:
+When the lesson is over:
 
 ```
-APP NOTE: The explanation is complete. There is nothing left to ask. Say something like: "<hint>"
+The lesson is over. Say exactly this and ask nothing more: "<the brain's line>"
 ```
+
+On a help turn the line is "One second, let me sketch something for you.", and the teacher line follows in an APP NOTE once the sketch is on the paper.
 
 ## 4. Milo's face (fal)
 

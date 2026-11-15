@@ -106,6 +106,22 @@ Ali ran the cell at Basics by voice and nine boards came out. What went wrong, a
 
 **D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, and draw the hint a quarter of the sheet tall. Whenever a label changes, the instruction says to erase every word on the paper and lists all the labels again, because the fast fal model leaves old writing behind otherwise. Checked by eye on two replays of Ali's words: names kept and nothing garbled in both. Duplicates were gone in one and reduced in the other, so this is better, not guaranteed. The careful model was tried for the final sheet again: cleaner, but 20 s and it redraws the whole picture in another style, so Basics keeps the fast one.
 
+## After the Sunday 06:00 calls
+
+Ali: "its really annoying to talk to". Three calls (volcano, burning, pyramids) showed why.
+
+**D41. Milo waits for the brain's line.** He used to reply the instant the student stopped, from a note written for the turn before, so he asked for things they had just said ("how does it travel up?" five times in the volcano call, after "it gets pushed out"). He now calls a browser tool, `next_line`, after every turn and says the line the brain wrote for that very turn. The turn route streams, so the line is out in 1 to 2 s, ahead of the drawing instruction. Measured in text mode against the real agent: Milo's reply 1.3 to 2.7 s after the turn. This replaces "who writes Milo's line" approach A, and D39's app note.
+
+**D42. Two questions per gap, then a hint, then let it go.** Counted in code, not left to the model. Two questions about a gap, or one "I have no clue" or "you explain", and he sketches the hint. One miss after the hint and he drops that gap for good and asks about another. The lesson only wraps up when nothing is left to ask. This replaces D37's "two tries after a hint". Replayed with Ali's volcano and pyramid words: no question asked twice.
+
+**D43. The brain reads the turn as an answer.** It now gets Milo's own lines, starts the next question from the student's latest words, and may never repeat a question in any wording. When torn between vague and clear it picks clear.
+
+**D44. Short answers count.** "Wheels." and "Fire." were answers and were being thrown away as noise. Only sounds like "uh" and "okay" are skipped now.
+
+**D45. Drawing never holds up the conversation.** Scoring and drawing run side by side. Instructions that arrive during a redraw are joined into the next one instead of being dropped, because each builds on the one before. This changes the "keep only the newest" rule.
+
+**D46. He says what he learned once.** The wrap-up cue after the last board made him repeat "I finally get it…", and Ali cut him off. The cue now only says the sheet is ready.
+
 ## Still open
 
 | Question | Who can settle it |

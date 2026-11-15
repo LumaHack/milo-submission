@@ -27,10 +27,16 @@ export const TurnRequestSchema = z.object({
   detail: DetailSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
   studentTurns: z.array(z.string()).min(1),
+  /** Everything Milo has said so far, oldest first. The last one is the line the student is answering. */
+  miloLines: z.array(z.string()),
   /** Gaps Milo has already sketched a hint for. He helps once per gap. */
   helpedGapIds: z.array(z.string()),
-  /** How many scored turns the student has had since Milo's last hint. Null if he has not given one. */
-  turnsSinceHint: z.number().int().nullable(),
+  /** Milo has asked about this gap twice. If it is still not clear after this turn, he sketches a hint instead of asking again. */
+  helpGapId: z.string().nullable(),
+  /** Milo sketched a hint for this gap and the student has had a try since. If it is still not clear, he lets it go. */
+  leaveGapId: z.string().nullable(),
+  /** Gaps Milo has let go of. He never asks about them again. They go on the "look these up" list. */
+  parkedGapIds: z.array(z.string()),
   /** The level before this turn. Null on the first turn. */
   previousLevel: LevelSchema.nullable(),
   /** The instruction that produced the board now on screen. Null if there is no board yet. */
@@ -54,8 +60,8 @@ export const TurnResultSchema = z.object({
   hint: z.string().describe("Milo's next spoken line. One short sentence. Never contains the answer."),
   help: z
     .boolean()
-    .describe("True when the student has tried the biggest gap twice without getting there, so Milo sketches a hint and teaches a little."),
-  stuck: z.boolean().describe("True when the student has run out of things to say and the session should wrap up."),
+    .describe("True when Milo has asked about the biggest gap twice, or the student says they do not know, so Milo sketches a hint and teaches a little."),
+  stuck: z.boolean().describe("True when every gap that is still open has been let go, so there is nothing left to ask and the session wraps up."),
   said: z.string().describe("The student's latest turn as one sentence of at most 20 words, in their own words."),
   changed: z
     .boolean()
@@ -66,6 +72,18 @@ export const TurnResultSchema = z.object({
     .describe("One short spoken sentence in which Milo says what he just drew, in the student's words. Empty when changed is false."),
 });
 export type TurnResult = z.infer<typeof TurnResultSchema>;
+
+/** The first half of a TurnResult: the marks and Milo's line. It is sent before the drawing instruction is written. */
+export const TurnLineSchema = TurnResultSchema.pick({
+  ideas: true,
+  level: true,
+  biggestGapId: true,
+  wrongClaims: true,
+  hint: true,
+  help: true,
+  stuck: true,
+});
+export type TurnLine = z.infer<typeof TurnLineSchema>;
 
 /** What the browser sends to get a board drawn. */
 export const DrawRequestSchema = z.object({
