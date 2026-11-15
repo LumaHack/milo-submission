@@ -20,11 +20,17 @@ export type StoredSession = {
   filmUrl?: string;
   /** A film that fal is still making. The sheet keeps checking on it, even after a reload. */
   filmJob?: { requestId: string; startedAt: number };
+  /** For a topic made from notes: where each gap is in the notes, by gap label, such as "slide 6". */
+  sources?: Record<string, string>;
 };
+
+/** The topics Milo found in the student's uploaded notes. The files themselves are never kept. */
+export type StoredNotes = { files: string[]; topics: Topic[]; savedAt: number };
 
 const HISTORY_KEY = "milo.history";
 const OPEN_KEY = "milo.open";
 const TOPIC_KEY = "milo.topic";
+const NOTES_KEY = "milo.notes";
 const MAX_SESSIONS = 24;
 
 const listeners = new Set<() => void>();
@@ -78,6 +84,34 @@ export function openSession(id: string) {
 
 export function chooseTopic(topic: Topic) {
   write(TOPIC_KEY, JSON.stringify(topic));
+}
+
+/** Keeps the topics from the student's notes, so they are still there after a reload. */
+export function saveNotes(notes: StoredNotes) {
+  write(NOTES_KEY, JSON.stringify(notes));
+}
+
+/** Back to the suggested topics. */
+export function clearNotes() {
+  try {
+    window.localStorage.removeItem(NOTES_KEY);
+  } catch {
+    // Storage can be blocked. Nothing was kept then.
+  }
+  listeners.forEach((listener) => listener());
+}
+
+/** The topics from the student's notes. Null when there are none, undefined until storage has been read. */
+export function useNotes(): StoredNotes | null | undefined {
+  const raw = useSyncExternalStore<string | null | undefined>(subscribe, () => read(NOTES_KEY), () => undefined);
+  return useMemo(() => {
+    if (raw === undefined) return undefined;
+    const stored = parse<StoredNotes | null>(raw, null);
+    const topics = Array.isArray(stored?.topics)
+      ? stored.topics.filter((topic) => Boolean(topic) && Array.isArray(topic.keyIdeas) && topic.keyIdeas.length > 0)
+      : [];
+    return stored && topics.length > 0 ? { ...stored, files: Array.isArray(stored.files) ? stored.files : [], topics } : null;
+  }, [raw]);
 }
 
 /** Every stored session, newest first. Undefined until storage has been read. */
