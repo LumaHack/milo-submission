@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       ...(model === DEFAULT_MODEL
         ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
         : {}),
-      system: turnSystemPrompt(),
+      system: turnSystemPrompt({ notes: Boolean(body.data.topic.notes) }),
       messages: [
         {
           role: "user",

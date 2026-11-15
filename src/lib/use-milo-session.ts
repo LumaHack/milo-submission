@@ -170,7 +170,9 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         const request: TurnRequest = {
           topic: {
             title: topic.title,
-            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel })),
+            // "where" is only set for topics made from notes, so other requests are unchanged.
+            keyIdeas: keyIdeas.map((idea) => ({ id: idea.id, idea: idea.idea, gap: idea.gapLabel, where: idea.where })),
+            notes: topic.notes ? { facts: topic.notes.facts } : undefined,
           },
           detail,
           studentTurns,

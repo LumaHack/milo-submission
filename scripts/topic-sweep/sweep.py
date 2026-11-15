@@ -10,18 +10,47 @@ Claude and fal credit (about $1 for the three topics).
     python3 scripts/topic-sweep/sweep.py OUT_DIR cell            one topic
     python3 scripts/topic-sweep/sweep.py OUT_DIR --no-draw       score only, no fal
     python3 scripts/topic-sweep/sweep.py OUT_DIR --offtopic-early   the off-topic line second, mid-session
+    python3 scripts/topic-sweep/sweep.py OUT_DIR notes --no-draw    uploads scripts/notes-test/cell-notes.pdf
+                                                                    and checks the notes are the marking scheme
 
 Writes OUT_DIR/<topic>.json with every request result and prints a short table.
 Standard library only.
 """
 
 import json
+import os
 import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 
 BASE = "http://localhost:3000"
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def upload(path):
+    """Posts one file to /api/notes as multipart form data, the way the Start screen does."""
+    boundary = uuid.uuid4().hex
+    name = os.path.basename(path)
+    with open(path, "rb") as handle:
+        content = handle.read()
+    body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"{name}\"\r\n"
+        f"Content-Type: application/octet-stream\r\n\r\n"
+    ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
+    request = urllib.request.Request(
+        BASE + "/api/notes",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
+    )
+    started = time.time()
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            return response.status, json.loads(response.read()), round(time.time() - started, 2)
+    except urllib.error.HTTPError as error:
+        return error.code, json.loads(error.read() or b"{}"), round(time.time() - started, 2)
 
 # The cell preset, copied from src/lib/topics.ts. The other topics are set up by /api/topic.
 CELL = {
@@ -67,6 +96,23 @@ TOPICS = {
             "Tell me a joke about cats.",
         ],
     },
+    # Our own test notes. They call mitochondria "battery packs" and have lysosomes but no Golgi,
+    # so it shows whether Milo marks against the notes or against general knowledge.
+    "notes": {
+        "upload": os.path.join(HERE, "..", "notes-test", "cell-notes.pdf"),
+        "turns": [
+            # Matches slide 2: the membrane idea should be clear.
+            "The cell is wrapped in a membrane, a gatekeeper that lets food and oxygen in and waste out.",
+            # Contradicts slides 3 and 4: should be listed in wrongClaims.
+            "The mitochondria hold the DNA and give the cell its instructions.",
+            # True, but not in the notes: should be neither scored nor flagged.
+            "Plant cells also have chloroplasts that make sugar from sunlight.",
+            # Not in the notes and clearly false: the safety net should flag it.
+            "Oh and the whole cell is made of tiny bits of metal.",
+            # Completes the three core ideas in the notes' own terms.
+            "Sorry, the mitochondria are the battery packs that release energy as ATP, and the nucleus is the control centre with the DNA instructions.",
+        ],
+    },
 }
 
 
@@ -100,6 +146,14 @@ def run_topic(name, spec, detail, draw):
     record = {"name": name, "detail": detail, "turns": []}
     if "preset" in spec:
         topic = spec["preset"]
+    elif "upload" in spec:
+        status, made, seconds = upload(spec["upload"])
+        record["setup"] = {"status": status, "seconds": seconds, "made": made}
+        if status != 200:
+            print(f"  upload failed ({status}): {made.get('error')}")
+            return record
+        print(f"  notes read in {seconds}s: {[topic['title'] for topic in made['topics']]}")
+        topic = made["topics"][0]
     else:
         status, topic, seconds = post("/api/topic", {"title": spec["typed"]})
         record["setup"] = {"status": status, "seconds": seconds, "topic": topic}

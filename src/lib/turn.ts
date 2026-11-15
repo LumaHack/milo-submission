@@ -20,9 +20,23 @@ export const TurnRequestSchema = z.object({
   topic: z.object({
     title: z.string().min(1).max(120),
     keyIdeas: z
-      .array(z.object({ id: z.string(), idea: z.string(), gap: z.string().optional() }))
+      .array(
+        z.object({
+          id: z.string(),
+          idea: z.string(),
+          gap: z.string().optional(),
+          /** Where the student's notes say it, such as "slide 6". Only for topics made from notes. */
+          where: z.string().max(40).optional(),
+        }),
+      )
       .min(1)
       .max(8),
+    /** Facts from the student's own notes. When present, the notes are the marking scheme. */
+    notes: z
+      .object({
+        facts: z.array(z.object({ text: z.string().max(300), where: z.string().max(40) })).max(40),
+      })
+      .optional(),
   }),
   detail: DetailSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
