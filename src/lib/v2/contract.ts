@@ -15,24 +15,24 @@ export type Mode = z.infer<typeof ModeSchema>;
 export const HintStepSchema = z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);
 export type HintStep = z.infer<typeof HintStepSchema>;
 
-const IdeaListSchema = z.array(z.object({ id: z.string(), status: IdeaStatusSchema }));
+const IdeaListSchema = z.array(z.object({ id: z.string().max(80), status: IdeaStatusSchema })).max(12);
 
 /** What the browser sends to /api/v2/turn after the student finishes a point. */
 export const V2TurnRequestSchema = z.object({
-  topicId: z.string(),
+  topicId: z.string().max(120),
   /** A part of a student's own course (docs/COURSES.md). Built-in topics leave it out. */
   part: PartDefinitionSchema.optional(),
   mode: ModeSchema,
   /** Every student turn so far, oldest first. The last one is the new turn. */
-  studentTurns: z.array(z.string().min(1)).min(1),
+  studentTurns: z.array(z.string().min(1).max(8000)).min(1).max(200),
   previousLevel: LevelSchema.nullable(),
   previousIdeas: IdeaListSchema.nullable(),
-  previousBiggestGapId: z.string().nullable(),
+  previousBiggestGapId: z.string().max(80).nullable(),
   previousHintStep: HintStepSchema,
   /** The instruction that drew the board now on screen. Null if there is no board yet. */
-  previousDrawPrompt: z.string().nullable(),
+  previousDrawPrompt: z.string().max(4000).nullable(),
   /** Milo's last few lines, newest last, so he never opens the same way twice. */
-  recentMiloLines: z.array(z.string()).max(6),
+  recentMiloLines: z.array(z.string().max(600)).max(6),
   /** Development only, ignored in production: lets a timing test try another model or fast mode. */
   dev: z.object({ model: z.string().optional(), fast: z.boolean().optional() }).optional(),
 });
@@ -60,7 +60,7 @@ export type V2TurnResult = z.infer<typeof V2TurnResultSchema>;
 
 /** What the browser sends to /api/v2/draw. */
 export const V2DrawRequestSchema = z.object({
-  prompt: z.string().min(1),
+  prompt: z.string().min(1).max(4000),
   /** The board to edit. Null draws a new one. */
   previousImageUrl: z.url().nullable(),
   /** True redraws the last board with the careful model, for the end page. */

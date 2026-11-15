@@ -42,7 +42,11 @@ export const PartDefinitionSchema = z.object({
   subject: oneLine(80),
   title: oneLine(80).pipe(z.string().min(1)),
   blurb: oneLine(140),
-  about: oneLine(120).pipe(z.string().min(1)),
+  // Milo says this phrase in his first line, and it sits inside the brain's prompt and the voice
+  // agent's. So it is held to plain words: no full stops, colons, quotes or brackets to start a new sentence with.
+  about: oneLine(120)
+    .transform((text) => text.replace(/[^\p{L}\p{N} ,'’&-]/gu, " ").replace(/\s+/g, " ").trim())
+    .pipe(z.string().min(1)),
   firstMessage: oneLine(260).pipe(z.string().min(1)),
   tone: oneLine(200).optional(),
   keywords: z.array(oneLine(40)).max(24),

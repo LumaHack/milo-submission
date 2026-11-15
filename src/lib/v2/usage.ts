@@ -1,5 +1,5 @@
 // Development only: a running list of what each v2 route spent, so a night of testing can be added
-// up afterwards (docs/OVERNIGHT.md). One JSON line per call in node_modules/.cache/milo/usage.jsonl,
+// up afterwards (docs/COURSES.md, "Measured"). One JSON line per call in node_modules/.cache/milo/usage.jsonl,
 // which git ignores. It never holds keys, prompts or anything a student said. Server only.
 
 import { appendFile, mkdir } from "node:fs/promises";

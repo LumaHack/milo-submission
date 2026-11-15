@@ -49,6 +49,10 @@ export function parseSession(raw: string | null): SavedSession | null {
   try {
     const saved = JSON.parse(raw) as SavedSession;
     if (saved.version !== 1 || Date.now() - saved.savedAt > MAX_AGE_MS) return null;
+    // A damaged entry is treated as no session at all, never allowed to break a page.
+    if (!Array.isArray(saved.frames) || !Array.isArray(saved.turns) || !saved.live || !saved.memory || !saved.board) {
+      return null;
+    }
     return saved;
   } catch {
     return null;

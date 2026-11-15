@@ -82,7 +82,7 @@ const WW2: V2Topic = {
   id: "ww2",
   subject: "History",
   title: "How World War II started",
-  blurb: "From the peace of 1919 to the invasion of Poland.",
+  blurb: "From the peace of 1919 to the first shots of 1939.",
   about: "how World War Two started",
   firstMessage:
     "Hi, I'm Milo! I don't know anything about how World War Two started. Can you explain it to me? I'll draw what you say.",

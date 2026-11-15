@@ -142,21 +142,40 @@ export function groundPicks(
 }
 
 /**
- * Keeps only labels that stand word for word in one of the drawing instructions, so the tidy sheet
- * can never be told to write something Milo was not already told to draw. The title is left out:
- * the tidy instruction gives it separately.
+ * The labels the drawing instructions put on the sheet, in order, as lower-case text mapped to how they
+ * were written. A label is whatever sits in single quotes. One quoted in a sentence that starts with
+ * "Remove" is taken off again.
+ */
+export function labelsOnSheet(drawPrompts: string[]): Map<string, string> {
+  const on = new Map<string, string>();
+  for (const prompt of drawPrompts) {
+    for (const sentence of prompt.split(/(?<=[.!?])\s+/)) {
+      const quoted = [...sentence.matchAll(/'([^']{2,60})'/g)].map((found) => found[1].trim());
+      const removes = /^\s*(remove|erase|delete|rub out)\b/i.test(sentence);
+      for (const label of quoted) {
+        if (removes) on.delete(label.toLowerCase());
+        else on.set(label.toLowerCase(), label);
+      }
+    }
+  }
+  return on;
+}
+
+/**
+ * Keeps only the labels Claude returned that the drawing instructions really put on the sheet, in
+ * quotes, and did not remove again. So the tidy sheet can never be told to write something Milo was
+ * not told to draw. The title is left out: the tidy instruction gives it separately.
  */
 export function groundLabels(labels: string[], drawPrompts: string[], title: string): string[] {
-  const written = drawPrompts.join("\n").toLowerCase();
+  const on = labelsOnSheet(drawPrompts);
   const titleWords = title.toLowerCase().replace(/^the\s+/, "");
   const kept: string[] = [];
   for (const raw of labels) {
     const label = raw.replace(/\s+/g, " ").replace(/^['‘’"]+|['‘’"]+$/g, "").trim();
     const lower = label.toLowerCase();
-    if (label.length < 2 || label.length > 60 || label.includes("?")) continue;
-    if (!written.includes(lower)) continue;
+    if (label.includes("?") || !on.has(lower)) continue;
     if (lower.replace(/^the\s+/, "") === titleWords) continue;
-    if (!kept.some((entry) => entry.toLowerCase() === lower)) kept.push(label);
+    if (!kept.some((entry) => entry.toLowerCase() === lower)) kept.push(on.get(lower) ?? label);
   }
   return kept.slice(0, 12);
 }

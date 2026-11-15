@@ -23,11 +23,15 @@ function enforce(result: V2TurnResult, topic: V2Topic, input: V2TurnRequest): V2
   const level = input.previousLevel && result.level < input.previousLevel ? input.previousLevel : result.level;
   // Nothing new to draw means the board stays exactly as it is.
   const drawPrompt = !result.changed && input.previousDrawPrompt ? input.previousDrawPrompt : result.drawPrompt;
+  // An idea with no proper term has no word for steps 3 and 4 to hand over: the ladder stops at 2.
+  const gap = topic.keyIdeas.find((idea) => idea.id === result.biggestGapId);
+  const topStep = gap && !gap.term.trim() ? 2 : 4;
+  const hintStep = Math.min(result.hintStep, topStep) as V2TurnResult["hintStep"];
   return {
     ...result,
     ideas,
     level,
-    hintStep: input.mode === "exam" ? 0 : result.hintStep,
+    hintStep: input.mode === "exam" ? 0 : hintStep,
     miloLine: cleanMiloLine(result.miloLine),
     drawPrompt,
   };

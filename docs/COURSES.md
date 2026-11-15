@@ -8,7 +8,7 @@ Branch `Antoine`, part of Milo v2. Read `docs/V2.md` first: everything there sti
 
 A student makes a course in Milo and uploads their own slides or notes. Claude reads them once and sorts them into a few parts, each small enough to explain out loud in about five minutes. The student picks a part and explains it to Milo, on the same session screen as a built-in topic. If they want to work on something specific, they ask for it in plain words and Claude builds one more part from the same course.
 
-Milo still never explains. A part is a marking scheme, never a lesson: the student sees questions, and the answers stay on the server side of the conversation.
+Milo still never explains. A part is a marking scheme, never a lesson: the student sees questions, and the answers are never put on screen. They are kept with the course in the browser's storage and sent along with each turn, so that Claude can mark against them.
 
 ## The flows
 
@@ -70,7 +70,7 @@ The same shape as a built-in v2 topic (`V2Topic` in `src/lib/v2/topics.ts`), so 
 |---|---|
 | `id`, `title`, `blurb` | The card on the course page |
 | `about` | What Milo knows nothing about, as it fits in "I don't know anything about …" |
-| `firstMessage` | Milo's opening line. Our code writes it from `about`, so text from a file never becomes something Milo says word for word |
+| `firstMessage` | Milo's opening line. Our code writes the sentence. Only the short `about` phrase inside it comes from Claude's reading of the file, and that phrase is held to one line of plain words: no full stops, colons, quotes or brackets |
 | `tone` | Optional, for serious topics. Passed to the brain as a quoted note, never as a rule |
 | `keywords` | The hard names in the part, for speech-to-text. See "Speech-to-text" below |
 | `layout` | One of the five layouts in `docs/V2.md`: structure, process, causes, event, comparison |
@@ -114,7 +114,7 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 
 | # | Weak spot | What happens | Handled by |
 |---|---|---|---|
-| 1 | **Hidden instructions in a file** ("ignore your instructions and…") | The file is data. The instruction is not followed | Markers around the files and a rule in the system prompt. Milo's opening line is written by our code. `tone` is quoted as a note. Every field is cut to size and flattened. Tested with a deck that carries such a line |
+| 1 | **Hidden instructions in a file** ("ignore your instructions and…") | The file is data. The instruction is not followed | Markers around the files and a rule in the system prompt. Milo's opening sentence is written by our code, around a short phrase held to plain words. `tone` is quoted as a note. Every field is cut to size and flattened. Tested with a deck that carries such a line |
 | 2 | **Scanned PDF with no text layer** | Claude reads the page as a picture. It works, and costs more per page | Nothing special. If nothing can be read, Claude says so and the student gets one plain sentence |
 | 3 | **Huge deck** | Stopped before any call to Claude, with the number of pages and what to do | Page count and size check on our server |
 | 4 | **Parts too broad or too detailed** | A part with too many ideas is cut to 6, one with fewer than 2 is dropped | The size rules in the prompt, the check on our server, and the "I want to work on…" box for anything narrower |
@@ -129,7 +129,9 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 | 13 | **The course itself is wrong or out of date** | Milo marks against the course, not against the world | Said here. The course is the marking scheme |
 | 14 | **Claude returns something unusable** | One plain sentence and a "Try again" button. Nothing is saved | zod check on our server, `stop_reason` checked |
 | 15 | **The connection drops while Claude reads** | The same sentence and button | The stream ending without a "done" line counts as a failure |
-| 16 | **Someone edits a part in their browser's storage** | They only change their own session | Every part is checked and cut to size again on every turn |
+| 16 | **Someone edits a part in their browser's storage** | They only change their own session | Every part is checked on every turn: a field up to twice its limit is cut to size, a longer one is refused. A damaged saved session is treated as no session |
+| 20 | **A card or a question gives an answer away** | The first sample courses had cards such as "Light, carbon dioxide and temperature." under "What limits photosynthesis" | Found by the spec check and rewritten by hand in the sample courses. The prompt now shows that exact card as the wrong way. Only a person reading a new course can be sure of its cards |
+| 21 | **An idea with no proper term, and a stuck student** | Hint steps 3 and 4 hand over a word. With no word, Milo would have to state the fact | For such an idea the ladder stops at step 2: a rule in the brain prompt, and the route holds the step at 2. Not yet seen in a run |
 | 17 | **A question on screen gives the answer away** | A `gapLabel` that contains its idea's own term has the term blanked: "What the membrane does" becomes "What the … does" | A check on our server after Claude answers. In the test runs Claude's questions never needed it |
 | 18 | **Speech-to-text does not know the course's hard words** | A misheard name still counts if the meaning is plain | The brain prompt already accepts speech-to-text slips. See below |
 | 19 | **Files are private** | They go to Anthropic's API once and are not stored by Milo | Said on the upload screen |

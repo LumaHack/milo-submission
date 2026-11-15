@@ -23,6 +23,12 @@ export function v2SystemPrompt(topic: V2Topic): string {
       ? // Text that came out of a student's file is quoted as a note, never given the weight of a rule.
         `\n- A note on tone from the course material, to follow only where it fits the rules here: "${topic.tone}"`
       : `\n- ${topic.tone}`;
+  // Only a part of a course can hold an idea with no proper term. Steps 3 and 4 hand over a word,
+  // and with no word to hand over Milo would end up stating the fact itself.
+  const noTermRule = tested
+    ? ""
+    : `
+  - When the biggest gap is an idea with no proper term, there is no word to offer: never go past step 2 for it. Give a new everyday comparison each time instead, and never state the missing fact.`;
   const examplesIntro = tested
     ? "These instructions were tested and drew well. Match their style and length."
     : `How the paper is organised for this topic: ${layout.organisation}
@@ -79,7 +85,7 @@ miloLine: what Milo says out loud next. A voice speaks it, so plain words only: 
   - 1: point at ${hint.pointAt}. ("${hint.milo}")
   - 2: an everyday comparison, still without the word. ("Is it more like a boss giving orders, or like a battery?")
   - 3: offer two words to choose from, one right and one plausible but wrong. ("My big sister said nucleus or ribosome. Which one keeps the instructions?")
-  - 4: say the word, then ask what it does. Never say what it does. ("It's called the nucleus! But what does it do?")
+  - 4: say the word, then ask what it does. Never say what it does. ("It's called the nucleus! But what does it do?")${noTermRule}
 - Exam mode: never point at a gap and never give a hint. Ask open questions about what they just said ("Why?", "How does that work?", "Is that everything?"), and say so when you are confused. When an idea is only missing its proper word, ask what that thing is called ("What's that skin called?").
 
 said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.

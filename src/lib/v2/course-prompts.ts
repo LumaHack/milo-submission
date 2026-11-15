@@ -95,7 +95,7 @@ Write every part in English, even when the material is in another language, beca
 For each part:
 - id: a short slug of lower-case letters, digits and hyphens.
 - title: at most 6 words, the way a student would name the topic ("How the heart pumps blood").
-- blurb: one line under the title, at most 10 words. It says what the part covers without explaining it ("Four chambers and two loops.").
+- blurb: one line under the title, at most 10 words. It names the ground the part covers and gives none of its answers away. "What holds the rate back, and why." is right. "Light, carbon dioxide and temperature." lists the answers and is wrong.
 - about: completes the sentence "I don't know anything about …". It starts in lower case, keeps the capital letters of names, and has no full stop ("how the heart pumps blood", "why the League of Nations failed").
 - tone: empty for most parts. For a part about war, death, illness or suffering: one sentence telling Milo to stay curious and kind and never joke about it.
 - keywords: up to 10 hard names or terms from this part that a speech-to-text system might mishear.
@@ -107,7 +107,7 @@ ${layoutList()}
   - idea: what a complete explanation says, in one or two sentences, with the details the material gives (dates, numbers, names). Never shown to the student.
   - core: the least the student must get across for the idea to count, in one sentence of at most 20 words, in plain words. It holds one point: one fact, or one cause with its effect. If you need a second "and", the rest is either another key idea or a bonus. Then, if the idea has details beyond the core, name them as a bonus ("The year and the numbers are a bonus."). The student is marked on the core only, so keep it short and fair: a student who understands but forgets a date or one item of a list must still pass.
   - term: the proper word or words for this idea, as few as possible ("mitochondria", "Treaty of Versailles"). In exam mode the student must say it, so only give one when the subject really has a name for the idea. Leave it empty when the idea is a plain fact with no name of its own ("Germany lost land").
-  - gapLabel: how the idea is named on the student's screen while it is still missing. A short question in everyday words, at most 8 words, written without a question mark. It must not contain the term and must not give the answer away ("Where the energy comes from", "Why nobody stopped him"). Never "What mitochondria do".
+  - gapLabel: how the idea is named on the student's screen while it is still missing. A short question in everyday words, at most 8 words, written without a question mark. It must not contain the term, and must not give away its own answer or the answer to another idea of the same part ("Where the energy comes from", "Why nobody stopped him"). Never "What mitochondria do", and never "What happened when Japan invaded" when the invasion is itself the answer.
 
 A good part looks like this one:
 

@@ -42,6 +42,28 @@ export function asksForTime(text: string): boolean {
   return rest.length === 0;
 }
 
+/**
+ * True when two wordings share most of their words: the agent's wording of a turn and the transcript
+ * of that same turn. Used to spot a tool call that arrives for a turn already scored.
+ */
+export function sameTurn(a: string, b: string): boolean {
+  const words = (text: string) =>
+    new Set(
+      text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s']/g, " ")
+        .split(/\s+/)
+        .filter((word) => word.length >= 3),
+    );
+  const first = words(a);
+  const second = words(b);
+  const smaller = Math.min(first.size, second.size);
+  if (smaller === 0) return a.trim().toLowerCase() === b.trim().toLowerCase();
+  let shared = 0;
+  for (const word of first) if (second.has(word)) shared += 1;
+  return shared / smaller >= 0.6;
+}
+
 /** Silences, noise and requests for time that the voice agent reports as a turn. None of them is scored. */
 export function isFiller(text: string): boolean {
   const words = text
@@ -77,11 +99,16 @@ export type Memory = {
   lines: string[];
 };
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+/** A call that never answers must not hold up everything queued behind it. */
+const TURN_TIMEOUT_MS = 40_000;
+const DRAW_TIMEOUT_MS = 45_000;
+
+async function postJson<T>(url: string, body: unknown, timeoutMs: number): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !data) throw new Error(data?.error ?? `${url} failed (${response.status}).`);
@@ -123,6 +150,10 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
   const unspoken = useRef<string | null>(null);
   // A turn the agent passed to update_board before its transcript arrived, and when.
   const fromTool = useRef<number | null>(null);
+  // How many turns there were when the safety net last scored on its own, without Milo's tool call.
+  const netScored = useRef(-1);
+  // A drawing that failed twice. It is drawn again with the next turn, so the board catches up.
+  const owed = useRef<ScoredTurn | null>(null);
   const memory = useRef<Memory>(initial?.memory ?? EMPTY_MEMORY);
   const board = useRef<{ url: string | null; prompt: string | null }>(initial?.board ?? { url: null, prompt: null });
   const inFlight = useRef<ScoredTurn | null>(null);
@@ -202,17 +233,21 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
     ].map((idea) => idea.gapLabel);
   };
 
-  const draw = async (result: ScoredTurn) => {
+  const draw = async (result: ScoredTurn, attempt = 1) => {
     inFlight.current = result;
     setDrawing(true);
-    const id = beginStep("Redrawing the board", "fal, fast model");
+    const id = beginStep(attempt === 1 ? "Redrawing the board" : "Redrawing the board again", "fal, fast model");
+    let again = false;
     try {
-      const drawn = await postJson<DrawResult>("/api/v2/draw", {
-        prompt: result.drawPrompt,
-        previousImageUrl: board.current.url,
-      });
+      const drawn = await postJson<DrawResult>(
+        "/api/v2/draw",
+        { prompt: result.drawPrompt, previousImageUrl: board.current.url },
+        DRAW_TIMEOUT_MS,
+      );
       await preload(drawn.imageUrl);
       endStep(id, { label: "Board redrawn" });
+      owed.current = null;
+      if (attempt > 1) setError(null);
       board.current = { url: drawn.imageUrl, prompt: result.drawPrompt };
       const frame: V2Frame = {
         turn: framesRef.current.length + 1,
@@ -230,13 +265,21 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
       setFrames(framesRef.current);
       persist();
     } catch {
-      endStep(id, { state: "error", detail: "Did not finish" });
-      setError("The drawing did not come back. Keep talking, Milo will try again.");
+      // One more try straight away, unless a newer drawing is already waiting to replace this one.
+      again = attempt === 1 && !waiting.current;
+      if (!again && !waiting.current) owed.current = result;
+      endStep(id, { state: "error", detail: again ? "Trying once more" : "Did not finish" });
+      setError(
+        again
+          ? "The drawing did not come back. Keep talking, Milo is trying again."
+          : "The drawing did not come back. Keep talking, Milo will draw it with your next sentence.",
+      );
     } finally {
       inFlight.current = null;
       const next = waiting.current;
       waiting.current = null;
       if (next) void draw(next);
+      else if (again) void draw(result, 2);
       else setDrawing(false);
     }
   };
@@ -284,6 +327,16 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
 
     const said = point?.trim();
     if (said && !isFiller(said) && !hasUnscored()) {
+      // Milo's call can arrive after the safety net has already scored this very turn. Adding his
+      // wording of it would score the same words twice, and cost the student a step on the hint
+      // ladder for repeating themselves. His line is already waiting for him: nothing to do.
+      const last = turns.current.at(-1);
+      const alreadyScored =
+        netScored.current === turns.current.length && last !== undefined && sameTurn(said, last);
+      if (alreadyScored) {
+        netScored.current = -1;
+        return null;
+      }
       start();
       turns.current = [...turns.current, said];
       fromTool.current = Date.now();
@@ -291,6 +344,8 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
       logStep("Heard you", `“${shorten(said, 64)}”`);
     }
     if (!hasUnscored()) return null;
+    // Scored without Milo asking: the safety net, or a typed test turn.
+    const byNet = !said;
 
     const run = (async () => {
       const studentTurns = turns.current.slice();
@@ -314,8 +369,9 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
           previousDrawPrompt: inFlight.current?.drawPrompt ?? board.current.prompt,
           recentMiloLines: before.lines.slice(-4),
         };
-        const result = await postJson<ScoredTurn>("/api/v2/turn", request);
+        const result = await postJson<ScoredTurn>("/api/v2/turn", request, TURN_TIMEOUT_MS);
         scored.current = Math.max(scored.current, studentTurns.length);
+        netScored.current = byNet ? studentTurns.length : -1;
         memory.current = {
           level: result.level,
           ideas: result.ideas,
@@ -344,6 +400,8 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
         });
         persist();
         if (result.changed) queueDraw(result);
+        // A drawing that failed earlier is still owed, even when this turn adds nothing new.
+        else if (owed.current) queueDraw(owed.current);
         else logStep("Nothing new to draw", "The board stays as it is");
         unspoken.current = result.miloLine;
         return result.miloLine;

@@ -262,11 +262,12 @@ function Live({
     }
   }, [voice]);
   useEffect(() => {
-    if (voice === "off" || !idle || paused) return;
+    // Not while the session is ending: a stray tap during "Finishing the drawing…" would start a new conversation.
+    if (voice === "off" || !idle || paused || finishing) return;
     const wake = () => void connectRef.current();
     window.addEventListener("pointerdown", wake, { once: true });
     return () => window.removeEventListener("pointerdown", wake);
-  }, [voice, idle, paused]);
+  }, [voice, idle, paused, finishing]);
 
   const pause = () => {
     clearSafetyNet();

@@ -47,11 +47,13 @@ function polishPrompt(title: string, labels: string[]): string {
   );
 }
 
-async function postJson<T>(url: string, body: unknown): Promise<T> {
+async function postJson<T>(url: string, body: unknown, timeoutMs: number): Promise<T> {
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    // A call that never answers must not leave the page waiting for ever.
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const data = (await response.json().catch(() => null)) as (T & { error?: string }) | null;
   if (!response.ok || !data) throw new Error(data?.error ?? `${url} failed (${response.status}).`);
@@ -166,13 +168,17 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
         // Every board's drawing instruction, if this session kept them all. They say which labels belong on the sheet.
         const drawPrompts = frames.map((entry) => entry.drawPrompt ?? "");
         try {
-          const result = await postJson<V2SummaryResult>("/api/v2/summary", {
-            topicId: topic.id,
-            ...(topic.custom ? { part: topicToPart(topic) } : {}),
-            studentTurns: saved.turns,
-            ideas: topic.keyIdeas.map((idea, i) => ({ id: idea.id, status: statuses[i] })),
-            ...(willTidy && drawPrompts.every(Boolean) ? { drawPrompts } : {}),
-          });
+          const result = await postJson<V2SummaryResult>(
+            "/api/v2/summary",
+            {
+              topicId: topic.id,
+              ...(topic.custom ? { part: topicToPart(topic) } : {}),
+              studentTurns: saved.turns,
+              ideas: topic.keyIdeas.map((idea, i) => ({ id: idea.id, status: statuses[i] })),
+              ...(willTidy && drawPrompts.every(Boolean) ? { drawPrompts } : {}),
+            },
+            30_000,
+          );
           labels = result.labels ?? [];
           setNailed(result.nailed);
           updateSession(topic.id, mode, { summary: { nailed: result.nailed, labels, turns: saved.turns.length } });
@@ -184,11 +190,11 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
       }
       if (!willTidy || !last) return;
       try {
-        const drawn = await postJson<DrawResult>("/api/v2/draw", {
-          prompt: polishPrompt(topic.title, labels),
-          previousImageUrl: last.imageUrl,
-          final: true,
-        });
+        const drawn = await postJson<DrawResult>(
+          "/api/v2/draw",
+          { prompt: polishPrompt(topic.title, labels), previousImageUrl: last.imageUrl, final: true },
+          75_000,
+        );
         await preload(drawn.imageUrl);
         setMoved(true);
         setPolished(drawn.imageUrl);

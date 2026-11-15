@@ -47,9 +47,14 @@ export function StartV2() {
   const courses = useMemo(() => parseCourses(stored), [stored]);
   const samples = SAMPLE_COURSES.filter((sample) => !courses.some((course) => course.id === sample.id));
 
+  const [sampleProblem, setSampleProblem] = useState(false);
   /** A sample course is copied into this browser like any other course, then opened. */
   const openSample = (sample: Course) => {
-    if (saveCourse(sample)) storedChanged();
+    if (!saveCourse(sample)) {
+      setSampleProblem(true);
+      return;
+    }
+    storedChanged();
     router.push(`/v2/course?id=${sample.id}`);
   };
 
@@ -109,6 +114,11 @@ export function StartV2() {
           <span className="text-[15px] font-semibold">
             {shelf === "courses" ? "Your courses" : "Four topics to choose from"}
           </span>
+          {shelf === "courses" && sampleProblem && (
+            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
+              Your browser could not save this course: its storage is full or blocked. Allow storage for this site and try again.
+            </p>
+          )}
           <div className="flex flex-wrap gap-3 rounded-panel bg-panel p-3">
             {shelf === "courses" ? (
               <>

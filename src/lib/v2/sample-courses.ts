@@ -72,7 +72,7 @@ const RAW: unknown[] = [
             "idea": "Glucose is used in respiration, stored as starch, or built into cellulose for cell walls.",
             "core": "The plant uses the glucose for energy or stores it as starch. Cellulose is a bonus.",
             "term": "starch",
-            "gapLabel": "What the plant does with its sugar"
+            "gapLabel": "What happens to what it made"
           }
         ]
       },
@@ -138,7 +138,7 @@ const RAW: unknown[] = [
         "id": "light-dependent-reactions",
         "origin": "course",
         "title": "The light-dependent reactions",
-        "blurb": "How light energy becomes ATP and NADPH.",
+        "blurb": "How light energy gets captured and stored.",
         "about": "the light-dependent reactions of photosynthesis",
         "firstMessage": "Hi, I'm Milo! I don't know anything about the light-dependent reactions of photosynthesis. Can you explain it to me? I'll draw what you say.",
         "keywords": [
@@ -166,14 +166,14 @@ const RAW: unknown[] = [
             "idea": "The excited electrons leave the chlorophyll and pass along an electron transport chain.",
             "core": "The energised electrons are passed along a chain of proteins.",
             "term": "electron transport chain",
-            "gapLabel": "Where the energised electrons go"
+            "gapLabel": "What gets passed along next"
           },
           {
             "id": "photolysis",
             "idea": "Water is split (photolysis) to replace the lost electrons: 2H2O → 4H+ + 4e− + O2, and the oxygen is released as a by-product.",
             "core": "Water is split to replace the lost electrons, which releases oxygen.",
             "term": "photolysis",
-            "gapLabel": "How the lost electrons get replaced"
+            "gapLabel": "Where the replacements come from"
           },
           {
             "id": "making-atp",
@@ -253,7 +253,7 @@ const RAW: unknown[] = [
         "id": "limiting-factors",
         "origin": "course",
         "title": "What limits photosynthesis",
-        "blurb": "Light, carbon dioxide and temperature.",
+        "blurb": "What holds the rate back, and why.",
         "about": "what limits the rate of photosynthesis",
         "firstMessage": "Hi, I'm Milo! I don't know anything about what limits the rate of photosynthesis. Can you explain it to me? I'll draw what you say.",
         "keywords": [
@@ -578,7 +578,7 @@ const RAW: unknown[] = [
         "id": "breaking-the-treaty",
         "origin": "course",
         "title": "How Hitler broke the treaty",
-        "blurb": "Rearmament, the Rhineland and Austria, step by step.",
+        "blurb": "The steps he took, one after another.",
         "about": "how Hitler broke the Treaty of Versailles",
         "firstMessage": "Hi, I'm Milo! I don't know anything about how Hitler broke the Treaty of Versailles. Can you explain it to me? I'll draw what you say.",
         "tone": "This is a serious topic about a war. Milo stays curious and kind, and never jokes about war, death or suffering.",
@@ -607,7 +607,7 @@ const RAW: unknown[] = [
             "idea": "Germany rearmed secretly from 1933 and in March 1935 openly announced conscription and an air force; there were only protests, and in June 1935 Britain even signed a naval agreement with Germany.",
             "core": "Germany rebuilt its armed forces, which the treaty forbade. The 1935 dates are a bonus.",
             "term": "rearmament",
-            "gapLabel": "How Germany rebuilt its forces"
+            "gapLabel": "What Germany did about its army"
           },
           {
             "id": "rhineland",
@@ -671,14 +671,14 @@ const RAW: unknown[] = [
             "idea": "In September 1931 Japan occupied Manchuria after staging a railway explosion; the League's inquiry took a year, it condemned Japan in February 1933, and Japan left the League and kept Manchuria with no sanctions.",
             "core": "Japan seized Manchuria and the League did nothing that stopped it. The dates are a bonus.",
             "term": "Manchuria",
-            "gapLabel": "What happened when Japan invaded"
+            "gapLabel": "The first test, in Asia"
           },
           {
             "id": "abyssinia",
             "idea": "In October 1935 Italy invaded Abyssinia, a League member; sanctions left out oil and kept the Suez Canal open, Britain and France secretly offered Italy much of the country, and Italy completed the conquest in May 1936; sanctions were lifted in July.",
             "core": "Italy invaded Abyssinia and the League's sanctions were too weak to stop it. Oil and the secret deal are a bonus.",
             "term": "Abyssinia",
-            "gapLabel": "What happened when Italy invaded"
+            "gapLabel": "The second test, in Africa"
           },
           {
             "id": "lesson",
@@ -693,7 +693,7 @@ const RAW: unknown[] = [
         "id": "appeasement-and-munich",
         "origin": "course",
         "title": "Appeasement and the Munich Agreement",
-        "blurb": "Why Britain gave way, and the Sudetenland deal.",
+        "blurb": "Why Britain gave way, and the deal that followed.",
         "about": "appeasement and the Munich Agreement",
         "firstMessage": "Hi, I'm Milo! I don't know anything about appeasement and the Munich Agreement. Can you explain it to me? I'll draw what you say.",
         "tone": "This is a serious topic about a war. Milo stays curious and kind, and never jokes about war, death or suffering.",
@@ -720,7 +720,7 @@ const RAW: unknown[] = [
             "idea": "It was followed because of memories of 1914–1918 and public desire for peace, a view that Versailles was too harsh, the Depression and unreadiness for war, fear of communism, and no certainty of US support.",
             "core": "People feared another great war. Other reasons, such as not being ready, are a bonus.",
             "term": "",
-            "gapLabel": "Why Britain chose to give way"
+            "gapLabel": "Why Britain chose that path"
           },
           {
             "id": "sudetenland",
@@ -768,7 +768,7 @@ const RAW: unknown[] = [
             "idea": "In its defence: Britain and France were not ready for war in 1938, and the extra year was used to rearm, above all in air defence.",
             "core": "For: Britain was not ready in 1938 and used the extra year to rearm.",
             "term": "",
-            "gapLabel": "What the extra year was good for"
+            "gapLabel": "What waiting bought Britain"
           },
           {
             "id": "public-opinion",
@@ -811,7 +811,7 @@ const RAW: unknown[] = [
         "id": "outbreak-of-war-1939",
         "origin": "course",
         "title": "The road to war in 1939",
-        "blurb": "The Nazi-Soviet Pact, Poland and the declarations of war.",
+        "blurb": "The last months before the fighting began.",
         "about": "how the war started in 1939",
         "firstMessage": "Hi, I'm Milo! I don't know anything about how the war started in 1939. Can you explain it to me? I'll draw what you say.",
         "tone": "This is a serious topic about a war. Milo stays curious and kind, and never jokes about war, death or suffering.",
