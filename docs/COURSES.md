@@ -17,7 +17,7 @@ Milo still never explains. A part is a marking scheme, never a lesson: the stude
 1. Start screen (`/v2`) → "Your courses" → "New course".
 2. Give it a name (optional) and add files. The limits are on the screen before anything is uploaded.
 3. "Read my course". The files go to our server, which checks them and sends them to Claude in one call.
-4. While Claude reads, the screen says what is happening and shows each part's title as soon as Claude has written it.
+4. While Claude reads, the screen says what is happening, counts the seconds, and shows each part's title as soon as Claude has written it. "Stop" cancels.
 5. The course opens. Nothing but its structure is kept: see "What is stored".
 
 **Try a sample course.** One click loads a course that was built ahead of time from our own test decks: "Photosynthesis" and "The origins of the Second World War". No upload and no Claude call, so a demo never waits on the network.
@@ -82,11 +82,11 @@ There is no database, so the browser sends the part's definition with every turn
 
 **`POST /api/v2/courses/analyze`**. A form with `name` and `files`. Answers as a stream of JSON lines, so the screen can show progress:
 
-- `{"type":"status","text":"Claude is reading your 21 slides"}`
+- `{"type":"status","text":"Claude is reading your 22 pages"}`, then `"Claude is writing the parts"` once the first words arrive
 - `{"type":"part","title":"The light reactions"}`, once per part, as Claude writes them
 - `{"type":"done","course":{…},"meta":{…}}` or `{"type":"error","message":"…"}`
 
-One Claude call: `claude-opus-5-5`, high effort, fast mode, streamed, structured output (`output_config.format`), `stop_reason` checked. The files sit between two markers in the user message, with the instruction after them. The files are not cached: a course is read once, and writing a cache costs a quarter more.
+One Claude call: `claude-opus-5-5`, medium effort, fast mode, streamed, structured output (`output_config.format`), `stop_reason` checked. The files sit between two markers in the user message, with the instruction after them. The files are not cached: a course is read once, and writing a cache costs a quarter more.
 
 **`POST /api/v2/courses/focus`**. JSON: the course's title, outline and existing part titles, plus the student's request. One Claude call, low effort, fast mode. Returns one new part, or `found: false` with a kind sentence.
 
@@ -130,7 +130,7 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 | 14 | **Claude returns something unusable** | One plain sentence and a "Try again" button. Nothing is saved | zod check on our server, `stop_reason` checked |
 | 15 | **The connection drops while Claude reads** | The same sentence and button | The stream ending without a "done" line counts as a failure |
 | 16 | **Someone edits a part in their browser's storage** | They only change their own session | Every part is checked and cut to size again on every turn |
-| 17 | **A question on screen gives the answer away** | Checked: a `gapLabel` that contains the part's own term is replaced by a plain one | A check on our server after Claude answers |
+| 17 | **A question on screen gives the answer away** | A `gapLabel` that contains its idea's own term has the term blanked: "What the membrane does" becomes "What the … does" | A check on our server after Claude answers. In the test runs Claude's questions never needed it |
 | 18 | **Speech-to-text does not know the course's hard words** | A misheard name still counts if the meaning is plain | The brain prompt already accepts speech-to-text slips. See below |
 | 19 | **Files are private** | They go to Anthropic's API once and are not stored by Milo | Said on the upload screen |
 

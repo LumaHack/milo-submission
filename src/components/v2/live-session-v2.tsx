@@ -373,9 +373,11 @@ function Live({
     clearSafetyNet();
     session.pauseClock();
     endSession();
+    // With nothing said there is no end page to show: go back to where the topic was picked.
+    const nothingSaid = session.frames.length === 0 && !session.lastHeard;
     void session.whenIdle().then(() => {
       session.persist();
-      window.location.assign(endHref);
+      window.location.assign(nothingSaid ? target.homeHref : endHref);
     });
   };
   // If the browser brings this page back from its own back-forward cache, the button works again.
