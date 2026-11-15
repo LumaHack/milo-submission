@@ -15,7 +15,7 @@ import { SAMPLE_COURSES } from "@/lib/v2/sample-courses";
 import { V2_SUBJECTS, V2_TOPICS, type Subject, type V2Topic } from "@/lib/v2/topics";
 import { storedChanged, useStored } from "@/lib/v2/use-stored";
 
-import { MiloSays, ModeChoice, TopicCard, useMode, useProgress } from "./pick-bits";
+import { MiloSays, ModeChoice, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
 
 /** What the grid shows: a built-in subject's topics, or the student's own courses. */
 type Shelf = Subject | "courses";
@@ -113,13 +113,7 @@ export function StartV2() {
             {shelf === "courses" ? (
               <>
                 {courses.map((course) => (
-                  <TopicCard
-                    key={course.id}
-                    title={course.title}
-                    blurb={`${course.parts.length} ${course.parts.length === 1 ? "part" : "parts"} to explain.`}
-                    note={course.sample ? "Sample course" : course.files.map((file) => file.name).join(", ")}
-                    href={`/v2/course?id=${encodeURIComponent(course.id)}`}
-                  />
+                  <CourseCard key={course.id} course={course} mode={mode} />
                 ))}
                 <TopicCard
                   title="New course"
@@ -146,6 +140,20 @@ export function StartV2() {
         </div>
       </main>
     </Page>
+  );
+}
+
+/** One of the student's courses, with how much of it is explained so far in the chosen mode. */
+function CourseCard({ course, mode }: { course: Course; mode: Mode }) {
+  const progress = useCourseProgress(course, mode);
+  return (
+    <TopicCard
+      title={course.title}
+      blurb={`${course.parts.length} ${course.parts.length === 1 ? "part" : "parts"} to explain.`}
+      note={course.sample ? "Sample course" : course.files.map((file) => file.name).join(", ")}
+      progress={progress}
+      href={`/v2/course?id=${encodeURIComponent(course.id)}`}
+    />
   );
 }
 

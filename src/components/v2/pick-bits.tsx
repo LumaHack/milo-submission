@@ -9,8 +9,9 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { MiloPic, pill } from "@/components/ui";
 import type { Mode } from "@/lib/v2/contract";
+import { partTopicId, type Course } from "@/lib/v2/courses";
 import { parseSession, saveMode, sessionKey } from "@/lib/v2/storage";
-import { storedChanged, useStored } from "@/lib/v2/use-stored";
+import { storedChanged, useStored, useStoredText } from "@/lib/v2/use-stored";
 
 export const MODES: { id: Mode; label: string; description: string }[] = [
   { id: "coach", label: "Coach me", description: "When you are stuck, Milo gives you a hint, one small step at a time." },
@@ -77,6 +78,24 @@ export function useProgress(topicId: string, mode: Mode, total: number): { text:
       ? { text: `All ${total} explained. See your sheet`, done: true }
       : { text: `${clear} of ${total} explained. Pick up where you left off`, done: false };
   }, [raw, total]);
+}
+
+/**
+ * How much of a whole course is explained in this mode, over all its parts:
+ * "9 of 25 ideas explained", or null when nothing is explained yet.
+ */
+export function useCourseProgress(course: Course, mode: Mode): string | null {
+  const total = course.parts.reduce((sum, part) => sum + part.keyIdeas.length, 0);
+  const clear = useStoredText(() => {
+    let count = 0;
+    for (const part of course.parts) {
+      const saved = parseSession(window.localStorage.getItem(sessionKey(partTopicId(course.id, part.id), mode)));
+      // A part can hold fewer ideas than a session saved before it was rebuilt. Never count past its size.
+      count += Math.min(part.keyIdeas.length, saved?.live.ideas?.filter((status) => status === "clear").length ?? 0);
+    }
+    return String(count);
+  }, "0");
+  return clear === "0" ? null : `${clear} of ${total} ideas explained`;
 }
 
 /**

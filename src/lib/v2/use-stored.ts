@@ -33,6 +33,25 @@ export function useStored(key: string): string | null {
   );
 }
 
+/**
+ * A short text worked out from storage, for when one key is not enough (progress over a whole course).
+ * `read` runs on every render and on every change, so it must be cheap and return the same text for
+ * the same storage. The server and the first paint see `fallback`.
+ */
+export function useStoredText(read: () => string, fallback: string): string {
+  return useSyncExternalStore(
+    subscribe,
+    () => {
+      try {
+        return read();
+      } catch {
+        return fallback;
+      }
+    },
+    () => fallback,
+  );
+}
+
 /** Tells every useStored on this page that storage changed. Call it after writing. */
 export function storedChanged(): void {
   window.dispatchEvent(new Event(CHANGED));

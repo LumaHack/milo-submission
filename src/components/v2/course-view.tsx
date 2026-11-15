@@ -15,7 +15,7 @@ import { getCourse, MAX_PARTS, partTopicId, removeCourse, saveCourse, type Cours
 import { clearSession } from "@/lib/v2/storage";
 import { storedChanged } from "@/lib/v2/use-stored";
 
-import { MiloSays, ModeChoice, TopicCard, useMode, useProgress } from "./pick-bits";
+import { MiloSays, ModeChoice, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
 
 export function CourseFromUrl() {
   const params = useSearchParams();
@@ -67,6 +67,7 @@ function filesLine(course: Course): string {
 function CourseView({ course, onChange }: { course: Course; onChange: (course: Course) => void }) {
   const router = useRouter();
   const [mode, setMode] = useMode();
+  const explained = useCourseProgress(course, mode);
   // What Milo says: about the part under the pointer, or about the course.
   const [preview, setPreview] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -115,6 +116,7 @@ function CourseView({ course, onChange }: { course: Course; onChange: (course: C
             <h1 className="m-0 text-[68px] leading-[1.02] font-medium tracking-[-0.04em] max-sm:text-[44px]">{course.title}</h1>
             <p className="m-0 text-[15px] leading-normal text-muted">
               {course.parts.length} {course.parts.length === 1 ? "part" : "parts"} to explain. {filesLine(course)}
+              {explained && <span className="font-medium text-ink"> {explained} so far.</span>}
             </p>
           </div>
           <MiloSays line={line} />
