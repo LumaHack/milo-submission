@@ -56,6 +56,8 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const stored = useNotes();
   const notes = NOTES_ON ? stored : null;
+  // Storage is only readable in the browser. Until then, nothing that depends on the mode is drawn,
+  // so the screen never shows the suggested topics and then jumps to the notes.
   const busy = making !== null || reading !== null;
 
   const suggestions = SUGGESTIONS[subject];
@@ -107,17 +109,23 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
       const response = await fetch("/api/notes", { method: "POST", body: form, signal: AbortSignal.timeout(180000) });
       const data = (await response.json().catch(() => null)) as (Omit<StoredNotes, "savedAt"> & { error?: string }) | null;
       if (!response.ok || !data || data.error || !Array.isArray(data.topics)) {
-        throw new Error(data?.error ?? "Milo could not read those notes. Try again.");
+        console.error("Reading notes failed:", response.status, data?.error);
+        // The server's 4xx messages are written for the student. Anything else gets the plain line.
+        setError(
+          response.status >= 400 && response.status < 500 && data?.error
+            ? data.error
+            : "Milo could not read those notes. Try again.",
+        );
+        return;
       }
       saveNotes({ files: data.files, topics: data.topics, savedAt: Date.now() });
     } catch (caught) {
+      console.error("Reading notes failed:", caught);
       const timedOut = caught instanceof DOMException && caught.name === "TimeoutError";
       setError(
         timedOut
           ? "Reading those notes took too long. Try fewer pages, or one lecture at a time."
-          : caught instanceof Error && caught.message
-            ? caught.message
-            : "Milo could not read those notes. Try again.",
+          : "Milo could not read those notes. Try again.",
       );
     } finally {
       setReading(null);
@@ -131,6 +139,8 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
       : notes
         ? `Topics from ${fileNames || "your notes"}. Milo only uses what is in them.`
         : "Slides as a PDF, lecture notes or a transcript. Milo only uses what is in them.";
+
+  if (notes === undefined) return <>{children}</>;
 
   return (
     <>
@@ -183,7 +193,7 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
         <div className="flex flex-col gap-3 rounded-panel bg-panel p-3">
           {NOTES_ON && (
             <div
-              className={`flex flex-wrap items-center gap-2 rounded-card bg-card p-3 ${dragging ? "outline-2 outline-offset-2 outline-ink" : ""}`}
+              className={`flex flex-wrap items-center gap-2 rounded-card bg-card p-4 ${dragging ? "outline-2 outline-offset-2 outline-ink" : ""}`}
               onDragOver={(event) => {
                 event.preventDefault();
                 if (!busy) setDragging(true);
@@ -196,7 +206,7 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
               }}
             >
               <span className="px-2 text-[15px] font-semibold">Your notes</span>
-              <span key={notesLine} className="min-w-0 flex-[1_1_260px] animate-rise px-2 text-[15px] leading-normal text-muted">
+              <span className="min-w-0 flex-[1_1_260px] px-2 text-[15px] leading-normal text-muted">
                 {notesLine}
               </span>
               <label
@@ -256,7 +266,7 @@ export function TopicPicker({ children }: { children?: ReactNode }) {
               </div>
 
               <form
-                className="flex flex-wrap items-center gap-2 rounded-card bg-card p-3"
+                className="flex flex-wrap items-center gap-2 rounded-card bg-card p-4"
                 onSubmit={(event) => {
                   event.preventDefault();
                   void pick(typed);

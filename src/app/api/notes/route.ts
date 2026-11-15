@@ -202,7 +202,10 @@ export async function POST(request: Request) {
 
     return Response.json({ files: names, topics, seconds });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) return fail("ANTHROPIC_API_KEY was rejected.", 500);
+    if (error instanceof Anthropic.AuthenticationError) {
+      console.error("/api/notes: ANTHROPIC_API_KEY was rejected.");
+      return fail(MESSAGES.unreadable, 500);
+    }
     if (error instanceof Anthropic.RateLimitError) return fail("Too many requests. Try again in a moment.", 429);
     if (error instanceof Anthropic.BadRequestError) {
       // Usually a PDF with too many pages, or a file Claude cannot open.
