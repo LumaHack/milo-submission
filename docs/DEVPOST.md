@@ -9,7 +9,7 @@ Everything here describes the `Ali` branch as it stood on Sunday 15 November, 11
 | Project name | Milo |
 | Track | 03, Voice, Vision and Generative Media |
 | Bounties | fal, ElevenLabs |
-| Repo | https://github.com/LumaHack/milo-submission/tree/Ali |
+| Repo | https://github.com/LumaHack/milo-submission |
 | Video | add the link, two minutes or less |
 | Team | add every member: full name, Luma email, university email |
 
@@ -54,7 +54,7 @@ One Next.js app. Every vendor key stays on the server; the browser only gets a s
 | Board edits, every turn | fal | `google/nano-banana-2-lite/edit` |
 | Final sheet at the higher detail levels | fal | `fal-ai/nano-banana-pro/edit` |
 | Film of the first board becoming the last | fal | `bytedance/seedance-2.0/fast/image-to-video` |
-| Milo's four portraits, ages 4, 7, 11 and 18 | fal | Generated during the hackathon, stored in `design/milo/` |
+| Milo's four portraits, ages 4, 7, 11 and 18 | fal | `google/nano-banana-2-lite` for the first, then `google/nano-banana-2-lite/edit` for each older age. Made during the hackathon by `scripts/gen_milo.py`, stored in `design/milo/` |
 
 Built with: Next.js 16, React 19, TypeScript, Tailwind CSS 4, zod, pnpm.
 
