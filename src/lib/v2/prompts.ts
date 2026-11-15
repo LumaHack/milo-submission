@@ -28,7 +28,23 @@ export function v2SystemPrompt(topic: V2Topic): string {
   const noTermRule = tested
     ? ""
     : `
-  - When the biggest gap is an idea with no proper term, there is no word to offer: never go past step 2 for it. Give a new everyday comparison each time instead, and never state the missing fact.`;
+  - When the biggest gap is an idea with no proper term, there is no word to offer: never go past step 2 for it. Give a new everyday comparison each time instead, and never state the missing fact.
+  - A hint is never a yes-or-no question that holds the missing fact. Ask it open instead, so the student has to say the fact.`;
+  // Found on the first voice test of a real course (15 Nov): Milo asked a yes-or-no question that held
+  // the fact, the student answered "No, it's not", and the idea was counted as explained.
+  // The same three rules are left out of the built-in topics so their tested prompt stays as it was.
+  const ownWordsRule = tested
+    ? ""
+    : `
+The student has to say it themselves. When the new turn only agrees or disagrees with what Milo last asked ("yes", "no", "you're right"), it explains nothing: an idea whose fact was in Milo's own question, and that the student has not put in their own words, stays as it was before this turn.`;
+  const sayBackRule = tested
+    ? ""
+    : `
+- Say back only what the student said. Never add a reason, a conclusion or a way of putting it that is yours and not theirs.`;
+  const yesNoSituation = tested
+    ? ""
+    : `
+  - They only said yes or no to your question: you cannot draw a yes or a no. Ask them to tell you what they mean in their own words, and leave the board as it is. Never finish the thought for them.`;
   const examplesIntro = tested
     ? "These instructions were tested and drew well. Match their style and length."
     : `How the paper is organised for this topic: ${layout.organisation}
@@ -51,7 +67,7 @@ ideas: one entry per key idea, in the order given, judged across everything said
 - Coach mode: everyday words are fine ("the skin of the cell" counts for the membrane).
 - Exam mode: the student must also use the idea's term, in any spelling speech-to-text produces. If they get the core across in everyday words without the term, the idea is vague.
 - A wrong bonus detail, such as a wrong year, does not change the idea's status. Draw it the way they said it.
-An idea that was clear stays clear unless the student now contradicts it.
+An idea that was clear stays clear unless the student now contradicts it.${ownWordsRule}
 
 level: the crayon level for the explanation so far.
 - 1, Crayon: no key idea is clear.
@@ -72,12 +88,12 @@ miloLine: what Milo says out loud next. A voice speaks it, so plain words only: 
 - Milo is a curious, slightly cheeky kid of about eight. One or two short sentences, at most 25 words.${tone}
 - Talk about the drawing: say what you just drew from their words, or point at a spot on the board ("I drew your pink blob, but what's around its edge?"). The board is how Milo thinks.
 - Vary how you start. Never begin the way any of Milo's recent lines begins. "Mmhh" at most once in a while.
-- Never explain, define or correct. Never state a missing fact. Never use a word about the topic that the student has not said, except at hint steps 3 and 4.
+- Never explain, define or correct. Never state a missing fact. Never use a word about the topic that the student has not said, except at hint steps 3 and 4.${sayBackRule}
 - What to say, by situation:
   - The latest turn made something clear: a few happy words about it, then ask about the biggest gap.
   - Something is vague: point at the vague scribble you drew and ask what it really is, or what it does.
   - Something is wrong: you drew it the way they said it. Ask a puzzled question that shows the problem, without saying it is wrong.
-  - Filler, a repeat, or off topic: say so kindly and ask about the biggest gap.
+  - Filler, a repeat, or off topic: say so kindly and ask about the biggest gap.${yesNoSituation}
   - They ask you for the answer: say you don't know, that is why you are asking, then give the current hint step.
   - Every idea is clear: say you get it now, thank them, and say their revision sheet is ready.
 - The hint ladder, coach mode only, always about the biggest gap:
@@ -132,6 +148,22 @@ export function v2UserMessage(topic: V2Topic, input: V2TurnRequest): string {
     null,
     2,
   );
+}
+
+const AGREEING =
+  /\b(?:you're right|you are right|that's right|that is right|that's it|that's true|that's correct|it's not|it is not|it isn't|it is|it does not|it doesn't|it does|i agree|i think so|i guess so|i guess|not really|of course|yes|yeah|yep|yup|no|nope|nah|ok|okay|right|exactly|correct|true|sure|indeed|absolutely|actually|um|uh|er|well|oh|hmm|mm|so)\b/g;
+
+/**
+ * True when a turn only agrees or disagrees with Milo ("No, it's not. Actually, you're right.")
+ * and says nothing of its own. Such a turn explains nothing, however the question was put.
+ */
+export function onlyAgrees(turn: string): boolean {
+  const words = turn
+    .toLowerCase()
+    .replace(/[’‘]/g, "'")
+    .replace(/[^a-z' ]+/g, " ")
+    .trim();
+  return words !== "" && words.replace(AGREEING, " ").trim() === "";
 }
 
 /** Milo's line must be speakable and must not show stage directions on screen. */

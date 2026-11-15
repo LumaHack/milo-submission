@@ -7,7 +7,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
 import { V2TurnRequestSchema, V2TurnResultSchema, type V2TurnRequest, type V2TurnResult } from "@/lib/v2/contract";
 import { topicFromRequest } from "@/lib/v2/part";
-import { cleanMiloLine, v2SystemPrompt, v2UserMessage } from "@/lib/v2/prompts";
+import { cleanMiloLine, onlyAgrees, v2SystemPrompt, v2UserMessage } from "@/lib/v2/prompts";
 import type { V2Topic } from "@/lib/v2/topics";
 import { claudeDollars, logUsage } from "@/lib/v2/usage";
 
@@ -17,6 +17,33 @@ const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-sonnet-5-5"]);
 
 /** The rules the code enforces, whatever the model returns. */
 function enforce(result: V2TurnResult, topic: V2Topic, input: V2TurnRequest): V2TurnResult {
+  // In a part of a course, a bare yes or no leaves everything as it was: no idea gets better, the level
+  // and the board stay, and Milo's line (see the prompt) asks for it in the student's own words.
+  // The built-in topics are left alone, so the demo behaves exactly as tested.
+  const agreedOnly = Boolean(topic.custom) && onlyAgrees(input.studentTurns.at(-1) ?? "");
+  const before = (id: string) => input.previousIdeas?.find((idea) => idea.id === id)?.status ?? "missing";
+  if (agreedOnly) {
+    const ideas = topic.keyIdeas.map((idea) => ({ id: idea.id, status: before(idea.id) }));
+    const stillOpen = (id: string | null) => id !== null && ideas.some((idea) => idea.id === id && idea.status !== "clear");
+    const biggestGapId = stillOpen(input.previousBiggestGapId)
+      ? input.previousBiggestGapId
+      : (ideas.find((idea) => idea.status !== "clear")?.id ?? null);
+    // Nothing got better, so the ladder goes up one step at most, the way the prompt asks.
+    // An idea with no proper term stops at step 2, as below.
+    const gapIdea = topic.keyIdeas.find((idea) => idea.id === biggestGapId);
+    const top = gapIdea && !gapIdea.term.trim() ? 2 : 4;
+    const step = Math.min(Math.max(result.hintStep, input.previousHintStep), input.previousHintStep + 1, top);
+    return {
+      ...result,
+      ideas,
+      level: input.previousLevel ?? 1,
+      biggestGapId,
+      hintStep: input.mode === "exam" ? 0 : (step as V2TurnResult["hintStep"]),
+      miloLine: cleanMiloLine(result.miloLine),
+      changed: false,
+      drawPrompt: input.previousDrawPrompt ?? result.drawPrompt,
+    };
+  }
   const statusOf = (id: string) => result.ideas.find((idea) => idea.id === id)?.status ?? "missing";
   const ideas = topic.keyIdeas.map((idea) => ({ id: idea.id, status: statusOf(idea.id) }));
   // Milo never shrinks: a weaker turn leaves the level where it was.

@@ -135,6 +135,7 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 | 19 | **Files are private** | They go to Anthropic's API once and are not stored by Milo | Said on the upload screen |
 | 20 | **A card or a question gives an answer away** | The first sample courses had cards such as "Light, carbon dioxide and temperature." under "What limits photosynthesis" | Found by the spec check and rewritten by hand in the sample courses. The prompt now shows that exact card as the wrong way. Only a person reading a new course can be sure of its cards |
 | 21 | **An idea with no proper term, and a stuck student** | Hint steps 3 and 4 hand over a word. With no word, Milo would have to state the fact | For such an idea the ladder stops at step 2: a rule in the brain prompt, and the route holds the step at 2. Not yet seen in a run |
+| 22 | **The student only says yes or no to Milo's question** | Seen on the first voice test of a real course (a regression deck, 15 Nov): Milo's question held the fact, a "No, it's not" was counted as an explanation, and Milo finished the thought himself | Rules in the brain prompt (say it in your own words, say back only what the student said, no yes-or-no question that holds the fact), and the route leaves every idea, the level and the board as they were after a turn that is only agreement. Tested with typed turns, not yet by voice |
 
 ## Speech-to-text and the course's hard words
 
