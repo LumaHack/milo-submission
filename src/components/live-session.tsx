@@ -13,6 +13,7 @@ import { useDetail } from "@/lib/detail-store";
 import { useChosenTopic } from "@/lib/history";
 import {
   MILO_SHOW_FINAL,
+  MILO_WRAP_UP,
   MILO_SHOW_HINT,
   isStageDirection,
   miloAppNote,
@@ -104,9 +105,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     onError: (message) => {
       log.current.push({ who: "error", text: String(message) });
       // The call sometimes fails to open on the first try (seen in testing: "could not establish pc
-      // connection"). Try again twice by ourselves before asking the student to press anything.
+      // connection"). Try again three times by ourselves before asking the student to press anything.
       if (retryPending.current) return;
-      if (/connection|websocket|disconnected/i.test(String(message)) && retries.current < 2 && !everConnected.current) {
+      if (/connection|websocket|disconnected/i.test(String(message)) && retries.current < 3 && !everConnected.current) {
         retries.current += 1;
         retryPending.current = true;
         log.current.push({ who: "retry", text: `Opening the call again, try ${retries.current + 1}` });
@@ -135,6 +136,12 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     sendNote.current = (hint, over, settled, open) => {
       if (!connected) return false;
       sendContextualUpdate(miloAppNote(hint, over, settled, open));
+      // Ending with a gap left (stuck, or the student asked to stop): no last board is coming, so Milo
+      // is cued to say his wrap-up line now instead of waiting for the student to speak again.
+      if (over && open.length > 0) {
+        pendingShow.current = { since: Date.now(), cue: MILO_WRAP_UP };
+        closing.current = { since: Date.now(), spoke: false };
+      }
       return true;
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it

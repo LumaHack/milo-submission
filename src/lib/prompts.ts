@@ -271,6 +271,9 @@ export const MILO_SHOW_HINT = "(The student is stuck and looks at your paper. Sh
 /** A stand-in user turn that makes Milo wrap up without waiting to be asked. A stage direction in round brackets. */
 export const MILO_SHOW_FINAL = "(The student has finished. Show them the final drawing and wrap up.)";
 
+/** A stand-in user turn for a session that ends with a gap left: the student is stuck or asked to stop. */
+export const MILO_WRAP_UP = "(The student has stopped for today. Say your wrap-up line now.)";
+
 /** True for one of our own stage directions coming back in the transcript. */
 export function isStageDirection(text: string): boolean {
   const trimmed = text.trim();

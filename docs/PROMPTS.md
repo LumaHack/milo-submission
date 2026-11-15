@@ -95,7 +95,7 @@ Things to watch for when you change the prompt:
 
 ### Checking a prompt change
 
-`python3 scripts/regress/check.py` sends eleven moments from a session to `/api/turn` (Claude only, no drawing, about $1) and checks each answer: a weak start, everything clear, a wrong claim, a wrong name at Basics, an analogy, small talk, asking for the answer, the hint after two misses, Exam strictness, and two notes cases. It then lists what changed in Milo's behaviour since `scripts/regress/baseline.json`. Run it before and after every prompt edit; `--save` makes a good run the new baseline, `--lines` prints what Milo would say.
+`python3 scripts/regress/check.py` sends thirteen moments from a session to `/api/turn` (Claude only, no drawing, about $1) and checks each answer: a weak start, everything clear, a wrong claim, a wrong name at Basics, an analogy, small talk, asking for the answer, the hint after two misses, Exam strictness, and two notes cases. It then lists what changed in Milo's behaviour since `scripts/regress/baseline.json`. Run it before and after every prompt edit; `--save` makes a good run the new baseline, `--lines` prints what Milo would say.
 
 It found one thing on its first night: Milo's line about a wrong claim ran 21 to 23 words, over the 20-word rule. A short example in the rule fixed it (17 to 18 words, four runs).
 

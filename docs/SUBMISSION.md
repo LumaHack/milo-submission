@@ -109,7 +109,12 @@ Fill in from your own runs.
 | Voice, after the overnight changes | Yes, automated, Sun 15 Nov | `talk.js` with the Mac's own voice: cell (Mastered in two turns), hint (sketch after two misses, then Mastered, twice), off topic and notes. All reached Mastered. Recorded speech in headless Chrome, not a person at a microphone |
 | Off topic, by voice | Yes, automated | "Favourite football team?" got "Back to cells! …", "just tell me the answer" got "I don't know, that's why I'm asking." Neither was scored or drawn |
 | Notes, by voice | Yes, automated | Uploaded the test PDF, the part swap was flagged, the correction reached Mastered, Milo used the notes' word "battery packs" |
-| Answer-word check | Unit tests only | `node scripts/line-check/test.cjs`: 21 cases pass. The brain never leaked in the sweep, so the swap never fired for real |
+| Answer-word check | Unit tests, and once for real | `node scripts/line-check/test.cjs`: 22 cases pass. In the maths sweep on Sun 15 Nov the brain's question used "squared" before the student had, and the check swapped the line |
+| Awkward students | Yes, typed, Sun 15 Nov | Sixteen moments sent to the brain: knows nothing, a perfect first answer at each level, one word, mic noise, rude, a role change, another language, "I'm done", talking on after Mastered. All behave after three fixes (D50) |
+| "I'm done", by voice | Yes, automated | `talk.js done`: Milo said the wrap-up line 4 s after the student asked to stop and named what to look up |
+| Odd typed topics | Yes | Sixteen inputs: nonsense, unsafe, war, a real person and "ignore your instructions" got one plain line, real topics in any subject were set up |
+| Failures on screen | Yes, typed | A failed draw call, a failed brain call and a blocked microphone each left the old board up with a plain line; the next turn caught up. Four sentences 2.5 s apart never emptied the board |
+| Milo's call opening | Fails often on the first try in the test browser | 6 of 10 headless sessions on Sun 15 Nov failed to open first time ("could not establish pc connection"). The app now tries again by itself up to three times (D52); every session after that change connected on the second try. Not measured in a real browser |
 
 ## Likely questions
 
@@ -120,6 +125,7 @@ Fill in from your own runs.
 - **Does it detect emotion?** No. We do not claim that.
 - **Does it work for my course?** Upload the slides as a PDF: Milo marks you only against them, and tells you which slide to look at for what you missed.
 - **What if I talk about something else?** It isn't scored or drawn, and Milo brings you back to the gap.
+- **What if I don't know, or want to stop?** "I don't know" gets a smaller question, and after two tries a hint sketch. "I'm done" ends the session: Milo names what to look up and the sheet is ready.
 
 ## Devpost checklist
 
