@@ -3,7 +3,8 @@
 // Milo v2's end page, the "Aha!" moment (docs/V2.md, "The end page"). It reads the session saved in
 // this browser and shows: the final board, tidied once by fal's careful model; Milo at his final age;
 // a summary; what the student nailed, in their own words; what to work on, as questions only; and
-// every board in order, to click through or replay. Milo never gives an answer here either.
+// every board in order, on a timeline to move the pointer along, click through or replay. A finished
+// sheet goes straight into "Your revision sheets". Milo never gives an answer here either.
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -15,11 +16,12 @@ import { formatClock } from "@/lib/demo";
 import { levelInfo, type Level } from "@/lib/levels";
 import type { DrawResult, IdeaStatus } from "@/lib/turn";
 import { topicToPart } from "@/lib/v2/part";
-import { saveSheet, sheetId } from "@/lib/v2/sheets";
+import { loadSheets, saveSheet, sheetId } from "@/lib/v2/sheets";
 import { clearSession, updateSession, type SavedSession } from "@/lib/v2/storage";
 import type { V2SummaryResult } from "@/lib/v2/summary";
 import type { Target } from "@/lib/v2/target";
 
+import { BoardStack, ScrubTrack, type BoardStep } from "./board-timeline";
 import { MiloStill } from "./milo-still";
 import { frameLabel, IDEA_WORD, IdeaIcon } from "./session-view-v2";
 
@@ -157,6 +159,38 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
   const [nailed, setNailed] = useState<V2SummaryResult["nailed"] | null>(keptSummary?.nailed ?? null);
   const [summarising, setSummarising] = useState(willSummarise);
 
+  const sheetKey = sheetId(topic.id, mode);
+  const [sheetSaved, setSheetSaved] = useState<"no" | "yes" | "failed">(() =>
+    saved.sheetKept && loadSheets().some((sheet) => sheet.id === sheetKey) ? "yes" : "no",
+  );
+  /** Puts the sheet in "Your revision sheets", with every board for its timeline. False when the browser could not store it. */
+  const keepSheet = (image: string, words: V2SummaryResult["nailed"] | null): boolean => {
+    const ok = saveSheet({
+      id: sheetKey,
+      title: topic.title,
+      subject: topic.subject,
+      mode,
+      imageUrl: image,
+      savedAt: Date.now(),
+      level,
+      clear,
+      total,
+      nailed: clearIdeas.map((idea) => ({
+        question: idea.gapLabel,
+        words: words?.find((entry) => entry.id === idea.id)?.words ?? null,
+      })),
+      turns: frames.map((entry, i) => ({
+        level: entry.level,
+        said: entry.said,
+        imageUrl: entry.imageUrl,
+        label: i === frames.length - 1 ? "Final board" : frameLabel(entry, frames[i - 1], false),
+      })),
+      query: target.query,
+    });
+    setSheetSaved(ok ? "yes" : "failed");
+    return ok;
+  };
+
   // When the page opens: the summary first, then the tidy sheet, which uses the labels the summary found.
   const opened = useRef(false);
   useEffect(() => {
@@ -164,6 +198,8 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
     opened.current = true;
     const open = async () => {
       let labels = keptSummary?.labels ?? [];
+      let words = keptSummary?.nailed ?? null;
+      let image = kept ?? last?.imageUrl ?? null;
       if (willSummarise) {
         // Every board's drawing instruction, if this session kept them all. They say which labels belong on the sheet.
         const drawPrompts = frames.map((entry) => entry.drawPrompt ?? "");
@@ -180,6 +216,7 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
             30_000,
           );
           labels = result.labels ?? [];
+          words = result.nailed;
           setNailed(result.nailed);
           updateSession(topic.id, mode, { summary: { nailed: result.nailed, labels, turns: saved.turns.length } });
         } catch {
@@ -188,21 +225,28 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
           setSummarising(false);
         }
       }
-      if (!willTidy || !last) return;
-      try {
-        const drawn = await postJson<DrawResult>(
-          "/api/v2/draw",
-          { prompt: polishPrompt(topic.title, labels), previousImageUrl: last.imageUrl, final: true },
-          75_000,
-        );
-        await preload(drawn.imageUrl);
-        setMoved(true);
-        setPolished(drawn.imageUrl);
-        updateSession(topic.id, mode, { polished: { url: drawn.imageUrl, from: last.imageUrl } });
-      } catch {
-        // The last board is a fine sheet as it is. It stays, and nothing is said.
-      } finally {
-        setTidying(false);
+      if (willTidy && last) {
+        try {
+          const drawn = await postJson<DrawResult>(
+            "/api/v2/draw",
+            { prompt: polishPrompt(topic.title, labels), previousImageUrl: last.imageUrl, final: true },
+            75_000,
+          );
+          await preload(drawn.imageUrl);
+          image = drawn.imageUrl;
+          setMoved(true);
+          setPolished(drawn.imageUrl);
+          updateSession(topic.id, mode, { polished: { url: drawn.imageUrl, from: last.imageUrl } });
+        } catch {
+          // The last board is a fine sheet as it is. It stays, and nothing is said.
+        } finally {
+          setTidying(false);
+        }
+      }
+      // A finished explanation goes straight into "Your revision sheets": once, when the tidy sheet
+      // and the student's words are in. After that the student decides, so a sheet they removed stays removed.
+      if (complete && image && !saved.sheetKept && keepSheet(image, words)) {
+        updateSession(topic.id, mode, { sheetKept: true });
       }
     };
     void open();
@@ -211,11 +255,9 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
   }, []);
 
   // null shows the final board. A number shows an earlier board the student clicked.
-  const [picked, setPickedState] = useState<number | null>(null);
-  const setPicked = (next: number | null) => {
-    setMoved(true);
-    setPickedState(next);
-  };
+  const [picked, setPicked] = useState<number | null>(null);
+  // The board under the pointer on the timeline. It shows while the pointer is there, then the view goes back.
+  const [hovered, setHovered] = useState<number | null>(null);
   const [replaying, setReplaying] = useState(false);
   const replayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopReplay = () => {
@@ -247,35 +289,19 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
   };
 
   const lastIndex = frames.length - 1;
-  const index = picked !== null && picked < frames.length ? picked : lastIndex;
+  const pinned = picked !== null && picked < frames.length ? picked : lastIndex;
+  // A replay is not interrupted by the pointer resting on the timeline.
+  const index = !replaying && hovered !== null && hovered < frames.length ? hovered : pinned;
   const onFinal = index === lastIndex;
   const frame = index >= 0 ? frames[index] : null;
   const finalImage = polished ?? last?.imageUrl ?? null;
-  const shownImage = onFinal ? finalImage : (frame?.imageUrl ?? null);
   const labelOf = (i: number) => (i === lastIndex ? "Final board" : frameLabel(frames[i], frames[i - 1], false));
-
-  const [sheetSaved, setSheetSaved] = useState<"no" | "yes" | "failed">("no");
-  const keepSheet = () => {
-    if (!finalImage) return;
-    const ok = saveSheet({
-      id: sheetId(topic.id, mode),
-      title: topic.title,
-      subject: topic.subject,
-      mode,
-      imageUrl: finalImage,
-      savedAt: Date.now(),
-      level,
-      clear,
-      total,
-      nailed: clearIdeas.map((idea) => ({
-        question: idea.gapLabel,
-        words: nailed?.find((entry) => entry.id === idea.id)?.words ?? null,
-      })),
-      turns: frames.map((entry) => ({ level: entry.level, said: entry.said })),
-      query: target.query,
-    });
-    setSheetSaved(ok ? "yes" : "failed");
-  };
+  // Every board in order, the last one as the tidy sheet once it is there.
+  const steps: BoardStep[] = frames.map((entry, i) => ({
+    imageUrl: i === lastIndex ? (finalImage ?? entry.imageUrl) : entry.imageUrl,
+    label: labelOf(i),
+    said: entry.said,
+  }));
 
   const left = total - clear;
   const miloLine = complete
@@ -288,6 +314,9 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
         <>
           <Wordmark subject={target.subjectLine} />
           <div className="flex flex-wrap gap-2">
+            <Link href="/v2/sheets" className={pill.light}>
+              Your revision sheets
+            </Link>
             <Link href={target.homeHref} className={pill.light}>
               Pick another topic
             </Link>
@@ -318,12 +347,12 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
               {finalImage && complete && (
                 <div className="flex flex-wrap items-center gap-2">
                   {sheetSaved === "yes" ? (
-                    <Link href="/v2/sheets" className={`${pill.light} animate-rise`}>
-                      Saved. See your revision sheets
+                    <Link href={`/v2/sheets?open=${encodeURIComponent(sheetKey)}`} className={`${pill.light} animate-rise`}>
+                      Saved in your revision sheets
                     </Link>
                   ) : (
-                    <button type="button" className={`${pill.light} disabled:opacity-40`} onClick={keepSheet} disabled={tidying || summarising}>
-                      Save sheet
+                    <button type="button" className={`${pill.light} disabled:opacity-40`} onClick={() => keepSheet(finalImage, nailed)} disabled={tidying || summarising}>
+                      {tidying || summarising ? "Saving your sheet…" : "Save sheet"}
                     </button>
                   )}
                 </div>
@@ -336,21 +365,22 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
             )}
 
             <div className="flex items-center justify-center rounded-well bg-panel p-5 max-sm:p-3">
-              {shownImage ? (
+              {finalImage && steps.length > 0 ? (
+                // The paper lands with its animation only when the tidy sheet arrives. Stepping through the boards cross-fades.
                 <div
-                  key={shownImage}
+                  key={finalImage}
                   className={`relative w-full max-w-[860px] -rotate-[0.6deg] overflow-hidden rounded-[10px] shadow-paper ${
                     moved ? "animate-board-in" : ""
                   }`}
                 >
-                  <img
-                    src={shownImage}
+                  <BoardStack
+                    steps={steps}
+                    index={index}
                     alt={
                       onFinal
                         ? `Your final board for ${topic.title}`
                         : `Milo's drawing after turn ${frame?.turn}: ${frame?.said}`
                     }
-                    className="block aspect-video w-full bg-paper object-cover"
                   />
                   {tidying && onFinal && (
                     <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full bg-card px-3.5 py-1.5 text-[13px] font-medium whitespace-nowrap">
@@ -366,13 +396,24 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
               )}
             </div>
 
+            <ScrubTrack
+              steps={steps}
+              index={index}
+              onPreview={setHovered}
+              onPick={(i) => {
+                stopReplay();
+                setPicked(i === lastIndex ? null : i);
+              }}
+            />
+
             {frame && (
-              <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-5 gap-y-2">
-                <p className="m-0 min-w-0 flex-1 text-[15px] leading-normal text-muted">
+              // Two lines tall whatever is said, so nothing under it moves while the pointer runs along the timeline.
+              <div className="flex min-h-[46px] flex-wrap items-start justify-between gap-x-5 gap-y-2">
+                <p className="m-0 line-clamp-2 min-w-0 flex-1 text-[15px] leading-normal text-muted">
                   <span className="font-semibold text-ink">{labelOf(index)}</span>,{" "}
                   <span className="tabular-nums">{formatClock(frame.at)}</span>. “{frame.said}”
                 </p>
-                {!onFinal && (
+                {pinned !== lastIndex && (
                   <button
                     type="button"
                     className={`${pill.light} !px-[18px] !text-sm`}
@@ -393,7 +434,7 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
               <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="m-0 text-[15px] font-semibold">How your drawing grew</h2>
                 <span className="text-[13px] text-muted">
-                  {frames.length > 0 ? "Every board, in the order you explained it. Click one to look back." : "No boards this time."}
+                  {frames.length > 0 ? "Every board, in the order you explained it. Point at one to look back, click to keep it." : "No boards this time."}
                 </span>
               </div>
               <button
@@ -410,7 +451,7 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
               </button>
             </div>
             {frames.length > 0 && (
-              <ol className="m-0 flex list-none items-stretch gap-1.5 overflow-x-auto p-0 pb-1">
+              <ol className="m-0 flex list-none items-stretch gap-1.5 overflow-x-auto p-0 pb-1" onPointerLeave={() => setHovered(null)}>
                 {frames.map((entry, i) => (
                   <li key={entry.turn} className="flex flex-none items-center gap-1.5">
                     {i > 0 && (
@@ -423,6 +464,9 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
                       onClick={() => {
                         stopReplay();
                         setPicked(i === lastIndex ? null : i);
+                      }}
+                      onPointerEnter={(event) => {
+                        if (event.pointerType === "mouse") setHovered(i);
                       }}
                       aria-pressed={i === index}
                       className={`press flex h-full w-[200px] flex-col gap-1.5 rounded-tile border-2 bg-card p-2 text-left text-ink ${

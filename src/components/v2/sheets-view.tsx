@@ -2,17 +2,21 @@
 
 // "Your revision sheets": the finished sheets the student saved from the end page, kept in this
 // browser (src/lib/v2/sheets.ts). A list of cards; clicking one opens it big, with the student's own
-// words beside it. Layout from the v3 revision sheet (design/claude-design/SheetV3.dc.html).
+// words beside it and a timeline to watch it grow. /v2/sheets?open=<sheet id> opens on that sheet.
+// Layout from the v3 revision sheet (design/claude-design/SheetV3.dc.html).
 
 /* eslint-disable @next/next/no-img-element */
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { browser } from "react-dom";
 
 import { MiloPic, Page, pill } from "@/components/ui";
 import { levelInfo } from "@/lib/levels";
 import { loadSheets, removeSheet, type SavedSheet } from "@/lib/v2/sheets";
+
+import { BoardStack, ScrubTrack, type BoardStep } from "./board-timeline";
 
 function savedOn(sheet: SavedSheet): string {
   return new Date(sheet.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -21,8 +25,10 @@ function savedOn(sheet: SavedSheet): string {
 export function SheetsView() {
   // The sheets live in this browser's storage, so this only renders in the browser.
   use(browser("Saved sheets are kept in localStorage."));
+  const params = useSearchParams();
   const [sheets, setSheets] = useState(() => loadSheets());
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The end page links here with the sheet it just saved. With only one sheet, that one opens.
+  const [openId, setOpenId] = useState<string | null>(() => params.get("open") ?? (sheets.length === 1 ? sheets[0].id : null));
   const open = sheets.find((sheet) => sheet.id === openId) ?? null;
 
   return (
@@ -46,7 +52,7 @@ export function SheetsView() {
           <section className="flex w-full max-w-[720px] flex-col gap-2 self-center rounded-card bg-card p-7 max-sm:p-5">
             <h1 className="m-0 text-[28px] leading-[1.15] font-medium tracking-[-0.03em]">No revision sheets yet</h1>
             <p className="m-0 text-base leading-normal text-muted">
-              Explain a topic to Milo. When the session ends, press “Save sheet” and it is kept here.
+              Explain a topic to Milo. Once every idea is explained, your sheet is saved here by itself.
             </p>
           </section>
         ) : (
@@ -119,6 +125,21 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
   }, [confirmRemove]);
   const milo = levelInfo(sheet.level);
   const turns = sheet.turns ?? [];
+  // Every board of the session, when the sheet kept them: the timeline steps through these.
+  const last = turns.length - 1;
+  const steps: BoardStep[] =
+    turns.length > 1 && turns.every((turn) => turn.imageUrl)
+      ? turns.map((turn, i) => ({
+          imageUrl: i === last ? sheet.imageUrl : (turn.imageUrl ?? sheet.imageUrl),
+          label: turn.label ?? `Turn ${i + 1}`,
+          said: turn.said,
+        }))
+      : [];
+  // null shows the finished sheet. A number is a board the student chose, or the one under the pointer.
+  const [picked, setPicked] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
+  const index = hovered ?? picked ?? last;
+  const step = steps[index] ?? null;
 
   return (
     <div className="flex flex-wrap items-stretch gap-3">
@@ -134,9 +155,26 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
         </div>
         <div className="flex flex-1 items-center justify-center rounded-well bg-panel p-5 max-sm:p-3">
           <div className="w-full max-w-[820px] -rotate-[0.6deg] overflow-hidden rounded-[10px] shadow-paper">
-            <SheetPicture src={sheet.imageUrl} alt={`Your revision sheet for ${sheet.title}`} />
+            {steps.length > 0 ? (
+              <BoardStack
+                steps={steps}
+                index={index}
+                alt={index === last ? `Your revision sheet for ${sheet.title}` : `Your drawing after turn ${index + 1}: ${step?.said}`}
+              />
+            ) : (
+              <SheetPicture src={sheet.imageUrl} alt={`Your revision sheet for ${sheet.title}`} />
+            )}
           </div>
         </div>
+        {step && (
+          <>
+            <ScrubTrack steps={steps} index={index} onPreview={setHovered} onPick={(i) => setPicked(i === last ? null : i)} />
+            {/* Two lines tall whatever is said, so nothing under it moves while the pointer runs along the timeline. */}
+            <p className="m-0 line-clamp-2 min-h-[46px] text-[15px] leading-normal text-muted">
+              <span className="font-semibold text-ink">{step.label}</span>. “{step.said}”
+            </p>
+          </>
+        )}
         <div className="flex flex-wrap gap-2">
           {/* A plain link, so the session page loads from scratch. */}
           <a href={`/v2/session?${sheet.query}`} className={pill.dark}>
@@ -181,14 +219,14 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
             <h2 className="m-0 text-lg font-semibold tracking-[-0.01em]">How you got here</h2>
             <div className="grid grid-cols-[max-content_minmax(0,1fr)_max-content] items-center gap-x-3 gap-y-2.5 text-sm">
               {turns.map((turn, i) => {
-                const last = i === turns.length - 1;
+                const final = i === turns.length - 1;
                 return (
                   <div key={i} className="contents">
                     <span className="text-muted">Turn {i + 1}</span>
                     <span className="h-1.5 rounded bg-panel">
-                      <span className={`block h-full rounded ${last ? "bg-ink" : "bg-faint"}`} style={{ width: `${turn.level * 25}%` }} />
+                      <span className={`block h-full rounded ${final ? "bg-ink" : "bg-faint"}`} style={{ width: `${turn.level * 25}%` }} />
                     </span>
-                    <span className={last ? "font-semibold" : ""}>{levelInfo(turn.level).label}</span>
+                    <span className={final ? "font-semibold" : ""}>{levelInfo(turn.level).label}</span>
                   </div>
                 );
               })}

@@ -1,5 +1,5 @@
 // What v2 keeps in the browser's localStorage: the session, so the student can pick up where they
-// left off, and which look they prefer. Storage can be blocked or full, so every call is guarded
+// left off, and the mode they chose. Storage can be blocked or full, so every call is guarded
 // and the app works without it.
 
 import type { Mode } from "./contract";
@@ -30,13 +30,14 @@ export type SavedSession = {
   hintsUsed: number;
   /** The end page's tidy copy of the last board, and the board it was made from. */
   polished?: { url: string; from: string };
-  /** The end page's summary. Both extras are dropped when the session carries on. */
+  /** The end page's summary. */
   summary?: SavedSummary;
+  /** The end page already put this finished sheet in "Your revision sheets". All three extras are dropped when the session carries on. */
+  sheetKept?: boolean;
 };
 
 export type Look = "new" | "classic";
 
-const LOOK_KEY = "milo.v2.look";
 const MODE_KEY = "milo.v2.mode";
 /** Sessions older than this are not offered back. */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -76,7 +77,7 @@ export function loadSession(topicId: string, mode: Mode): SavedSession | null {
 }
 
 /** Adds the end page's extras to a saved session, if it is still there. */
-export function updateSession(topicId: string, mode: Mode, patch: Pick<SavedSession, "polished" | "summary">): void {
+export function updateSession(topicId: string, mode: Mode, patch: Pick<SavedSession, "polished" | "summary" | "sheetKept">): void {
   try {
     const key = sessionKey(topicId, mode);
     const raw = window.localStorage.getItem(key);
@@ -92,22 +93,6 @@ export function clearSession(topicId: string, mode: Mode): void {
     window.localStorage.removeItem(sessionKey(topicId, mode));
   } catch {
     // Nothing to clear.
-  }
-}
-
-export function loadLook(): Look {
-  try {
-    return window.localStorage.getItem(LOOK_KEY) === "classic" ? "classic" : "new";
-  } catch {
-    return "new";
-  }
-}
-
-export function saveLook(look: Look): void {
-  try {
-    window.localStorage.setItem(LOOK_KEY, look);
-  } catch {
-    // The look still switches for this visit.
   }
 }
 

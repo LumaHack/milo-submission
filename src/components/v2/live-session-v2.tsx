@@ -7,7 +7,8 @@
 // Safety net: if Milo has not called update_board a few seconds after the student stopped, the page
 // scores the turn itself, so the board always redraws, and passes Milo his line as a note.
 // Pause hangs up the voice and keeps everything else. The session is saved after every turn.
-// Two looks run on the same engine: the new screen, and Ali's classic one.
+// Two looks run on the same engine: the new screen, and Ali's classic one. Every session opens on
+// the new one, and both end on v2's own end page.
 
 import { ConversationProvider, useConversation, useConversationClientTool } from "@elevenlabs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,7 +18,7 @@ import { pill } from "@/components/ui";
 import type { MiloStatus } from "@/lib/turn";
 import { UPDATE_BOARD, type AgentVariant } from "@/lib/v2/agent";
 import { cleanMiloLine } from "@/lib/v2/prompts";
-import { clearSession, loadLook, saveLook, type Look, type SavedSession } from "@/lib/v2/storage";
+import { clearSession, type Look, type SavedSession } from "@/lib/v2/storage";
 import type { Target } from "@/lib/v2/target";
 import { sameTurn, useMiloV2 } from "@/lib/v2/use-milo-v2";
 
@@ -82,7 +83,9 @@ function Live({
   const [seconds, setSeconds] = useState(initial?.elapsed ?? 0);
   const [paused, setPaused] = useState(false);
   const [finishing, setFinishing] = useState(false);
-  const [look, setLook] = useState<Look>(() => loadLook());
+  // Every session opens on the new look, with Milo beside the board. The classic look is a choice for
+  // this session only: remembered, it left the next sessions without Milo and nobody knew why.
+  const [look, setLook] = useState<Look>("new");
 
   // Whether Milo has called update_board since the student's last turn.
   const toolCalled = useRef(true);
@@ -346,10 +349,6 @@ function Live({
     clearSession(topic.id, mode);
     onRestart();
   };
-  const switchLook = (next: Look) => {
-    setLook(next);
-    saveLook(next);
-  };
 
   const onMic = () => {
     if (connected) conversation.setMuted(!conversation.isMuted);
@@ -420,8 +419,23 @@ function Live({
   }, []);
 
   if (look === "classic") {
+    // Ali's screen links to his own pages: "End session" and the wordmark to "/", "Open revision sheet"
+    // to "/sheet". Here they must stay in v2, so the clicks are caught before his links see them.
+    const stayInV2 = (event: React.MouseEvent<HTMLDivElement>) => {
+      const link = (event.target as HTMLElement).closest("a");
+      const href = link?.getAttribute("href");
+      if (!link || (href !== "/" && href !== "/sheet")) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (link.textContent?.trim() === "Milo") {
+        onEnd();
+        window.location.assign(target.homeHref);
+      } else {
+        finish();
+      }
+    };
     return (
-      <>
+      <div className="contents" onClickCapture={stayInV2}>
         <SessionView
           topicTitle={topic.title}
           subjectLine={target.subjectLine}
@@ -440,10 +454,10 @@ function Live({
           getVoiceLevel={voiceLevel}
           onEnd={onEnd}
         />
-        <button type="button" className={`${pill.dark} fixed right-6 bottom-6 z-50`} onClick={() => switchLook("new")}>
+        <button type="button" className={`${pill.dark} fixed right-6 bottom-6 z-50`} onClick={() => setLook("new")}>
           New look
         </button>
-      </>
+      </div>
     );
   }
 
@@ -471,7 +485,7 @@ function Live({
       onPause={pause}
       onResume={resume}
       onRestart={restart}
-      onClassic={() => switchLook("classic")}
+      onClassic={() => setLook("classic")}
       onEnd={onEnd}
       onFinish={finish}
       finishing={finishing}
