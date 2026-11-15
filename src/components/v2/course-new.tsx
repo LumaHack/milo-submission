@@ -171,7 +171,7 @@ export function CourseNew() {
                   maxLength={60}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="For example: Cell biology, week 3"
-                  className="min-h-11 rounded-full border border-line bg-card px-5 text-[15px] text-ink placeholder:text-faint"
+                  className="min-h-11 rounded-full border border-line bg-card px-5 text-[15px] text-ink placeholder:text-muted"
                 />
                 <span className="text-[13px] text-muted">Leave it empty and the course is named after your slides.</span>
               </label>
@@ -212,7 +212,7 @@ export function CourseNew() {
                 {files.length > 0 && (
                   <ul className="m-0 flex list-none flex-col gap-2 p-0">
                     {files.map((file) => (
-                      <li key={`${file.name}:${file.size}`} className="flex animate-rise items-center justify-between gap-3 rounded-tile border border-line py-1.5 pr-1.5 pl-4">
+                      <li key={`${file.name}:${file.size}`} className="flex items-center justify-between gap-3 rounded-tile border border-line py-1.5 pr-1.5 pl-4">
                         <span className="flex min-w-0 flex-wrap items-baseline gap-x-3">
                           <span className="truncate text-[15px] font-medium">{file.name}</span>
                           <span className="text-[13px] text-muted tabular-nums">{megabytes(file.size)}</span>

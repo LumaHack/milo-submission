@@ -121,7 +121,7 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
   const turns = sheet.turns ?? [];
 
   return (
-    <div className="flex animate-rise flex-wrap items-start gap-3">
+    <div className="flex flex-wrap items-stretch gap-3">
       <section aria-label={sheet.title} className="flex min-w-0 flex-[999_1_560px] flex-col gap-5 rounded-card bg-card p-7 max-sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1.5">
@@ -132,7 +132,7 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
             Close
           </button>
         </div>
-        <div className="flex items-center justify-center rounded-well bg-panel p-5 max-sm:p-3">
+        <div className="flex flex-1 items-center justify-center rounded-well bg-panel p-5 max-sm:p-3">
           <div className="w-full max-w-[820px] -rotate-[0.6deg] overflow-hidden rounded-[10px] shadow-paper">
             <SheetPicture src={sheet.imageUrl} alt={`Your revision sheet for ${sheet.title}`} />
           </div>

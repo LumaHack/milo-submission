@@ -43,7 +43,7 @@ export function useMode(): [Mode, (mode: Mode) => void] {
 export function ModeChoice({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) {
   const chosen = MODES.find((entry) => entry.id === mode) ?? MODES[0];
   return (
-    <div className="flex max-w-[460px] flex-col gap-3.5">
+    <div className="flex max-w-[480px] flex-col gap-3.5">
       <span className="text-[15px] font-semibold">How should Milo help?</span>
       <div className="flex flex-wrap gap-2">
         {MODES.map((entry) => (
@@ -58,7 +58,19 @@ export function ModeChoice({ mode, onChange }: { mode: Mode; onChange: (mode: Mo
           </button>
         ))}
       </div>
-      <p className="m-0 text-[15px] leading-normal text-muted">{chosen.description}</p>
+      {/* Both descriptions sit in the same spot and only the chosen one shows, so the block is always
+          as tall as the longer one and the cards below never move when the student switches. */}
+      <p className="m-0 grid text-[15px] leading-normal text-muted">
+        {MODES.map((entry) => (
+          <span
+            key={entry.id}
+            aria-hidden={entry.id !== chosen.id}
+            className={`col-start-1 row-start-1 ${entry.id === chosen.id ? "" : "invisible"}`}
+          >
+            {entry.description}
+          </span>
+        ))}
+      </p>
     </div>
   );
 }
@@ -160,17 +172,29 @@ export function TopicCard({
   return <div className={topicCard}>{body}</div>;
 }
 
-/** Milo aged 4 in his circle, with what he says in a grey bubble beside him. */
+/**
+ * What Milo says about the card under the pointer. A long name is left out, so the line always fits
+ * the space kept for it.
+ */
+export function previewLine(about: string): string {
+  const what = about.length <= 48 ? about : "that one";
+  return `Great! Explain ${what} to me in your own words, and I'll draw what I understand.`;
+}
+
+/**
+ * Milo aged 4 in his circle, with what he says in a grey bubble beside him.
+ * The block keeps one height whatever he says: his line changes with what is selected or hovered,
+ * and if the block grew, every card below would move under the pointer.
+ */
 export function MiloSays({ line }: { line: string }) {
   return (
-    <div className="flex max-w-[460px] flex-[1_1_340px] items-center gap-[18px]">
+    <div className="flex h-44 max-w-[420px] flex-[1_1_340px] items-center gap-[18px] max-sm:h-52">
       <div aria-hidden="true" className="h-32 w-32 flex-none overflow-hidden rounded-full bg-milo max-sm:h-24 max-sm:w-24">
         <MiloPic level={1} />
       </div>
       <p
-        key={line}
         aria-live="polite"
-        className="m-0 animate-rise rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium max-sm:text-base"
+        className="m-0 rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium max-sm:text-base"
       >
         {line}
       </p>

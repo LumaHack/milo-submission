@@ -24,7 +24,7 @@ Milo still never explains. A part is a marking scheme, never a lesson: the stude
 
 **Explain a part.** On the course page, pick Coach me or Exam mode, then a part. The session screen, the hint ladder, pause, pick up where you left off and the end page all work as they do for a built-in topic.
 
-**Ask for a part.** On the course page: "I want to work on…", in free text. Claude builds one new part about it from the course's outline, or says kindly that the course does not cover it.
+**Ask for a part.** On the course page: "I want to work on…", in free text. Claude builds one new part about it from the course's outline, or says kindly that the course does not cover it. A course holds at most 12 parts, the ones Claude found and the ones asked for together: past that the box says "This course has as many parts as it can hold."
 
 ## Screens
 
@@ -34,7 +34,7 @@ All in the v3 look, with the tokens in `docs/DESIGN.md` and nothing new.
 |---|---|---|
 | Your courses | `/v2`, "Your courses" selected | One card per course (title, number of parts, and "9 of 25 ideas explained" over all its parts in the chosen mode), a "New course" card, and the two sample courses |
 | New course | `/v2/course/new` | Name, file picker, the limits, "Read my course". Then progress while Claude reads, and a plain message if something is wrong with a file |
-| Course | `/v2/course?id=<id>` | Milo with a line about the course, how much of the course is explained so far, the mode choice, one card per part (title, one line, number of ideas, progress in the chosen mode; a finished part opens its sheet), what Claude left out and why, the "I want to work on…" box, and "Remove this course" |
+| Course | `/v2/course?id=<id>` | Milo with a line about the course, how much of the course is explained so far in the chosen mode ("5 of 36 ideas explained so far." or "Nothing explained in exam mode yet.", always one line of its own so the cards stay put when the mode changes), the mode choice, one card per part (title, one line, number of ideas, progress in the chosen mode; a finished part opens its sheet), what Claude left out and why, the "I want to work on…" box, and "Remove this course" |
 | Session | `/v2/session?course=<id>&part=<id>&mode=<coach or exam>` | The same session screen. The subject line shows the course's title |
 | End page | `/v2/end?course=<id>&part=<id>&mode=…` | The same end page. "Pick another topic" goes back to the course |
 
@@ -130,11 +130,11 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 | 14 | **Claude returns something unusable** | One plain sentence and a "Try again" button. Nothing is saved | zod check on our server, `stop_reason` checked |
 | 15 | **The connection drops while Claude reads** | The same sentence and button | The stream ending without a "done" line counts as a failure |
 | 16 | **Someone edits a part in their browser's storage** | They only change their own session | Every part is checked on every turn: a field up to twice its limit is cut to size, a longer one is refused. A damaged saved session is treated as no session |
-| 20 | **A card or a question gives an answer away** | The first sample courses had cards such as "Light, carbon dioxide and temperature." under "What limits photosynthesis" | Found by the spec check and rewritten by hand in the sample courses. The prompt now shows that exact card as the wrong way. Only a person reading a new course can be sure of its cards |
-| 21 | **An idea with no proper term, and a stuck student** | Hint steps 3 and 4 hand over a word. With no word, Milo would have to state the fact | For such an idea the ladder stops at step 2: a rule in the brain prompt, and the route holds the step at 2. Not yet seen in a run |
 | 17 | **A question on screen gives the answer away** | A `gapLabel` that contains its idea's own term has the term blanked: "What the membrane does" becomes "What the … does" | A check on our server after Claude answers. In the test runs Claude's questions never needed it |
 | 18 | **Speech-to-text does not know the course's hard words** | A misheard name still counts if the meaning is plain | The brain prompt already accepts speech-to-text slips. See below |
 | 19 | **Files are private** | They go to Anthropic's API once and are not stored by Milo | Said on the upload screen |
+| 20 | **A card or a question gives an answer away** | The first sample courses had cards such as "Light, carbon dioxide and temperature." under "What limits photosynthesis" | Found by the spec check and rewritten by hand in the sample courses. The prompt now shows that exact card as the wrong way. Only a person reading a new course can be sure of its cards |
+| 21 | **An idea with no proper term, and a stuck student** | Hint steps 3 and 4 hand over a word. With no word, Milo would have to state the fact | For such an idea the ladder stops at step 2: a rule in the brain prompt, and the route holds the step at 2. Not yet seen in a run |
 
 ## Speech-to-text and the course's hard words
 

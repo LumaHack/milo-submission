@@ -15,7 +15,7 @@ import { getCourse, MAX_PARTS, partTopicId, removeCourse, saveCourse, type Cours
 import { clearSession } from "@/lib/v2/storage";
 import { storedChanged } from "@/lib/v2/use-stored";
 
-import { MiloSays, ModeChoice, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
+import { MiloSays, ModeChoice, previewLine, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
 
 export function CourseFromUrl() {
   const params = useSearchParams();
@@ -88,7 +88,7 @@ function CourseView({ course, onChange }: { course: Course; onChange: (course: C
   };
 
   const line = preview
-    ? `Great! Explain ${preview} to me in your own words, and I'll draw what I understand.`
+    ? previewLine(preview)
     : mode === "exam"
       ? "Exam mode: I'll only ask questions, no hints. Pick a part and show me what you know."
       : "I haven't read any of it, promise. Pick a part and explain it to me. I'll draw what I understand.";
@@ -113,10 +113,15 @@ function CourseView({ course, onChange }: { course: Course; onChange: (course: C
       <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-9 pt-7">
         <div className="flex flex-wrap items-end justify-between gap-x-16 gap-y-6">
           <div className="flex flex-[1_1_420px] flex-col gap-3">
-            <h1 className="m-0 text-[68px] leading-[1.02] font-medium tracking-[-0.04em] max-sm:text-[44px]">{course.title}</h1>
+            {/* Free text, up to 80 characters: the sheet title size, and a long word may break. */}
+            <h1 className="m-0 text-[40px] leading-[1.08] font-medium tracking-[-0.035em] [overflow-wrap:anywhere]">{course.title}</h1>
             <p className="m-0 text-[15px] leading-normal text-muted">
               {course.parts.length} {course.parts.length === 1 ? "part" : "parts"} to explain. {filesLine(course)}
-              {explained && <span className="font-medium text-ink"> {explained} so far.</span>}
+              {/* Always there and always its own line: coach and exam keep separate progress, and the
+                  cards below must not move when the student switches between them. */}
+              <span className="block font-medium text-ink">
+                {explained ? `${explained} so far.` : `Nothing explained in ${mode === "exam" ? "exam" : "coach"} mode yet.`}
+              </span>
             </p>
           </div>
           <MiloSays line={line} />
@@ -225,7 +230,7 @@ function FocusBox({ course, onChange }: { course: Course; onChange: (course: Cou
       for (let n = 2; taken.has(id); n++) id = `${data.part.id.slice(0, 34)}-${n}`;
       const next: Course = { ...course, parts: [...course.parts, { ...data.part, id }] };
       if (!saveCourse(next)) {
-        setNote({ text: "Your browser could not save the new part. Its storage is full or blocked.", bad: true });
+        setNote({ text: "Your browser could not save the new part: its storage is full or blocked. Remove an old course and try again.", bad: true });
         return;
       }
       storedChanged();
@@ -254,9 +259,9 @@ function FocusBox({ course, onChange }: { course: Course; onChange: (course: Cou
           value={request}
           maxLength={200}
           onChange={(event) => setRequest(event.target.value)}
-          placeholder="Something specific from this course"
+          placeholder="Something from this course"
           disabled={busy || full}
-          className="min-h-11 rounded-full border border-line bg-card px-5 text-[15px] text-ink placeholder:text-faint disabled:opacity-60"
+          className="min-h-11 rounded-full border border-line bg-card px-5 text-[15px] text-ink placeholder:text-muted disabled:opacity-60"
         />
       </label>
       <div className="flex flex-col gap-2.5">

@@ -35,7 +35,7 @@ export const COURSES_KEY = "milo.v2.courses";
 const KEY = COURSES_KEY;
 export const MAX_COURSES = 12;
 /** A course holds the parts Claude found, plus the ones the student asked for, up to this many. */
-export const MAX_PARTS = 16;
+export const MAX_PARTS = 12;
 
 /** The id a part's saved session and its turns use. Unique across courses. */
 export function partTopicId(courseId: string, partId: string): string {

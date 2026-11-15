@@ -15,7 +15,7 @@ import { SAMPLE_COURSES } from "@/lib/v2/sample-courses";
 import { V2_SUBJECTS, V2_TOPICS, type Subject, type V2Topic } from "@/lib/v2/topics";
 import { storedChanged, useStored } from "@/lib/v2/use-stored";
 
-import { MiloSays, ModeChoice, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
+import { MiloSays, ModeChoice, previewLine, TopicCard, useCourseProgress, useMode, useProgress } from "./pick-bits";
 
 /** What the grid shows: a built-in subject's topics, or the student's own courses. */
 type Shelf = Subject | "courses";
@@ -59,7 +59,7 @@ export function StartV2() {
   };
 
   const line = preview
-    ? `Great! Explain ${preview} to me in your own words, and I'll draw what I understand.`
+    ? previewLine(preview)
     : shelf === "courses"
       ? "Bring your own course! Claude reads your slides and sorts them into parts. Then you explain them to me."
       : mode === "exam"
