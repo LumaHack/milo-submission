@@ -40,9 +40,12 @@ export function findLeaks(line: string, terms: string[], allowed: string[]): str
  * drawing instruction already uses only the student's own words.
  */
 export function checkLines(result: TurnResult, request: TurnRequest): { leaks: string[]; fallback: boolean } {
-  const terms = request.topic.keyIdeas.flatMap((idea) => idea.terms ?? []);
-  if (terms.length === 0) return { leaks: [], fallback: false };
+  // Only ideas the student has not got yet can be given away. Once an idea is clear, its words are theirs:
+  // "rough ER" is not a leak after the student said "rough endoplasmic reticulum".
+  const clear = new Set(result.ideas.filter((idea) => idea.status === "clear").map((idea) => idea.id));
+  const terms = request.topic.keyIdeas.filter((idea) => !clear.has(idea.id)).flatMap((idea) => idea.terms ?? []);
   const allowed = [...request.studentTurns, request.topic.title, ...request.topic.keyIdeas.map((idea) => idea.gap ?? "")];
+  if (terms.length === 0) return { leaks: [], fallback: false };
 
   const hintLeaks = findLeaks(result.hint, terms, allowed);
   const drewLeaks = findLeaks(result.drew, terms, allowed);

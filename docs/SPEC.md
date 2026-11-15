@@ -90,7 +90,8 @@ type TurnResult = {
   wrongClaims: string[];         // the fact check: clearly false statements in the latest turn, in the student's words
   hint: string;                  // Milo's next line. At most 20 words, one question. On a help turn: his teacher line
   help: boolean;                 // true after two failed tries at the same gap: Milo sketches a hint
-  stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up
+  stuck: boolean;                // true when the student is still stuck after the hint: Milo wraps up, or the student asked to stop
+  wantsToStop: boolean;          // true when the latest turn asks to stop ("I'm done", "that's all I know"): Milo wraps up straight away
   offTopic: boolean;             // small talk, a joke, another subject, "just tell me": not scored, not drawn, dropped from studentTurns
   said: string;                  // the latest turn as one sentence, max 20 words, in the student's words
   changed: boolean;              // false = nothing new to draw, leave the board alone

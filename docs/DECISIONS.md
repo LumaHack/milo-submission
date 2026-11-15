@@ -128,6 +128,8 @@ Yusuf's goal: Milo should hold up on any topic, not only the filmed cell. A thre
 
 **D49. Milo's voice stays on Claude Haiku 5.5.** Claude Sonnet 5.5 was tried on the voice agent with three voice runs. It answered a little slower (median 3.0 s, Haiku 2.7 s) and avoided the stale-question slip in both runs where it was tested, but it is two runs, so not enough to switch. `POST /api/elevenlabs/setup?llm=<model>` tries another model in development.
 
+**D50. A student who asks to stop is wrapped up; "I don't know" draws nothing.** Sixteen awkward moments were sent to the brain on Sun 15 Nov (knows nothing, a perfect first answer at each level, one word, mic noise, rude, a role change, another language, "I'm done", talking on after Mastered). Three things were off and are fixed. (1) "That's all I know, I'm done" got another question: the brain now sets `wantsToStop`, and Milo says the wrap-up line straight away, without waiting for a hint and two more tries. (2) "I don't know" and filler made Milo draw a placeholder blob the student never described: `changed` is now false for them. (3) After a perfect answer the answer-word check replaced Milo's summary with the plain fallback, because he said "rough ER" where the student said "rough endoplasmic reticulum": the check now skips the words of ideas already marked clear. The rest already behaved: three "I don't know"s bring the hint sketch, a perfect first answer goes straight to Mastered at every level, rude and role-change turns are off topic.
+
 ## Still open
 
 | Question | Who can settle it |

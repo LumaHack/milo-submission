@@ -54,8 +54,8 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [x] **Brain route.** TurnRequest in, TurnResult out, structured output. *Done when:* the four demo turns give sensible levels (1, 2, 3, 4), hints that do not contain the answer, and drawing instructions with nothing the student did not say.
 - [x] **Brain plus drawing.** One turn of typed text goes through the brain and then fal, and the new board appears in the session screen with a new history frame. *Done when:* typing the four demo turns produces four evolving boards.
 - [x] **Voice.** *On `Ali`: approach A works. Ali spoke to Milo in Chrome on Sat 14 Nov and he answered and redrew. Not yet counted over ten runs.* Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
-- [ ] **Drawing state.** "Milo is drawing…" shows within 100 ms, the old board stays, one redraw in flight, newest result wins. *Done when:* talking fast for 30 seconds never shows an empty or out-of-order board.
-- [ ] **Failure handling.** fal slow or failing, Claude returning nothing usable, mic permission denied. *Done when:* each leaves the old board up with a plain message and the session carries on.
+- [x] **Drawing state.** *Run on `Yusuf`, Sun 15 Nov: four typed sentences 2.5 s apart never emptied the board and it ended on the newest drawing. Not yet tried with fast real speech.* "Milo is drawing…" shows within 100 ms, the old board stays, one redraw in flight, newest result wins. *Done when:* talking fast for 30 seconds never shows an empty or out-of-order board.
+- [x] **Failure handling.** *Run on `Yusuf`, Sun 15 Nov: a failed draw call, a failed brain call and a blocked microphone each left the old board up with a plain line, and the next turn caught up to Mastered.* fal slow or failing, Claude returning nothing usable, mic permission denied. *Done when:* each leaves the old board up with a plain message and the session carries on.
 
 ## P1: makes it good
 
@@ -81,6 +81,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [x] **Off-topic turns** (D45). *A human must check:* how Milo sounds steering back by voice. His instant reply still comes from the unchanged agent prompt.
 - [x] **A cheap check for prompt changes.** `scripts/regress/check.py`: eleven moments, about $1, prints what changed since the baseline.
 - [x] **Cached turn instructions.** About 90% of each turn's input now comes from the prompt cache. Turn time about the same, cost much lower.
+- [x] **Awkward students** (D50). Sixteen edge moments sent to the brain; "I'm done" now wraps up, "I don't know" draws nothing, and Milo's final summary is no longer swapped by mistake. Two of them are in `check.py` (13 cases, all pass). *A human must check:* how the wrap-up sounds by voice when a student says they are done.
 - [x] **No answer words** (D44). Unit tests in `scripts/line-check/test.cjs` (21 cases, `node scripts/line-check/test.cjs`). The brain never leaked in the sweep, so the swap has only been seen in those tests.
 
 ## Not doing

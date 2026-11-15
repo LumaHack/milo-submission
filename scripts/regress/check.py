@@ -1,8 +1,8 @@
 """A small, cheap check of Milo's brain against the real API, with a readable "what changed" report.
 
-Eleven moments from a session, each sent once to /api/turn (Claude only, no drawing, so no fal cost).
+Thirteen moments from a session, each sent once to /api/turn (Claude only, no drawing, so no fal cost).
 Each answer is checked against what Milo should do, and compared with the saved baseline so you can
-see what a prompt or code change did. About 11 Claude calls, roughly $1 a run, done in about 15 s.
+see what a prompt or code change did. About 13 Claude calls, roughly $1 a run, done in about 15 s.
 
 Needs the dev server on http://localhost:3000 and ANTHROPIC_API_KEY in .env.local.
 
@@ -84,6 +84,12 @@ CASES = [
     {"name": "asks for the answer", "why": "Milo says he doesn't know, that's why he's asking.",
      "topic": CELL, "turns": ["The cell takes in things and makes energy.", "Can you just tell me the answer?"], "previousLevel": 2,
      "expect": {"offTopic": True, "hintStarts": "I don't know"}},
+    {"name": "says they are done", "why": "D50: a student who asks to stop is wrapped up, not asked another question.",
+     "topic": CELL, "turns": ["The membrane lets things in and out.", "That's all I know, I'm done."], "previousLevel": 2,
+     "expect": {"stuck": True, "help": False, "changed": False, "offTopic": False}},
+    {"name": "knows nothing", "why": "D50: 'I don't know' is on topic, draws nothing, and gets a smaller question, not a wrap-up.",
+     "topic": CELL, "turns": ["I honestly don't know anything about this."],
+     "expect": {"level": 1, "offTopic": False, "changed": False, "stuck": False}},
     {"name": "hint after two misses", "why": "D30: two failed tries at the same gap, so Milo sketches a hint.",
      "topic": CELL, "turns": [
          "Things get into the cell through its membrane, and the nucleus has the DNA that gives the instructions.",
@@ -160,6 +166,8 @@ def checks(case, result):
     if "wrong" in expect:
         flagged = bool(result.get("wrongClaims"))
         out.append((f"fact check {'flags it' if expect['wrong'] else 'flags nothing'}", flagged == expect["wrong"], result.get("wrongClaims")))
+    if "stuck" in expect:
+        out.append((f"wrap-up {'yes' if expect['stuck'] else 'no'}", result["stuck"] == expect["stuck"], result["stuck"]))
     if "help" in expect:
         out.append((f"hint sketch {'yes' if expect['help'] else 'no'}", result["help"] == expect["help"], result["help"]))
     if "hintStarts" in expect:

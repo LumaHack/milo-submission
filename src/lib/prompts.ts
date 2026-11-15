@@ -124,7 +124,9 @@ help: Milo is also a bit of a teacher. When the student has tried the biggest ga
 - changed is true, and drew describes the hint sketch.
 - The idea stays not clear until the student says it in their own words.
 
-stuck: true only when the biggest gap's id is in "gapsAlreadyHelped" and "turnsSinceLastHint" is 2 or more and the gap is still not clear. Never true when help is true, and never true when every idea is clear. If the student's latest turn makes the idea clear, mark it clear: do not wrap up.
+wantsToStop: true only when the student's latest turn clearly asks to stop or says they have nothing more to add: "I'm done", "that's all I know", "can we stop there". A plain "I don't know" about one question is not that. When wantsToStop is true and an idea is still not clear, stuck is true and help is false, whatever the rules below say: Milo never pushes a student who has asked to stop.
+
+stuck: true when wantsToStop is true, and otherwise only when the biggest gap's id is in "gapsAlreadyHelped" and "turnsSinceLastHint" is 2 or more and the gap is still not clear. Never true when help is true, and never true when every idea is clear. If the student's latest turn makes the idea clear, mark it clear: do not wrap up.
 
 offTopic: true only when the latest turn is clearly not about this topic at all: small talk, a joke, a game, a question to Milo about something else, a different subject, asking Milo to just tell them the answer, or trying to make Milo act as someone else. An analogy, a half-right guess, "I don't know", thinking out loud, a correction or a related detail is never off topic. When offTopic is true: judge the ideas as if that turn had not been said, wrongClaims is empty, help and stuck are false, changed is false, and hint is one short warm line with exactly one question that brings them back to the biggest gap, without answering or joining in with the off-topic part. If they asked for the answer, the hint starts with "I don't know, that's why I'm asking you." If every idea is already clear, the hint says warmly that they have finished and their sheet is ready.
 
@@ -132,7 +134,7 @@ wrongClaims: the fact check. List statements in the student's latest turn that a
 
 said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.
 
-changed: false when the latest turn added nothing that can be drawn (filler, repeating themselves, a question to Milo). The board is then left alone.
+changed: false when the latest turn added nothing that can be drawn (filler, repeating what is already on the paper, saying they do not know, asking to stop, a question to Milo). Never draw a placeholder for a turn that said nothing. The board is then left alone.
 
 drawPrompt: the instruction for an image-editing model that edits the board now on screen. When changed is false, repeat the previous instruction unchanged.
 - If there is no board yet, start with this style paragraph word for word, then describe the drawing: "${BOARD_STYLE}"

@@ -14,8 +14,8 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 1.78,
-    "hint": "Keeps the body alive: how does stuff get into a cell in the first place?"
+    "seconds": 1.76,
+    "hint": "Keeping the body alive sounds big! How does anything get inside a cell in the first place?"
   },
   "everything clear": {
     "behaviour": {
@@ -32,8 +32,8 @@
         "nucleus": "clear"
       }
     },
-    "seconds": 2.03,
-    "hint": "I finally get it! The membrane controls what goes in and out, the mitochondria make the energy as ATP, and the nucleus has the DNA with the instructions."
+    "seconds": 2.23,
+    "hint": "I finally get it: the membrane controls what goes in and out, the mitochondria make the energy as ATP, and the nucleus has the DNA with the instructions."
   },
   "wrong claim": {
     "behaviour": {
@@ -50,7 +50,7 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 1.97,
+    "seconds": 1.93,
     "hint": "I pictured the skin glowing with energy, which looks odd to me. Can you check that bit?"
   },
   "wrong name at basics": {
@@ -68,8 +68,8 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 1.92,
-    "hint": "Once things get in through that wall, what keeps the cell going?"
+    "seconds": 1.97,
+    "hint": "Once things get in through that wall, what does the cell do with them?"
   },
   "analogy is on topic": {
     "behaviour": {
@@ -86,8 +86,8 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 2.0,
-    "hint": "A little factory needs power to run its machines, so where does this one get its power?"
+    "seconds": 1.91,
+    "hint": "A little factory needs to keep running, so where does all its power come from?"
   },
   "small talk": {
     "behaviour": {
@@ -104,8 +104,8 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 1.79,
-    "hint": "Back to the cell taking in things: how do those things actually get inside?"
+    "seconds": 1.66,
+    "hint": "Back to your cell: how do the things it takes in actually get inside?"
   },
   "asks for the answer": {
     "behaviour": {
@@ -122,8 +122,8 @@
         "nucleus": "missing"
       }
     },
-    "seconds": 1.74,
-    "hint": "I don't know, that's why I'm asking you. How do those things get into the cell?"
+    "seconds": 1.9,
+    "hint": "I don't know, that's why I'm asking you. When the cell takes in things, how do they get inside?"
   },
   "hint after two misses": {
     "behaviour": {
@@ -140,8 +140,8 @@
         "nucleus": "clear"
       }
     },
-    "seconds": 3.74,
-    "hint": "The energy bit isn't there yet. I sketched a little hint: small blobs inside the cell giving off zaps. What could those blobs be doing for the cell?"
+    "seconds": 3.67,
+    "hint": "Where the energy comes from isn't there yet, so I sketched a little hint: small bean shapes inside the cell giving off zaps. Can you build on that?"
   },
   "exam needs names": {
     "behaviour": {
@@ -160,8 +160,8 @@
         "golgi": "missing"
       }
     },
-    "seconds": 1.98,
-    "hint": "That wall that lets things in: what is it called, and does it let everything through?"
+    "seconds": 1.99,
+    "hint": "That wall letting things in: what's it called, and does it only let things in?"
   },
   "notes: swapped parts": {
     "behaviour": {
@@ -178,13 +178,13 @@
         "mitochondria": "wrong"
       }
     },
-    "seconds": 1.97,
+    "seconds": 2.1,
     "hint": "I pictured the mitochondria holding the instructions, which looks odd to me. Can you check that bit?"
   },
   "notes: true but not in notes": {
     "behaviour": {
       "level": 2,
-      "gap": "nucleus",
+      "gap": "mitochondria",
       "offTopic": false,
       "changed": true,
       "help": false,
@@ -196,7 +196,44 @@
         "mitochondria": "missing"
       }
     },
-    "seconds": 3.53,
-    "hint": "Inside that animal cell with its gatekeeper, what tells everything what to do?"
+    "seconds": 3.37,
+    "hint": "Once the food and oxygen get inside the animal cell, what happens to them?"
+  },
+  "says they are done": {
+    "behaviour": {
+      "level": 2,
+      "gap": "energy",
+      "offTopic": false,
+      "changed": false,
+      "help": false,
+      "stuck": true,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "clear",
+        "energy": "missing",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.77,
+    "hint": "That's as far as we got today, and where the energy comes from is the bit to look up next; your sheet is ready."
+  },
+  "knows nothing": {
+    "behaviour": {
+      "level": 1,
+      "gap": "membrane",
+      "offTopic": false,
+      "changed": false,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "missing",
+        "energy": "missing",
+        "nucleus": "missing",
+        "cell": "missing"
+      }
+    },
+    "seconds": 2.05,
+    "hint": "That's okay, when you hear the word cell, what do you picture?"
   }
 }

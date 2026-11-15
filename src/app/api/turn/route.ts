@@ -70,6 +70,12 @@ export async function POST(request: Request) {
       result.wrongClaims = [];
       result.help = false;
       result.stuck = false;
+      result.wantsToStop = false;
+    }
+    // A student who asks to stop is never pushed on with a hint.
+    if (result.wantsToStop && result.biggestGapId) {
+      result.stuck = true;
+      result.help = false;
     }
 
     // Milo may not say a word that gives the answer away before the student has said it.

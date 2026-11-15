@@ -26,6 +26,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   });
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 1000 });
+  const problems = [];
+  page.on("console", (m) => { if (m.type() === "error" || m.type() === "warn") problems.push(m.text().slice(0, 300)); });
+  page.on("pageerror", (e) => problems.push(String(e.message).slice(0, 300)));
   await page.evaluateOnNewDocument(() => {
     const ctx = new AudioContext({ sampleRate: 48000 });
     const dest = ctx.createMediaStreamDestination();
@@ -61,13 +64,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     };
 
   });
-  await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
+  // Start from empty storage, then load again so the page starts the way a first-time student sees it.
+  // networkidle0: on a freshly started dev server React takes several seconds to start.
+  await page.goto("http://localhost:3000/", { waitUntil: "networkidle0" });
   await page.evaluate(() => localStorage.clear());
+  await page.reload({ waitUntil: "networkidle0" });
   const run = ["hint", "offtopic", "notes"].includes(process.argv[2]) ? process.argv[2] : "cell";
   const clips = { hint: ["h1", "h2", "h3", "h4", "h5"], offtopic: ["h1", "o2", "o3", "b"], notes: ["n1", "n2", "n3"], cell: ["a1", "a2", "b"] }[run];
   if (run === "notes") {
     // Upload the test notes the way a student would, then wait for Milo to set up the topics.
-    await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("input[type=file]");
     const input = await page.$("input[type=file]");
     await input.uploadFile(path.resolve(__dirname, "..", "notes-test", "cell-notes.pdf"));
@@ -83,13 +88,18 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     { timeout: 20000 },
     run === "notes",
   );
-  // A real mouse click, so the browser counts it as the student's gesture.
-  const card = await page.evaluateHandle((notes) => {
-    const buttons = [...document.querySelectorAll("main button")];
-    return notes ? buttons.find((b) => /Slides|slide/.test(b.textContent)) : buttons.find((b) => b.textContent.includes("How a cell works"));
-  }, run === "notes");
-  await card.asElement().click();
-  await page.waitForFunction(() => location.pathname === "/session", { timeout: 15000 });
+  // A real mouse click, so the browser counts it as the student's gesture. The cards are on the page
+  // before React has started on a freshly started dev server, and a click then does nothing, so retry.
+  for (let tries = 0; ; tries++) {
+    const card = await page.evaluateHandle((notes) => {
+      const buttons = [...document.querySelectorAll("main button")];
+      return notes ? buttons.find((b) => /Slides|slide/.test(b.textContent)) : buttons.find((b) => b.textContent.includes("How a cell works"));
+    }, run === "notes");
+    await card.asElement()?.click().catch(() => {});
+    const opened = await page.waitForFunction(() => location.pathname === "/session", { timeout: 3000 }).then(() => true, () => false);
+    if (opened) break;
+    if (tries >= 10) throw new Error("Clicking the topic card never opened the session.");
+  }
   const t0 = Date.now();
   const marks = [];
   const mark = (what) => marks.push({ who: "TEST", at: Date.now(), text: what });
@@ -106,7 +116,16 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const quietFor = async (ms, label) => { mark(label); await wait(ms); };
 
   // Wait for Milo's greeting to finish.
-  await page.waitForFunction(() => (window.miloLog || []).some((m) => m.who === "agent"), { timeout: 30000 });
+  await page.waitForFunction(() => (window.miloLog || []).some((m) => m.who === "agent"), { timeout: 30000 }).catch(async (error) => {
+    // Say what the page shows, so a voice failure can be told apart from a test failure.
+    console.log("NO GREETING. Page says:", await page.evaluate(() => ({
+      badge: document.querySelector("[aria-live=polite]")?.textContent ?? null,
+      alert: document.querySelector("[role=alert]")?.textContent ?? null,
+      log: window.miloLog || [], mic: window.__gum, audio: window.__ctxState(),
+    })));
+    console.log("Page errors:", problems.slice(-8));
+    throw error;
+  });
   // Let him finish: wait until he has been "Listening" for a full second.
   for (let quiet = 0, i = 0; i < 120 && quiet < 4; i++) { quiet = (await badge()) === "Listening" ? quiet + 1 : 0; await wait(250); }
   console.log("audio context:", await page.evaluate(() => window.__ctxState()), "| getUserMedia calls:", await page.evaluate(() => window.__gum + " " + (window.__gumArgs || "")));
@@ -178,4 +197,4 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   for (const t of out.turns) {
     console.log(`  +${((t.at - t0) / 1000).toFixed(1)}s level ${t.level}${t.offTopic ? " OFF-TOPIC" : ""}${t.wrong?.length ? ` wrong=${JSON.stringify(t.wrong)}` : ""}${t.help ? " HELP" : ""}${t.stuck ? " STUCK" : ""}${t.checked?.fallback ? ` SWAPPED ${t.checked.leaks}` : ""} (${t.seconds}s, cache ${t.cacheRead})  "${t.hint}"`);
   }
-})().catch((e) => { console.error("TEST FAILED:", e.message); process.exit(1); });
+})().catch((e) => { console.error("TEST FAILED:", e.stack); process.exit(1); });

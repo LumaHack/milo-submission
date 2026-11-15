@@ -63,7 +63,7 @@ const request = (studentTurns = ["The cell takes in things."]) => ({
   previousLevel: null,
   previousDrawPrompt: null,
 });
-const base = { help: false, stuck: false, biggestGapId: "energy", drew: "" };
+const base = { help: false, stuck: false, biggestGapId: "energy", drew: "", ideas: [] };
 const swapCases = [
   ["a question", { ...base, hint: "Do the mitochondria make it?" }, "I can't picture this bit yet: where the energy comes from?"],
   ["a teacher line", { ...base, help: true, hint: "I drew the mitochondria as a hint, build on it?" }, "I sketched a little hint on your paper. Can you build on it?"],
@@ -75,6 +75,10 @@ for (const [name, result, want] of swapCases) {
   checkLines(result, request());
   check(`checkLines swaps ${name}`, result.hint === want, `got "${result.hint}"`);
 }
+// Once the student has got an idea, its words are theirs, in whichever form Milo says them.
+const got = { ...base, biggestGapId: null, hint: "I get it: the mitochondrion makes ATP!", ideas: [{ id: "energy", status: "clear" }] };
+const gotCheck = checkLines(got, request());
+check("checkLines leaves the words of a clear idea alone", !gotCheck.fallback && got.hint === "I get it: the mitochondrion makes ATP!", `got "${got.hint}"`);
 const drew = { ...base, hint: "What makes the energy?", drew: "I drew your mitochondria!" };
 checkLines(drew, request());
 check("checkLines swaps a leaking drew line and never empties it", drew.drew.length > 0 && !/mitochondria/i.test(drew.drew) && drew.hint === "What makes the energy?", `got "${drew.drew}"`);

@@ -251,10 +251,11 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         ideasBefore.current = ideas;
 
         level.current = result.level;
-        // Wrapping up is only allowed once the student has had two tries after the hint. The model
+        // Otherwise wrapping up is only allowed once the student has had two tries after the hint. The model
         // has been seen to give up after one, so the rule is enforced here as well.
         const triesSinceHint = hintedAtTurn.current === null ? 0 : studentTurns.length - hintedAtTurn.current;
-        const stuck = result.stuck && gaps.length > 0 && !helping && triesSinceHint >= 2;
+        // A student who asks to stop is wrapped up straight away.
+        const stuck = result.stuck && gaps.length > 0 && !helping && (triesSinceHint >= 2 || result.wantsToStop);
         // A wrap-up line that came too early, or alongside a finished explanation, must not be spoken.
         const badLine = result.stuck && !stuck;
         const line = badLine

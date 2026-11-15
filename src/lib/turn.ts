@@ -72,6 +72,9 @@ export const TurnResultSchema = z.object({
     .boolean()
     .describe("True when the student has tried the biggest gap twice without getting there, so Milo sketches a hint and teaches a little."),
   stuck: z.boolean().describe("True when the student has run out of things to say and the session should wrap up."),
+  wantsToStop: z
+    .boolean()
+    .describe("True when the student's latest turn clearly asks to stop or says they have nothing more to add."),
   offTopic: z
     .boolean()
     .describe("True only when the latest turn is clearly not about this topic: small talk, a joke, another subject, or asking for the answer."),
