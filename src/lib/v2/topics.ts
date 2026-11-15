@@ -2,12 +2,12 @@
 // History is new in v2: how World War II started, drawn as a chain of falling dominoes, so the
 // board never needs people, flags, symbols or war scenes.
 
-import { BOARD_EXAMPLES, BOARD_STYLE } from "@/lib/prompts";
+import { BOARD_EXAMPLES } from "@/lib/prompts";
 import { getTopic, TOPICS, type KeyIdea } from "@/lib/topics";
 
-import type { LayoutKind } from "./layouts";
+import { WW2_EXAMPLES, type BoardExample, type LayoutKind } from "./layouts";
 
-export type BoardExample = { level: 1 | 2 | 3 | 4; said: string; drawPrompt: string };
+export type { BoardExample };
 
 export type Subject = "Biology" | "History";
 export const V2_SUBJECTS: Subject[] = ["Biology", "History"];
@@ -63,49 +63,6 @@ function cellIdeas(): V2KeyIdea[] {
   if (!cell) throw new Error("The cell topic is missing from src/lib/topics.ts.");
   return cell.keyIdeas.map((idea) => ({ ...idea, ...(CELL_GRADING[idea.id] ?? { core: idea.idea, term: "" }) }));
 }
-
-const NO_PEOPLE = "No people, faces, flags or symbols.";
-const END = "Do not add any other parts, shapes or words.";
-
-const WW2_EXAMPLES: BoardExample[] = [
-  {
-    level: 1,
-    said: "World War Two started because Germany was angry, and then they attacked.",
-    drawPrompt:
-      `${BOARD_STYLE} Very messy and childish. A wobbly row of red crayon rectangles in the middle, like dominoes, ` +
-      "scribbled over. Top left in red crayon handwriting, spelled exactly: 'World War 2 ?'. On the right in red, " +
-      `spelled exactly: 'Germany angry ?' and 'attacked ?'. ${NO_PEOPLE} ${END}`,
-  },
-  {
-    level: 2,
-    said: "After the First World War Germany had to sign a treaty and lost a lot, and then there was a big money crisis.",
-    drawPrompt:
-      "Keep the same paper and crayon style. Redraw the scribble as a rough row of five crayon dominoes standing up, " +
-      "from left to right. On the first domino in blue crayon, spelled exactly: 'treaty ?'. On the second domino in " +
-      "green, spelled exactly: 'money crisis ?'. Leave the other three dominoes blank, with a purple question mark " +
-      `above each. Remove 'Germany angry ?' and 'attacked ?'. Keep 'World War 2 ?' top left. ${NO_PEOPLE} ${END}`,
-  },
-  {
-    level: 3,
-    said: "The Treaty of Versailles in 1919 punished Germany, the Depression in 1929 left millions without jobs, and then Hitler took power and broke the treaty.",
-    drawPrompt:
-      "Keep the same drawing and style, a bit neater, in coloured pencil. The first domino now reads, spelled exactly: " +
-      "'Versailles 1919', with a blue highlighter patch beside it reading 'punished Germany'. The second domino reads " +
-      "'Depression 1929', with a green highlighter patch reading 'no jobs'. The third domino reads 'Hitler in power'. " +
-      "Draw small curved arrows from each domino to the next. Remove the question marks above the first three " +
-      `dominoes. ${NO_PEOPLE} ${END}`,
-  },
-  {
-    level: 4,
-    said: "Britain and France appeased him at Munich in 1938, then after his pact with Stalin he invaded Poland in 1939, so they declared war.",
-    drawPrompt:
-      "Keep the same drawing and style, now clean and organised like a finished revision sheet. Title top left: " +
-      "'How World War II started'. Five neat dominoes falling to the right, each with a yellow label box in black " +
-      "handwriting, spelled exactly: 'Versailles 1919', 'Depression 1929', 'Hitler in power 1933', " +
-      "'Appeasement 1938', 'Poland invaded 1939'. A red arrow after the last domino. Remove the old highlighter " +
-      `patches, the question marks and 'World War 2 ?'. ${NO_PEOPLE} ${END}`,
-  },
-];
 
 const CELL: V2Topic = {
   id: "cell",

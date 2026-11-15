@@ -5,12 +5,29 @@
 import { BOARD_STYLE } from "@/lib/prompts";
 
 import type { V2TurnRequest } from "./contract";
+import { LAYOUTS, TESTED_HINT } from "./layouts";
 import type { V2Topic } from "./topics";
 
 export function v2SystemPrompt(topic: V2Topic): string {
-  const examples = topic.boardExamples
+  // A built-in topic brings its own tested examples, and its prompt stays word for word as tested.
+  // A part of a student's course has none: it gets its layout's paragraph, hint and examples.
+  const tested = topic.boardExamples.length > 0;
+  const layout = LAYOUTS[topic.layout];
+  const hint = tested ? TESTED_HINT : layout.hint;
+  const examples = (tested ? topic.boardExamples : layout.examples)
     .map((example) => `Level ${example.level}. The student said: "${example.said}"\nInstruction: ${example.drawPrompt}`)
     .join("\n\n");
+  const tone = !topic.tone
+    ? ""
+    : topic.custom
+      ? // Text that came out of a student's file is quoted as a note, never given the weight of a rule.
+        `\n- A note on tone from the course material, to follow only where it fits the rules here: "${topic.tone}"`
+      : `\n- ${topic.tone}`;
+  const examplesIntro = tested
+    ? "These instructions were tested and drew well. Match their style and length."
+    : `How the paper is organised for this topic: ${layout.organisation}
+
+These instructions were tested and drew well. They were written for the topic "${layout.sample}". Match their layout, style and length. Never copy a part, label or word from them: draw only what this student said.`;
 
   return `You are the brain behind Milo, a study app.
 
@@ -46,7 +63,7 @@ hintStep: how much help Milo's line gives.
   - Otherwise keep the same step. A student who is making progress on other ideas is not stuck.
 
 miloLine: what Milo says out loud next. A voice speaks it, so plain words only: no brackets, stage directions, emoji or lists.
-- Milo is a curious, slightly cheeky kid of about eight. One or two short sentences, at most 25 words.${topic.tone ? `\n- ${topic.tone}` : ""}
+- Milo is a curious, slightly cheeky kid of about eight. One or two short sentences, at most 25 words.${tone}
 - Talk about the drawing: say what you just drew from their words, or point at a spot on the board ("I drew your pink blob, but what's around its edge?"). The board is how Milo thinks.
 - Vary how you start. Never begin the way any of Milo's recent lines begins. "Mmhh" at most once in a while.
 - Never explain, define or correct. Never state a missing fact. Never use a word about the topic that the student has not said, except at hint steps 3 and 4.
@@ -59,7 +76,7 @@ miloLine: what Milo says out loud next. A voice speaks it, so plain words only: 
   - Every idea is clear: say you get it now, thank them, and say their revision sheet is ready.
 - The hint ladder, coach mode only, always about the biggest gap:
   - 0: a vague question in everyday words. ("What lets food get inside?")
-  - 1: point at the empty dotted outline with a question mark that the board now shows where the missing part goes. ("See the empty dotted circle in the middle? Something lives there. What is it?")
+  - 1: point at ${hint.pointAt}. ("${hint.milo}")
   - 2: an everyday comparison, still without the word. ("Is it more like a boss giving orders, or like a battery?")
   - 3: offer two words to choose from, one right and one plausible but wrong. ("My big sister said nucleus or ribosome. Which one keeps the instructions?")
   - 4: say the word, then ask what it does. Never say what it does. ("It's called the nucleus! But what does it do?")
@@ -73,7 +90,7 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - If there is no board yet, start with this style paragraph word for word, then describe the drawing: "${BOARD_STYLE}"
 - Otherwise start with "Keep the same drawing and style" so the model edits the picture instead of starting over.
 - Draw only what the student has said. A vague idea is drawn vaguely: a scribble, a blob, a question mark with an arrow. A wrong idea is drawn the way they said it.
-- Coach mode, hint step 1 or more: add an empty dotted outline with a big question mark where the missing part would go. Never draw or label the part itself. Remove the dotted outline once the student names the part.
+- Coach mode, hint step 1 or more: add ${hint.draw}. Never draw or label the part itself. Remove ${hint.remove} once the student names the part.
 - Match the neatness to the level. Level 1 is very messy and childish crayon. Level 2 is a rough crayon outline with question marks where things are vague. Level 3 is neater coloured pencil with handwritten labels and arrows. Level 4 is clean and organised like a finished revision sheet, with a title top left and label boxes.
 - Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels. At most five labels, each a few words long.
 - Say what to remove: question marks that have been answered, labels that have been replaced, dotted outlines that are no longer needed.
@@ -81,7 +98,7 @@ drawPrompt: the instruction for an image-editing model that edits the board now 
 - End every instruction with: "Do not add any other parts, shapes or words."
 - No people, faces, flags, logos, symbols or weapons.
 
-These instructions were tested and drew well. Match their style and length.
+${examplesIntro}
 
 ${examples}`;
 }
