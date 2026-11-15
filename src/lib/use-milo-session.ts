@@ -304,6 +304,10 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         // Every new board updates this session's entry in the history. Saved before Milo is told,
         // so a dropped voice call cannot lose the frame.
         sessionId.current ??= Date.now().toString(36);
+        // For a topic made from notes, where each gap is in the notes, so the sheet can say where to look.
+        const sources = Object.fromEntries(
+          keyIdeas.filter((idea) => idea.where).map((idea) => [idea.gapLabel, idea.where as string]),
+        );
         saveSession({
           id: sessionId.current,
           topicTitle: topic.title,
@@ -311,6 +315,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
           detail,
           frames: framesRef.current,
           savedAt: Date.now(),
+          ...(Object.keys(sources).length > 0 ? { sources } : {}),
         });
         try {
           if (owed.help) callbacksRef.current.onHelpBoard?.(owed.help);

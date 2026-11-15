@@ -219,7 +219,11 @@ export default function SheetPage() {
                   {final.gaps.map((gap, i) => (
                     <li key={gap} className="flex items-center gap-2.5">
                       <span aria-hidden="true" className={`h-2 w-2 flex-none rounded-full ${i === 0 ? "bg-miss" : "bg-faint"}`} />
-                      {gap}
+                      <span>
+                        {gap}
+                        {/* For a topic made from notes: where in the notes to look it up. */}
+                        {session?.sources?.[gap] && <span className="text-muted">, {session.sources[gap]}</span>}
+                      </span>
                     </li>
                   ))}
                 </ul>

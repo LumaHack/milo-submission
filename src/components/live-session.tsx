@@ -340,7 +340,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     <SessionView
       topicTitle={topic.title}
       openingLine={miloFirstMessage(topic)}
-      subjectLine={`${topic.subject}, ${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}, ${(DETAILS.find((entry) => entry.id === detail)?.label ?? detail).toLowerCase()}`}
+      subjectLine={`${topic.subject}, ${topic.title.charAt(0).toLowerCase()}${topic.title.slice(1)}, ${(DETAILS.find((entry) => entry.id === detail)?.label ?? detail).toLowerCase()}${topic.notes ? ", from your notes" : ""}`}
       frames={session.frames}
       live={session.live}
       spokenLine={connected ? spoken : null}
