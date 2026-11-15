@@ -19,7 +19,7 @@ Imperial AI Hack, Huxley Building. Everything here is from the hackathon site an
 - One project and one track per team.
 - At most two bounties, both from our own track. Figma and Adaption do not count toward the two.
 - All code written after Saturday 12:10. Nothing reused from older projects.
-- A public GitHub repo with a README. **Ours is private right now. Make it public before submitting.**
+- A public GitHub repo with a README. Ours has been public since Sun 15 Nov, about 10:40. All four branches were scanned for keys first and none were found.
 - Every team member on the Devpost entry with full name, Luma email and university email.
 - A demo video of two minutes or less. Devpost says no video means the project is not judged. The website says no video is needed. Make the video.
 - Entering Adaption needs the model ID. Entering Figma needs the Figma file or Make link.
@@ -84,7 +84,7 @@ Fill in from your own runs.
 | End of speech to new board, levels 1 to 3 | not measured with voice. Typed: about 11 to 14 s (Claude plus fal) |
 | End of speech to final sheet | not measured with voice. Typed: about 28 s |
 | fal film of the first board becoming the last | 214 s, one run on Sat 14 Nov |
-| Cost of one session | |
+| Cost of one session | About $0.70 for a five-turn, two-minute session. An estimate from list prices on Sun 15 Nov, not from a bill: Claude about $0.05 a turn (fast mode, $8 in and $40 out per million tokens, about 3,500 in and 500 out), fal about $0.05 a board if a board is about 1,300 image tokens (fal prices by token and does not give the count), ElevenLabs $0.08 a minute |
 
 ## What has been tested, and how
 
@@ -93,11 +93,11 @@ Fill in from your own runs.
 | Claude scoring and drawing instruction | Yes | Many typed runs on Sat 14 Nov, on the cell and on a typed topic |
 | fal board redraws | Yes | Same runs. One early run drew a part nobody mentioned, before the "add nothing else" rule |
 | Milo's agent: asking the app for his line (`next_line` tool), announcing his drawing, switching off and on | Yes, in text mode | The real ElevenLabs agent, driven with typed turns through the same code as voice. Rechecked on Sun 15 Nov after the tool went in: every reply was Claude's line for that turn |
-| Spoken conversation | Yes, automated and by a person | `scripts/voice-test/talk.js` plays recorded speech into the page's microphone. Three full runs on Sat 14 Nov: both sentences transcribed word for word, Mastered in two turns. One more run on Sun 15 Nov with the `next_line` tool. Ali then talked to it by voice and said it was better than before |
+| Spoken conversation | Yes, automated | `scripts/voice-test/talk.js` plays recorded speech into the page's microphone. Three full runs on Sat 14 Nov: both sentences transcribed word for word, Mastered in two turns. One more run on Sun 15 Nov with the `next_line` tool. Nobody on the team has called this build by voice yet |
 | Milo answering after the student stops | Yes | 1.3 to 2.7 s after the transcript on Sun 15 Nov |
 | Milo cutting in mid-sentence | He does not | A 0.9 s pause in the middle of a sentence did not make him jump in. Eager turn-taking means he answers fast once you stop, not that he talks over you |
 | The nudge when the student goes quiet | Yes | After about 8 s of silence he helps with an easier question, then just says "Take your time" |
-| Milo wrapping up on the last board | Yes | He says once that he finally gets it, then one sentence that the drawing is done and the sheet is ready. He no longer repeats the explanation back |
+| Milo wrapping up on the last board | Yes | He says once that he finally gets it and repeats the explanation back in the student's words. When the last board lands he adds one sentence that the drawing is done and the sheet is ready, with no second recap |
 | Fact check and the grey question-mark drawing | Yes, by voice | Two spoken wrong answers ("the energy comes from the skin", "from the air") each came out small and grey with a red question mark. One label repeated a word ("from from") |
 | The hint after two failed tries | Yes, by voice | `node scripts/voice-test/talk.js hint`. Wrong twice about the energy: Milo said "Not quite yet, but you're onto something… I sketched a hint: little beans inside giving off sparks. What might they do?", and the student's next answer made the idea clear. One run on Sat 14 Nov. That call dropped near its end, and the screen said so. Run again on Sun 15 Nov with the new flow: "I have no clue" made him say "One second, let me sketch something for you", then the teacher line when the sketch landed. Five boards, Mastered, no alert |
 | Never asking the same thing twice, and leaving a gap | Yes, by replay and typed | Ali's own words from two Sunday calls (volcano, pyramids) replayed against the scoring route: no question came twice, the hint came after two asks, and after one more miss Milo said "Okay, let's leave that bit" and moved on. These limits are counted in the app, not left to the model |
@@ -114,7 +114,8 @@ Fill in from your own runs.
 
 ## Devpost checklist
 
-- [ ] Repo public, README up to date
+- [x] Repo public
+- [ ] README on `main` up to date. `main` is 26 commits behind `Ali` until pull request 3 is merged
 - [ ] Last commit before Sunday 12:00
 - [ ] Video uploaded, two minutes or less
 - [ ] Track 03 selected
