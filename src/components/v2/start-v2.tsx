@@ -122,15 +122,16 @@ export function StartV2() {
           <div className="flex flex-wrap gap-3 rounded-panel bg-panel p-3">
             {shelf === "courses" ? (
               <>
-                {courses.map((course) => (
-                  <CourseCard key={course.id} course={course} mode={mode} />
-                ))}
+                {/* Always first, so adding a course is in the same place however many there are. */}
                 <TopicCard
                   title="New course"
                   blurb="Upload your slides or notes. Claude sorts them into parts you can explain."
                   note="PDF, PowerPoint, Word or photos"
                   href="/v2/course/new"
                 />
+                {courses.map((course) => (
+                  <CourseCard key={course.id} course={course} mode={mode} />
+                ))}
                 {samples.map((sample) => (
                   <TopicCard
                     key={sample.id}

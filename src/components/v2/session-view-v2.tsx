@@ -15,6 +15,7 @@ import { LEVELS, levelInfo, type Level } from "@/lib/levels";
 import type { IdeaStatus, MiloStatus } from "@/lib/turn";
 import type { Step } from "@/lib/use-milo-session";
 import type { Mode } from "@/lib/v2/contract";
+import { frameLabel } from "@/lib/v2/keep-sheet";
 import { MILO_POSES, poseBox, posePicture, type MiloPose } from "@/lib/v2/milo-poses";
 import type { V2Topic } from "@/lib/v2/topics";
 import type { V2Frame, V2Live } from "@/lib/v2/use-milo-v2";
@@ -600,17 +601,6 @@ function VoiceBar(props: SessionViewV2Props & { className: string }) {
       </div>
     </div>
   );
-}
-
-/** A name for each board in the timeline, from what changed in that turn. The end page uses it too. */
-export function frameLabel(frame: V2Frame, previous: V2Frame | undefined, isLast: boolean): string {
-  if (isLast && frame.level === 4) return "Final board";
-  if (!previous) return "First explanation";
-  const gained = frame.clear - previous.clear;
-  if (gained === 1) return "One more idea clear";
-  if (gained > 1) return `${gained} more ideas clear`;
-  if (frame.hintStep > 0) return `Hint ${frame.hintStep}`;
-  return "Added detail";
 }
 
 function Timeline({

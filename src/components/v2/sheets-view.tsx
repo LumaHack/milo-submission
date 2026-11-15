@@ -4,6 +4,7 @@
 // browser (src/lib/v2/sheets.ts). A list of cards; clicking one opens it big, with the student's own
 // words beside it and a timeline to watch it grow. /v2/sheets?open=<sheet id> opens on that sheet.
 // Under them, "Still in progress": every session with a board and an idea left, in either mode, to pick up.
+// Then "Earlier tries": attempts kept when the student started a topic over (src/lib/v2/keep-sheet.ts).
 // Layout from the v3 revision sheet (design/claude-design/SheetV3.dc.html).
 
 /* eslint-disable @next/next/no-img-element */
@@ -64,8 +65,9 @@ function loadUnfinished(): Unfinished[] {
   return found.sort((a, b) => b.savedAt - a.savedAt);
 }
 
+/** "15 Nov, 10:42". The time tells two attempts at the same topic apart. */
 function savedOn(sheet: SavedSheet): string {
-  return new Date(sheet.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return new Date(sheet.savedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
 export function SheetsView() {
@@ -77,6 +79,13 @@ export function SheetsView() {
   const [openId, setOpenId] = useState<string | null>(() => params.get("open") ?? (sheets.length === 1 ? sheets[0].id : null));
   const open = sheets.find((sheet) => sheet.id === openId) ?? null;
   const [unfinished] = useState(() => loadUnfinished());
+  // A finished explanation is a revision sheet. An attempt the student started over from is an earlier try.
+  const finished = sheets.filter((sheet) => sheet.clear >= sheet.total);
+  const tries = sheets.filter((sheet) => sheet.clear < sheet.total);
+  const toggle = (id: string) => {
+    setOpenId(id === openId ? null : id);
+    window.scrollTo({ top: 0 });
+  };
 
   return (
     <Page
@@ -95,55 +104,33 @@ export function SheetsView() {
       }
     >
       <main className="flex flex-1 flex-col gap-3 rounded-panel bg-panel p-3">
-        {sheets.length === 0 ? (
-          <section className="flex w-full max-w-[720px] flex-col gap-2 self-center rounded-card bg-card p-7 max-sm:p-5">
-            <h1 className="m-0 text-[28px] leading-[1.15] font-medium tracking-[-0.03em]">No revision sheets yet</h1>
-            <p className="m-0 text-base leading-normal text-muted">
-              Explain a topic to Milo. Once every idea is explained, your sheet is saved here by itself.
-            </p>
+        {open && (
+          <OpenSheet
+            key={open.id}
+            sheet={open}
+            onClose={() => setOpenId(null)}
+            onRemove={() => {
+              removeSheet(open.id);
+              setSheets(loadSheets());
+              setOpenId(null);
+            }}
+          />
+        )}
+        {finished.length > 0 ? (
+          <section aria-label="Saved sheets" className="flex flex-wrap gap-3">
+            {finished.map((sheet) => (
+              <SheetCard key={sheet.id} sheet={sheet} open={sheet.id === openId} onToggle={toggle} />
+            ))}
           </section>
         ) : (
-          <>
-            {open && (
-              <OpenSheet
-                key={open.id}
-                sheet={open}
-                onClose={() => setOpenId(null)}
-                onRemove={() => {
-                  removeSheet(open.id);
-                  setSheets(loadSheets());
-                  setOpenId(null);
-                }}
-              />
-            )}
-            <section aria-label="Saved sheets" className="flex flex-wrap gap-3">
-              {sheets.map((sheet) => (
-                <button
-                  key={sheet.id}
-                  type="button"
-                  aria-pressed={sheet.id === openId}
-                  onClick={() => {
-                    setOpenId(sheet.id === openId ? null : sheet.id);
-                    window.scrollTo({ top: 0 });
-                  }}
-                  className={`press flex max-w-[460px] min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-card border-2 bg-card p-4 text-left text-ink ${
-                    sheet.id === openId ? "border-ink" : "border-card"
-                  }`}
-                >
-                  <span className="block overflow-hidden rounded-tile border border-line bg-paper">
-                    <SheetPicture src={sheet.imageUrl} alt="" />
-                  </span>
-                  <span className="flex flex-col gap-1 px-1">
-                    <span className="text-lg leading-[1.3] font-semibold tracking-[-0.01em]">{sheet.title}</span>
-                    <span className="text-[13px] leading-[1.4] text-muted">
-                      {sheet.subject}, {sheet.clear} of {sheet.total} explained, {sheet.mode === "exam" ? "exam mode" : "coach mode"},
-                      saved {savedOn(sheet)}
-                    </span>
-                  </span>
-                </button>
-              ))}
+          !open && (
+            <section className="flex w-full max-w-[720px] flex-col gap-2 self-center rounded-card bg-card p-7 max-sm:p-5">
+              <h1 className="m-0 text-[28px] leading-[1.15] font-medium tracking-[-0.03em]">No revision sheets yet</h1>
+              <p className="m-0 text-base leading-normal text-muted">
+                Explain a topic to Milo. Once every idea is explained, your sheet is saved here by itself.
+              </p>
             </section>
-          </>
+          )
         )}
         {unfinished.length > 0 && (
           <section aria-label="Still in progress" className="flex flex-col gap-3">
@@ -173,8 +160,46 @@ export function SheetsView() {
             </div>
           </section>
         )}
+        {tries.length > 0 && (
+          <section aria-label="Earlier tries" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-2 pt-3">
+              <h2 className="m-0 text-[15px] font-semibold">Earlier tries</h2>
+              <span className="text-[13px] text-muted">Kept when you started a topic over, so nothing you drew is lost.</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {tries.map((sheet) => (
+                <SheetCard key={sheet.id} sheet={sheet} open={sheet.id === openId} onToggle={toggle} />
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </Page>
+  );
+}
+
+/** One sheet in a list. Clicking it opens it big at the top of the page; clicking again closes it. */
+function SheetCard({ sheet, open, onToggle }: { sheet: SavedSheet; open: boolean; onToggle: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      aria-pressed={open}
+      onClick={() => onToggle(sheet.id)}
+      className={`press flex max-w-[460px] min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-card border-2 bg-card p-4 text-left text-ink ${
+        open ? "border-ink" : "border-card"
+      }`}
+    >
+      <span className="block overflow-hidden rounded-tile border border-line bg-paper">
+        <SheetPicture src={sheet.imageUrl} alt="" />
+      </span>
+      <span className="flex flex-col gap-1 px-1">
+        <span className="text-lg leading-[1.3] font-semibold tracking-[-0.01em]">{sheet.title}</span>
+        <span className="text-[13px] leading-[1.4] text-muted">
+          {sheet.subject}, {sheet.clear} of {sheet.total} explained, {sheet.mode === "exam" ? "exam mode" : "coach mode"},
+          saved {savedOn(sheet)}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -222,7 +247,11 @@ function OpenSheet({ sheet, onClose, onRemove }: { sheet: SavedSheet; onClose: (
         <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
           <div className="flex flex-col gap-1.5">
             <h1 className="m-0 text-[40px] leading-[1.08] font-medium tracking-[-0.035em]">{sheet.title}</h1>
-            <p className="m-0 text-base text-muted">Your revision sheet, built in the order you explained it.</p>
+            <p className="m-0 text-base text-muted">
+              {sheet.clear >= sheet.total
+                ? "Your revision sheet, built in the order you explained it."
+                : `An earlier try: ${sheet.clear} of ${sheet.total} explained when you started over.`}
+            </p>
           </div>
           <button type="button" className={pill.light} onClick={onClose}>
             Close

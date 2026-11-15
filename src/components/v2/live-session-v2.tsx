@@ -18,7 +18,8 @@ import { pill } from "@/components/ui";
 import type { MiloStatus } from "@/lib/turn";
 import { UPDATE_BOARD, type AgentVariant } from "@/lib/v2/agent";
 import { cleanMiloLine } from "@/lib/v2/prompts";
-import { clearSession, type Look, type SavedSession } from "@/lib/v2/storage";
+import { retireSession } from "@/lib/v2/keep-sheet";
+import type { Look, SavedSession } from "@/lib/v2/storage";
 import type { Target } from "@/lib/v2/target";
 import { sameTurn, useMiloV2 } from "@/lib/v2/use-milo-v2";
 
@@ -344,9 +345,11 @@ function Live({
   }, [topic.id, mode]);
   const restart = () => {
     clearSafetyNet();
+    // Saved one last time, so the boards made so far go to "Your revision sheets" before it is cleared.
+    session.persist();
     session.discard();
     endSession();
-    clearSession(topic.id, mode);
+    retireSession(target);
     onRestart();
   };
 

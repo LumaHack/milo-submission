@@ -16,7 +16,8 @@ import { browser } from "react-dom";
 import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
 import type { AgentVariant } from "@/lib/v2/agent";
-import { clearSession, loadSession, type SavedSession } from "@/lib/v2/storage";
+import { retireSession } from "@/lib/v2/keep-sheet";
+import { loadSession, type SavedSession } from "@/lib/v2/storage";
 import { readTarget, voiceSuffix, type Target } from "@/lib/v2/target";
 
 import { LiveSessionV2, type VoiceMode } from "./live-session-v2";
@@ -52,7 +53,8 @@ function SessionGate({ voice, agent }: { voice: VoiceMode; agent: AgentVariant |
         saved={saved}
         onResume={() => setDecision("resume")}
         onFresh={() => {
-          clearSession(target.topic.id, target.mode);
+          // The old boards go to "Your revision sheets" before the session is cleared.
+          retireSession(target);
           setDecision("fresh");
         }}
       />
@@ -120,6 +122,9 @@ function ResumeChoice({
               Pick another topic
             </Link>
           </div>
+          <p className="m-0 text-[13px] leading-normal text-muted">
+            Starting fresh keeps these boards: you will find them in your revision sheets.
+          </p>
         </section>
       </main>
     </Page>

@@ -16,14 +16,15 @@ import { formatClock } from "@/lib/demo";
 import { levelInfo, type Level } from "@/lib/levels";
 import type { DrawResult, IdeaStatus } from "@/lib/turn";
 import { topicToPart } from "@/lib/v2/part";
-import { loadSheets, saveSheet, sheetId } from "@/lib/v2/sheets";
-import { clearSession, updateSession, type SavedSession } from "@/lib/v2/storage";
+import { frameLabel, retireSession, sheetFromSession } from "@/lib/v2/keep-sheet";
+import { findSheet, saveSheet } from "@/lib/v2/sheets";
+import { updateSession, type SavedSession } from "@/lib/v2/storage";
 import type { V2SummaryResult } from "@/lib/v2/summary";
 import type { Target } from "@/lib/v2/target";
 
 import { BoardStack, ScrubTrack, type BoardStep } from "./board-timeline";
 import { MiloStill } from "./milo-still";
-import { frameLabel, IDEA_WORD, IdeaIcon } from "./session-view-v2";
+import { IDEA_WORD, IdeaIcon } from "./session-view-v2";
 
 /**
  * The instruction for the careful model. It tidies the last board and must not change what it says.
@@ -159,36 +160,19 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
   const [nailed, setNailed] = useState<V2SummaryResult["nailed"] | null>(keptSummary?.nailed ?? null);
   const [summarising, setSummarising] = useState(willSummarise);
 
-  const sheetKey = sheetId(topic.id, mode);
-  const [sheetSaved, setSheetSaved] = useState<"no" | "yes" | "failed">(() =>
-    saved.sheetKept && loadSheets().some((sheet) => sheet.id === sheetKey) ? "yes" : "no",
-  );
+  // This session's sheet in "Your revision sheets", if it is there.
+  const [keptId, setKeptId] = useState<string | null>(() => {
+    const sheet = saved.sheetKept ? sheetFromSession(target, saved) : null;
+    return sheet ? (findSheet(sheet)?.id ?? null) : null;
+  });
+  const [saveFailed, setSaveFailed] = useState(false);
   /** Puts the sheet in "Your revision sheets", with every board for its timeline. False when the browser could not store it. */
   const keepSheet = (image: string, words: V2SummaryResult["nailed"] | null): boolean => {
-    const ok = saveSheet({
-      id: sheetKey,
-      title: topic.title,
-      subject: topic.subject,
-      mode,
-      imageUrl: image,
-      savedAt: Date.now(),
-      level,
-      clear,
-      total,
-      nailed: clearIdeas.map((idea) => ({
-        question: idea.gapLabel,
-        words: words?.find((entry) => entry.id === idea.id)?.words ?? null,
-      })),
-      turns: frames.map((entry, i) => ({
-        level: entry.level,
-        said: entry.said,
-        imageUrl: entry.imageUrl,
-        label: i === frames.length - 1 ? "Final board" : frameLabel(entry, frames[i - 1], false),
-      })),
-      query: target.query,
-    });
-    setSheetSaved(ok ? "yes" : "failed");
-    return ok;
+    const sheet = sheetFromSession(target, saved, { image, words });
+    const id = sheet ? saveSheet(sheet) : null;
+    setKeptId(id);
+    setSaveFailed(id === null);
+    return id !== null;
   };
 
   // When the page opens: the summary first, then the tidy sheet, which uses the labels the summary found.
@@ -320,8 +304,9 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
             <Link href={target.homeHref} className={pill.light}>
               Pick another topic
             </Link>
-            {/* A fresh session: the saved one is cleared first, so the session page starts from nothing. */}
-            <FreshSessionLink href={sessionHref} onClick={() => clearSession(topic.id, mode)}>
+            {/* A fresh session: the saved one is cleared first, so the session page starts from nothing.
+                Its boards are kept in "Your revision sheets", so explaining again never loses this attempt. */}
+            <FreshSessionLink href={sessionHref} onClick={() => retireSession(target)}>
               Explain it again
             </FreshSessionLink>
           </div>
@@ -346,8 +331,8 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
               {/* Only a finished explanation is a revision sheet worth keeping. An unfinished one stays a session to pick up. */}
               {finalImage && complete && (
                 <div className="flex flex-wrap items-center gap-2">
-                  {sheetSaved === "yes" ? (
-                    <Link href={`/v2/sheets?open=${encodeURIComponent(sheetKey)}`} className={`${pill.light} animate-rise`}>
+                  {keptId ? (
+                    <Link href={`/v2/sheets?open=${encodeURIComponent(keptId)}`} className={`${pill.light} animate-rise`}>
                       Saved in your revision sheets
                     </Link>
                   ) : (
@@ -358,7 +343,7 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
                 </div>
               )}
             </div>
-            {sheetSaved === "failed" && (
+            {saveFailed && (
               <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
                 The sheet could not be saved: your browser&apos;s storage is full or blocked. Remove an old sheet and try again.
               </p>
