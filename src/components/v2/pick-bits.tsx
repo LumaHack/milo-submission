@@ -5,7 +5,7 @@
 // Look from design/claude-design/StartV3.dc.html.
 
 import Link from "next/link";
-import { useMemo, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { MiloPic, pill } from "@/components/ui";
 import type { Mode } from "@/lib/v2/contract";
@@ -20,13 +20,19 @@ export const MODES: { id: Mode; label: string; description: string }[] = [
 const topicCard =
   "flex min-h-[190px] flex-[1_1_260px] flex-col justify-between gap-5 rounded-card bg-card p-6 text-left text-ink no-underline";
 
-/** Coach or exam, remembered in this browser. Starts as coach until the stored choice has been read. */
+/**
+ * Coach or exam, remembered in this browser. Starts as coach until the stored choice has been read.
+ * What the student picks on this page wins over what is stored, so the choice still works in a
+ * browser that blocks storage.
+ */
 export function useMode(): [Mode, (mode: Mode) => void] {
   const stored = useStored("milo.v2.mode");
-  const mode: Mode = stored === "exam" ? "exam" : "coach";
+  const [picked, setPicked] = useState<Mode | null>(null);
+  const mode: Mode = picked ?? (stored === "exam" ? "exam" : "coach");
   return [
     mode,
     (next) => {
+      setPicked(next);
       saveMode(next);
       storedChanged();
     },
