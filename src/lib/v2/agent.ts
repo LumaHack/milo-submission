@@ -4,6 +4,18 @@
 import { V2_TOPICS } from "./topics";
 
 export const V2_AGENT_NAME = "Milo v2";
+/**
+ * The same Milo, plus one setting: a conversation may bring its own speech-to-text keywords, so a
+ * course's hard words ("thylakoid", "Anschluss") are heard right. It is a separate agent, used only
+ * when the session address has &agent=words, so the tested "Milo v2" agent is never changed.
+ * Made on Sun 15 Nov to compare by voice. Not tested by voice yet: see docs/V2.md.
+ */
+export const V2_WORDS_AGENT_NAME = "Milo v2 words";
+export type AgentVariant = "words";
+
+export function agentName(variant?: AgentVariant | null): string {
+  return variant === "words" ? V2_WORDS_AGENT_NAME : V2_AGENT_NAME;
+}
 export const UPDATE_BOARD = "update_board";
 
 /** The client tool. The browser runs it: Claude scores the turn, the board redraws, Milo's line comes back. */
@@ -55,10 +67,10 @@ Never:
 - use brackets, stage directions or emoji. Plain spoken words only.`;
 
 /** The full agent body for the ElevenLabs create and update calls. */
-export function v2AgentBody(toolId: string, voiceId?: string) {
+export function v2AgentBody(toolId: string, voiceId?: string, variant?: AgentVariant | null) {
   const cell = V2_TOPICS.find((topic) => topic.id === "cell");
   return {
-    name: V2_AGENT_NAME,
+    name: agentName(variant),
     conversation_config: {
       agent: {
         // Set per session from the browser: a fresh start, or "welcome back" after a pause.
@@ -97,7 +109,13 @@ export function v2AgentBody(toolId: string, voiceId?: string) {
       // Private agent: a conversation needs the token from /api/v2/elevenlabs/token.
       auth: { enable_auth: true },
       // Lets a session run as a typed chat, to test the whole loop without a microphone (?voice=text).
-      overrides: { conversation_config_override: { conversation: { text_only: true } } },
+      // The "words" agent also lets a conversation bring its own speech-to-text keywords.
+      overrides: {
+        conversation_config_override: {
+          conversation: { text_only: true },
+          ...(variant === "words" ? { asr: { keywords: true } } : {}),
+        },
+      },
     },
   };
 }

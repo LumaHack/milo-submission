@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionView } from "@/components/session-view";
 import { pill } from "@/components/ui";
 import type { MiloStatus } from "@/lib/turn";
-import { UPDATE_BOARD } from "@/lib/v2/agent";
+import { UPDATE_BOARD, type AgentVariant } from "@/lib/v2/agent";
 import { cleanMiloLine } from "@/lib/v2/prompts";
 import { clearSession, loadLook, saveLook, type Look, type SavedSession } from "@/lib/v2/storage";
 import type { Target } from "@/lib/v2/target";
@@ -35,15 +35,17 @@ type Props = {
   /** Where "End session" and "See your sheet" go. */
   endHref: string;
   voice?: VoiceMode;
+  /** "words" talks to the second agent, which is given this topic's hard words to listen for (&agent=words). */
+  agent?: AgentVariant | null;
   /** A saved session to pick up from. */
   initial?: SavedSession | null;
   onRestart?: () => void;
 };
 
-export function LiveSessionV2({ target, endHref, voice = "on", initial = null, onRestart = () => {} }: Props) {
+export function LiveSessionV2({ target, endHref, voice = "on", agent = null, initial = null, onRestart = () => {} }: Props) {
   return (
     <ConversationProvider>
-      <Live target={target} endHref={endHref} voice={voice} initial={initial} onRestart={onRestart} />
+      <Live target={target} endHref={endHref} voice={voice} agent={agent} initial={initial} onRestart={onRestart} />
     </ConversationProvider>
   );
 }
@@ -52,12 +54,14 @@ function Live({
   target,
   endHref,
   voice,
+  agent,
   initial,
   onRestart,
 }: {
   target: Target;
   endHref: string;
   voice: VoiceMode;
+  agent: AgentVariant | null;
   initial: SavedSession | null;
   onRestart: () => void;
 }) {
@@ -218,15 +222,18 @@ function Live({
       const response = await fetch("/api/v2/elevenlabs/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(typed ? { transport: "websocket" } : {}),
+        body: JSON.stringify({ ...(typed ? { transport: "websocket" } : {}), ...(agent ? { variant: agent } : {}) }),
       });
       const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
       if (!response.ok || !(typed ? data.signedUrl : data.token)) {
         throw new Error(data.error ?? "Could not get a voice token.");
       }
       session.start();
+      // Only the "words" agent accepts keywords from the conversation. Sent to the tested agent they would be refused.
+      const keywords = agent === "words" ? topic.keywords.slice(0, 24) : [];
       const shared = {
         dynamicVariables: { opening_line: openingLine(), topic_about: topic.about },
+        ...(keywords.length > 0 ? { overrides: { asr: { keywords } } } : {}),
         // Expressive tags such as "[curious]" never reach the screen.
         stripAudioTags: true,
       };

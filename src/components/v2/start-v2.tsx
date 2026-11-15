@@ -152,7 +152,8 @@ export function StartV2() {
 /** A built-in topic. Only ready topics open a session; the others look the same and go nowhere yet. */
 function BuiltInCard({ topic, mode, onPreview }: { topic: V2Topic; mode: Mode; onPreview: (on: boolean) => void }) {
   const progress = useProgress(topic.id, mode, topic.keyIdeas.length);
-  if (!topic.ready) return <TopicCard title={topic.title} blurb={topic.blurb} />;
+  // Said on the card, so nobody clicks a topic that does nothing and wonders why.
+  if (!topic.ready) return <TopicCard title={topic.title} blurb={topic.blurb} note="Not built yet" />;
   const query = `topic=${topic.id}&mode=${mode}`;
   return (
     <TopicCard

@@ -136,7 +136,9 @@ They live in `src/lib/v2/course-prompts.ts`. The rules Claude gets for reading a
 
 ## Speech-to-text and the course's hard words
 
-Milo v2's ElevenLabs agent has one fixed list of keywords, for the built-in topics. A course's own hard words are not on it. Antoine chose to leave the agent as it is for the demo, because voice cannot be tested without a person and this is the riskiest thing to change blind. Each part still carries its `keywords`, so the change is small when someone can test it.
+Milo v2's ElevenLabs agent has one fixed list of keywords, for the built-in topics. A course's own hard words are not on it. Antoine chose to leave that agent as it is for the demo, because voice cannot be tested without a person and this is the riskiest thing to change blind.
+
+Each part carries its `keywords`, and a second agent, "Milo v2 words", accepts them per conversation: add `&agent=words` to a session address. It exists to be compared by voice and has not been tried yet. See "A second agent to compare" in `docs/V2.md`.
 
 ## Measured
 

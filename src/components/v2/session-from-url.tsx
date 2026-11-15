@@ -15,6 +15,7 @@ import { browser } from "react-dom";
 
 import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
+import type { AgentVariant } from "@/lib/v2/agent";
 import { clearSession, loadSession, type SavedSession } from "@/lib/v2/storage";
 import { readTarget, voiceSuffix, type Target } from "@/lib/v2/target";
 
@@ -25,10 +26,12 @@ export function SessionFromUrl() {
   const params = useSearchParams();
   const voiceParam = params.get("voice");
   const voice: VoiceMode = voiceParam === "off" ? "off" : voiceParam === "text" ? "text" : "on";
-  return <SessionGate key={params.toString()} voice={voice} />;
+  // &agent=words talks to the second agent, "Milo v2 words". See src/lib/v2/agent.ts.
+  const agent: AgentVariant | null = params.get("agent") === "words" ? "words" : null;
+  return <SessionGate key={params.toString()} voice={voice} agent={agent} />;
 }
 
-function SessionGate({ voice }: { voice: VoiceMode }) {
+function SessionGate({ voice, agent }: { voice: VoiceMode; agent: AgentVariant | null }) {
   // The saved session and the student's courses live in this browser's storage, so this only renders in the browser.
   use(browser("The saved session is kept in localStorage."));
   const params = useSearchParams();
@@ -60,6 +63,7 @@ function SessionGate({ voice }: { voice: VoiceMode }) {
       key={run}
       target={target}
       voice={voice}
+      agent={agent}
       endHref={`/v2/end?${target.query}${voiceSuffix(params)}`}
       initial={decision === "resume" && run === 0 ? saved : null}
       onRestart={() => {

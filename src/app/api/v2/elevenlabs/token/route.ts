@@ -4,23 +4,30 @@
 // - Default: a conversation token, for the live voice session over WebRTC.
 // - Body { "transport": "websocket" }: a signed URL, for the typed chat test (?voice=text),
 //   which only runs over a websocket.
+// - Body { "variant": "words" }: the same, for the second agent "Milo v2 words" (&agent=words).
 
-import { eleven, findV2AgentId } from "../elevenlabs";
+import { eleven, findV2AgentId, readVariant } from "../elevenlabs";
 
 export async function POST(request: Request) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "ELEVENLABS_API_KEY is not set. Add it to .env.local." }, { status: 500 });
   }
-  const agentId = await findV2AgentId(apiKey);
+  const body = (await request.json().catch(() => null)) as { transport?: string; variant?: string } | null;
+  // { "variant": "words" } asks for the second agent, which accepts keywords per conversation.
+  const variant = readVariant(body?.variant);
+  const agentId = await findV2AgentId(apiKey, variant);
   if (!agentId) {
     return Response.json(
-      { error: "Milo v2's agent does not exist yet. Create it with POST /api/v2/elevenlabs/setup." },
+      {
+        error: variant
+          ? "The “Milo v2 words” agent does not exist yet. Create it with POST /api/v2/elevenlabs/setup?variant=words."
+          : "Milo v2's agent does not exist yet. Create it with POST /api/v2/elevenlabs/setup.",
+      },
       { status: 500 },
     );
   }
 
-  const body = (await request.json().catch(() => null)) as { transport?: string } | null;
   const agent = encodeURIComponent(agentId);
 
   if (body?.transport === "websocket") {
