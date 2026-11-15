@@ -1,0 +1,43 @@
+BIO 101  Lecture 3
+Inside an animal cell, and how it divides
+
+Written for testing Milo. Not real course material.
+Slide 2: The cell membrane
+
+- Every animal cell is wrapped in a cell membrane.
+- It is a phospholipid bilayer: two thin layers of fat.
+- It is selectively permeable. We call it the cell's gatekeeper:
+  it lets food and oxygen in and lets waste out.
+Slide 3: Mitochondria, the battery packs
+
+- In this course we call mitochondria the cell's battery packs.
+- They carry out aerobic respiration: glucose + oxygen.
+- The energy is released as ATP, which the cell spends on everything it does.
+- Busy cells, like muscle cells, have hundreds of them.
+Slide 4: The nucleus
+
+- The nucleus is the control centre.
+- It holds the DNA, packed as chromatin.
+- The DNA carries the instructions for making proteins.
+- Ribosomes, tiny dots in the cytoplasm, read those instructions and build the proteins.
+Slide 5: Lysosomes, the recycling centre
+
+- Lysosomes are small bags full of digestive enzymes.
+- They break down worn-out parts of the cell and bacteria the cell has swallowed.
+- The useful pieces are recycled to build new parts.
+Slide 6: Why cells divide
+
+- Cells divide so the body can grow and repair itself.
+- One parent cell becomes two identical daughter cells.
+- This kind of division is called mitosis.
+Slide 7: Mitosis, step by step
+
+1. The DNA is copied, so each chromosome has two identical halves.
+2. The chromosomes line up across the middle of the cell.
+3. The two halves are pulled apart to opposite ends of the cell.
+4. The cell pinches in the middle and splits into two.
+Slide 8: Exam tips
+
+- Learn the job of every part, not just its name.
+- Practise drawing the four steps of mitosis.
+- Past papers are on the course page.

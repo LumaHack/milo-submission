@@ -10,7 +10,15 @@ export type KeyIdea = {
   gapLabel: string;
   /** Core ideas are the ones asked for at the Basics level of detail. */
   core: boolean;
+  /** Where the student's own notes say this, such as "slide 6". Only for topics made from notes. */
+  where?: string;
 };
+
+/** One short statement taken from the student's notes, and where it is. The fact check uses these. */
+export type NoteFact = { text: string; where: string };
+
+/** What a topic made from the student's notes carries along: the file names and the facts in them. */
+export type TopicNotes = { files: string[]; facts: NoteFact[] };
 
 export type Topic = {
   id: string;
@@ -24,6 +32,8 @@ export type Topic = {
   /** Only ready topics have key ideas and can start a session. */
   ready: boolean;
   keyIdeas: KeyIdea[];
+  /** Set when the topic was made from the student's own notes. Then only the notes count as right. */
+  notes?: TopicNotes;
 };
 
 export const SUBJECTS = ["Biology", "History", "Chemistry", "Physics"] as const;

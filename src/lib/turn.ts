@@ -120,3 +120,40 @@ export const NewTopicSchema = z.object({
     .describe("Exactly five, from most basic to most detailed. Exactly three are core."),
 });
 export type NewTopic = z.infer<typeof NewTopicSchema>;
+
+/** What /api/notes asks Claude for: the topics in the student's own notes, built only from what the notes say. */
+export const NotesResultSchema = z.object({
+  ok: z.boolean().describe("False when these are not study notes, there is too little to draw, or drawing it is not safe."),
+  reason: z.string().describe("When ok is false, one plain sentence for the student saying why. Otherwise empty."),
+  subject: z.string().describe("One word: the school or university subject."),
+  topics: z
+    .array(
+      z.object({
+        title: z.string().describe("The topic as a short title in sentence case, at most six words."),
+        blurb: z.string().describe("Where the topic is in the notes, for example: Slides 3 to 9."),
+        about: z.string().describe("Finishes Milo's sentence 'I know nothing about ...'. Lower case, a few words."),
+        opener: z.string().describe("Milo's first question, lower case, easy to answer."),
+        keyIdeas: z
+          .array(
+            z.object({
+              id: z.string().describe("A short lower-case slug."),
+              idea: z.string().describe("One sentence of what the notes say, in the notes' own terms."),
+              gapLabel: z.string().describe("A short phrase naming the gap as a question, without the answer."),
+              core: z.boolean().describe("True for the three most basic ideas."),
+              where: z.string().describe("Where the notes say it: 'slide 4', 'page 2' or 'transcript 12:40'."),
+            }),
+          )
+          .describe("Exactly five, from most basic to most detailed. Exactly three are core."),
+        facts: z
+          .array(
+            z.object({
+              text: z.string().describe("One short statement the notes make about this topic."),
+              where: z.string().describe("Where the notes say it."),
+            }),
+          )
+          .describe("Up to 30 statements from the notes about this topic: definitions, names, numbers, causes."),
+      }),
+    )
+    .describe("One to four topics, most important first. Empty when ok is false."),
+});
+export type NotesResult = z.infer<typeof NotesResultSchema>;
