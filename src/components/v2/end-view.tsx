@@ -308,7 +308,8 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
                     : `${clear} of ${total} explained`}
                 </p>
               </div>
-              {finalImage && (
+              {/* Only a finished explanation is a revision sheet worth keeping. An unfinished one stays a session to pick up. */}
+              {finalImage && complete && (
                 <div className="flex flex-wrap items-center gap-2">
                   {sheetSaved === "yes" ? (
                     <Link href="/v2/sheets" className={`${pill.light} animate-rise`}>

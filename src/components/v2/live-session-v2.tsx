@@ -270,10 +270,38 @@ function Live({
   };
   const resume = () => {
     setPaused(false);
+    setElsewhere(false);
     setVoiceError(null);
+    // If the session is still open in another tab, that tab now pauses in turn.
+    channel.current?.postMessage("opened");
     if (voice === "off") session.start();
     else void connectRef.current();
   };
+
+  // The same session open in two tabs would have both saving over each other. So a tab that opens
+  // a session says so on a channel named after it, and any older tab on that session pauses and
+  // saves. The newest tab always wins.
+  const [elsewhere, setElsewhere] = useState(false);
+  const channel = useRef<BroadcastChannel | null>(null);
+  const pauseRef = useRef(pause);
+  useEffect(() => {
+    pauseRef.current = pause;
+  });
+  useEffect(() => {
+    if (typeof BroadcastChannel === "undefined") return;
+    const opened = new BroadcastChannel(`milo.v2.session.${topic.id}.${mode}`);
+    channel.current = opened;
+    opened.onmessage = (event) => {
+      if (event.data !== "opened") return;
+      pauseRef.current();
+      setElsewhere(true);
+    };
+    opened.postMessage("opened");
+    return () => {
+      opened.close();
+      channel.current = null;
+    };
+  }, [topic.id, mode]);
   const restart = () => {
     clearSafetyNet();
     session.discard();
@@ -368,7 +396,7 @@ function Live({
           steps={session.steps}
           micOn={micOn}
           micLabel={micLabel}
-          micHint={paused ? "Paused" : micHint}
+          micHint={paused ? (elsewhere ? "Paused: open in another tab" : "Paused") : micHint}
           onMic={onMic}
           getVoiceLevel={voiceLevel}
           onEnd={onEnd}
@@ -399,6 +427,7 @@ function Live({
       micLabel={micLabel}
       micHint={micHint}
       paused={paused}
+      pausedNote={elsewhere ? "Paused: this session is open in another tab." : null}
       onMic={onMic}
       onPause={pause}
       onResume={resume}

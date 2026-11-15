@@ -62,6 +62,8 @@ export type SessionViewV2Props = {
   /** Shown in the voice bar instead of what was said, for example before Milo connects. */
   micHint: string | null;
   paused: boolean;
+  /** Why the session is paused, when it was not the student who paused it. */
+  pausedNote: string | null;
   onMic: () => void;
   onPause: () => void;
   onResume: () => void;
@@ -541,7 +543,7 @@ function VoiceBar(props: SessionViewV2Props & { className: string }) {
 
       <div className="flex min-w-[180px] flex-1 items-center gap-3">
         {props.paused ? (
-          <span className="animate-rise text-[15px] font-medium">Paused. Milo will wait for you.</span>
+          <span className="animate-rise text-[15px] font-medium">{props.pausedNote ?? "Paused. Milo will wait for you."}</span>
         ) : props.micHint ? (
           <span key={props.micHint} className="animate-rise text-[15px] font-medium">
             {props.micHint}
