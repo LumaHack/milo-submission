@@ -72,13 +72,15 @@ Spacing: page padding 20px top, 28px sides, 24px bottom. Panel padding 12px, 12p
 
 - Header: wordmark "Milo" left. Light pill "Your revision sheets" right.
 - Headline "What do you want to explain?" on the left. On the right, Milo aged 4 in a 128px circle, beside: "Explain it out loud, like you would to a friend who knows nothing. Milo draws what you say and grows up as you get it right."
-- "Subject": four pills, Biology (selected, black), History, Chemistry, Physics.
+- "Subject": four pills, Biology (selected, black), History, Chemistry, Physics. Every subject works: picking one swaps the four topic cards. "Give me four others" shows that subject's second set. Any card other than "How a cell works" is set up by Claude when picked and reads "Setting it up…" while that runs.
+- "How much detail": three pills, Basics (default), Exam, Deep, with a one-line description of the chosen one beside them. Added after v3, in the same pill style.
 - "Four topics to choose from", with a light pill "Give me four others" on the right.
 - The grey panel holds four white topic cards, min height 190px, title at the top and a one-line description at the bottom:
   - How a cell works. "Every part, and what each one does."
   - How the heart pumps blood. "Four chambers and two loops."
   - How a neuron fires. "From a touch to a signal in the brain."
   - Photosynthesis. "How a leaf turns light into sugar."
+- Under the four cards, inside the same grey panel, one white row: "Or your own", a text field and a dark pill "Explain this". Added after v3.
 - Content max width 1180px, centred.
 
 ### Session (`MainV3.dc.html`)
@@ -102,6 +104,25 @@ The grey panel holds two columns.
 
 Footer: one small muted credits line.
 
+**Fit.** The design was drawn at 1440x1120. At 1440x900 the session screen needs a little scrolling once a turn is scored: Milo, his line and the crayon level stay in view, and the feed and the on/off bar are just below. Record the video in a 1440x1120 window.
+
+**Milo is alive.** Decided Sat 14 Nov: the left column should feel like a live agent, not a photo with a caption. So in this column several small things may move at once, as long as the board stays the only big mover on the right.
+
+- Milo's picture never sits still. He breathes when idle, sways while listening, tilts and bobs while thinking or drawing.
+- His picture and the waveform move with the real voice level: the microphone while he listens, his own voice while he talks.
+- A ring inside his picture thickens with the voice. Green (the ok colour) while he listens, black while he talks.
+- When he levels up he shrinks back, overshoots and lands, with a short white flash, and the age badge pops.
+- His line arrives word by word.
+- Reaction bursts pop out of his picture in a crayon hand (Gaegu, used only for his bursts and his jotted note on the paper): "Ohh!" when an idea clicks, "Huh?!" when something is wrong, "I'm growing!" on a level-up, "I get it!" at the end.
+- The student's last words sit in a black bubble on the right, above Milo's grey bubble on the left, so it reads as a conversation.
+- He speaks once per student turn. He only speaks unprompted when the final board lands, or when he has sketched a hint.
+- A hint sketch is blue dashed pencil with the handwritten word "hint" beside it. It is drawn where the missing part belongs (inside the cell if the part is inside the cell), large enough to read at a glance, never off in a corner or over a label. Its history frame is labelled "Milo's hint" and his burst reads "A hint!".
+- When everything is clear Milo says his wrap-up and then switches himself off: the badge reads "Milo is off" and the bar reads "Milo is off. Press to switch him on".
+- When the lesson is over (everything clear, or the student still stuck after a hint) the "Open revision sheet" pill turns black and pops, and "End session" turns light.
+- "What Milo is doing" is a feed of the agent's real steps: Heard you, Checked 5 key ideas, Told Milo what to ask next, Redrawing the board. The running step shows a spinner and a ticking timer. A finished step shows a tick and how long it took. It only ever shows work that really happened.
+- Under the level chips, one small bar per key idea: empty for missing, faint for vague, black for clear, the miss colour for wrong. It never names the ideas.
+- Nobody presses anything to start. The session goes live when the page opens ("Waking Milo up…"). If the browser blocks sound because the page was opened directly, the bar reads "Tap anywhere to wake Milo". The round button switches Milo off and on again. It is not a mute button: black with a mic while he is on, white with a struck-through mic while he is off. The bar sits at the bottom of the column, under the crayon level card and the feed.
+
 **Status badge states**
 
 | State | Dot | Text |
@@ -110,9 +131,12 @@ Footer: one small muted credits line.
 | Thinking | faint | Thinking |
 | Drawing | faint | Drawing |
 | Speaking | ink | Milo is talking |
-| Mic off | miss | Mic is off |
+| Milo off | miss | Milo is off |
+| Connecting | faint | Waking Milo up |
 
-**The board while fal is drawing.** Keep the old board. Put a small white pill at the bottom centre of the paper: "Milo is drawing…". Swap the image only when the new one has fully loaded.
+**The board while fal is drawing.** Keep the old board. About two and a half seconds after the student stops, Milo's jotted note appears on the paper: their words in quotes, in his crayon hand (Gaegu), on a paper-coloured strip along the bottom, with "Milo is drawing this…" under it. On an empty board the note sits in the middle, larger. Swap the image only when the new one has fully loaded, and remove the note with it.
+
+**A wrong claim on the board** is small, grey pencil, with a red question mark and the student's words as its label. It must read as "not sure about this", never as part of the answer.
 
 ### Revision sheet (`SheetV3.dc.html`)
 
@@ -124,6 +148,12 @@ The panel holds, on the left, one big white card: title "How a cell works", the 
 2. "How you got here": one row per turn with a thin progress bar and the level name. Earlier turns use the faint colour. The last is black and bold.
 3. Milo aged 18 in a 52px circle, with: "Milo is 18 now. He has stopped asking the dumb questions."
 
+### History and slideshow (added after v3)
+
+- **History** (`/sheets`): heading "Everything you have explained", then the grey panel with one white card per session: the final board, the topic, the level reached, the number of turns and when.
+- **Revision sheet** gains two light pills beside the title: "Play slideshow" and "Make a film". A finished film sits under the board with a "Save film" link.
+- **Slideshow**: full screen on the page background. Title and turn count at the top, one thin progress bar per slide, the board on the grey panel, the student's words in a black bubble and Milo's question in a grey one, and Back, Pause and Next pills. Arrow keys step, space pauses, Escape closes.
+
 ### Replay (`EvolutionV3.dc.html`)
 
 The boards in order, one after another. In the Session screen this is the Replay button: it steps through the frames at 1.4 seconds each.
@@ -134,16 +164,16 @@ Milo's lines in the scripted run:
 
 | Turn | Student says | Milo says | Age |
 |---|---|---|---|
-| 1 | "The cell does stuff and keeps the body alive." | Mmhh… but what is the cell actually doing? | 4 |
-| 2 | "The cell takes in things and makes energy." | Mmhh… but what lets things in, and where does the energy come from? | 7 |
-| 3 | "The membrane controls what enters, and mitochondria make the energy." | Mmhh… but who gives the instructions, and how do proteins get made? | 11 |
-| 4 | "DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out." | That is all of it. I have nothing left to ask. | 18 |
+| 1 | "The cell does stuff and keeps the body alive." | Wait, it does stuff? Like what, give me one thing it does. | 4 |
+| 2 | "The cell takes in things and makes energy." | Ooh, it takes things in! Through what, is it like a wall or more like a door? | 7 |
+| 3 | "The membrane controls what enters, and mitochondria make the energy." | Okay, so it has a door and a power bit. But who tells it what to do? | 11 |
+| 4 | "DNA gives the instructions, ribosomes build the proteins, and the Golgi sends them out." | Ohh, I finally get it! The boss bit gives instructions, things get built, packed and sent out. | 18 |
 
 Rules for any new text:
 
-- Milo is a puzzled, slightly cheeky kid. He asks. He never explains and never uses a word the student has not said.
+- Milo is a quick, warm, cheeky kid. He reacts to what was just said, then asks one small question you can answer in a sentence. He never explains and never uses the proper term before the student does. He never says "Mmhh".
 - Interface text is plain and short. Say what a button does: "End session", "Open revision sheet", "Replay".
-- Errors say what happened and what to do: "The drawing did not come back. Keep talking, Milo will try again."
+- Errors say what happened and what to do, in plain words and in ink, never in the miss colour: "The drawing did not come back. Keep talking, Milo will try again on your next turn." The technical reason goes to the console, not the screen.
 - The credits line names only tools the run really used. The design shows "Voice by ElevenLabs. Face by Anam. Drawing by fal. Grading by Adaption." Remove "Face by Anam" and "Grading by Adaption" unless they are wired.
 
 ## 20 UX and motion rules

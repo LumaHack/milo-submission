@@ -44,6 +44,42 @@ Keys are shared in the team chat, never in this repo. `.env.local` is ignored by
 
 There is no app code on `main` yet. Each branch starts its own. The stack we recommend, and the package versions we checked today, are in [docs/SPEC.md](docs/SPEC.md).
 
+### Running the app (branch `Ali`)
+
+```bash
+pnpm install
+```
+
+```bash
+pnpm dev
+```
+
+Then open http://localhost:3000.
+
+| Page | What it is |
+|---|---|
+| `/` | Start screen. Pick the cell topic or type your own, and how much detail |
+| `/session` | The live session. It connects by itself: allow the microphone and start explaining the cell to Milo. The round button under Milo switches him off and on |
+| `/demo` | The scripted run from stored images. No keys or network. The header says "Scripted run" |
+| `/sheet` | A session's revision sheet, with a slideshow and a fal film of the drawing growing up |
+| `/sheets` | Every session saved in this browser |
+
+It needs `FAL_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `ELEVENLABS_AGENT_ID` in `.env.local`. Milo's agent is created once with `curl -X POST http://localhost:3000/api/elevenlabs/setup`, which prints the id.
+
+**Testing without a microphone** (development only, in the browser console on `/session`):
+
+- `window.miloText()` reconnects to the real ElevenLabs agent in text mode, so no microphone is needed.
+- `window.miloSay("...")` says a turn. In text mode Milo answers it for real.
+- `window.miloLog` lists everything Milo said, plus the reason for any dropped connection.
+
+**A spoken test with no human.** `scripts/voice-test/talk.js` opens the app in headless Chrome, swaps the microphone for recorded speech, says two sentences about the cell and prints a timeline of what Milo heard, said and drew. Run `python3 scripts/voice-test/make_voice.py` once to make the voice, `npm install --no-save puppeteer-core`, then `node scripts/voice-test/talk.js`. It uses the real agent, so each run costs a little.
+
+**If pages start reloading by themselves** in development, stop `pnpm dev`, delete the `.next` folder and start it again. It happened once after many restarts: the build cache went bad and every page reloaded about 20 times a second. Because the session page connects to Milo by itself, every reload also asked ElevenLabs for a voice token. ElevenLabs then refused new calls for a while with "workspace has reached its maximum concurrent capacity", although its own call list showed nothing in progress. The same limit is shared by everyone using the team's key, so two people testing at once can also hit it.
+
+**After changing a prompt** in `src/lib/prompts.ts`, restart `pnpm dev` and then run the setup route again. The dev server has twice served an old copy of a changed file to a route, and the agent ended up with an outdated first line. The setup route now prints the first line it sent, so check it.
+
+Use Chrome for the live session. The microphone only works on `localhost` or https.
+
 ## What is in here besides docs
 
 - `design/boards/` the four whiteboards, real fal output from our test run

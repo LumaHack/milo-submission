@@ -18,6 +18,7 @@ __pycache__/
 # output of the fal test scripts
 scripts/fal_test_out/
 scripts/milo_assets/
+scripts/voice-test/out/
 
 # misc
 .DS_Store
