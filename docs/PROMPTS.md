@@ -150,6 +150,8 @@ When every idea is clear, or the student is stuck or asked to stop:
 APP NOTE: The lesson is over. Say this line and ask nothing more: "<hint>"
 ```
 
+Milo is then cued to say that line straight away with a stand-in turn in round brackets (`MILO_GOT_IT` or `MILO_WRAP_UP`), instead of waiting for the student to speak again. When the final sheet lands after he has already said he gets it, he gets `miloSheetNote`: show the drawing in one short sentence, say the sheet is ready, and do not repeat the summary.
+
 ## 4. Milo's face (fal)
 
 Already drawn. The four images are in `design/milo/`. `scripts/gen_milo.py` has the prompts. He is one 3D character edited three times so he stays the same boy: crayon at 4, coloured pencil at 7, glasses and a marker at 11, graduation cap at 18. Redraw only if a human asks.

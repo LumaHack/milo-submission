@@ -14,6 +14,8 @@ import { useChosenTopic } from "@/lib/history";
 import {
   MILO_SHOW_FINAL,
   MILO_WRAP_UP,
+  MILO_GOT_IT,
+  miloSheetNote,
   MILO_SHOW_HINT,
   isStageDirection,
   miloAppNote,
@@ -72,6 +74,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const retries = useRef(0);
   const everConnected = useRef(false);
   const retryPending = useRef(false);
+  // True once Milo has been cued to say he gets it, so the final sheet does not make him say it twice.
+  const gotItSaid = useRef(false);
   const reconnect = useRef<() => void>(() => {});
 
   const conversation = useConversation({
@@ -142,6 +146,11 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
         pendingShow.current = { since: Date.now(), cue: MILO_WRAP_UP };
         closing.current = { since: Date.now(), spoke: false };
       }
+      // Every idea is clear: Milo says he gets it now, while the final sheet is still being drawn,
+      // instead of asking one more question and going quiet until it lands.
+      if (over && open.length === 0 && !gotItSaid.current) {
+        pendingShow.current = { since: Date.now(), cue: MILO_GOT_IT };
+      }
       return true;
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it
@@ -150,7 +159,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     // talking, so he gets a cue to show it and wrap up.
     showFinal.current = (drew) => {
       if (!connected) return;
-      sendContextualUpdate(miloFinalNote(drew));
+      // If he has already said he gets it, he only shows the sheet. Otherwise he does both now.
+      sendContextualUpdate(gotItSaid.current ? miloSheetNote(drew) : miloFinalNote(drew));
       pendingShow.current = { since: Date.now(), cue: MILO_SHOW_FINAL };
       closing.current = { since: Date.now(), spoke: false };
     };
@@ -189,6 +199,8 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       const quiet = Date.now() - lastSpeech.current > 1500;
       if (quiet && !isSpeaking) {
         pendingShow.current = null;
+        if (pending.cue === MILO_GOT_IT) gotItSaid.current = true;
+        log.current.push({ who: "cue", text: pending.cue, at: Date.now() });
         try {
           sendUserMessage(pending.cue);
         } catch {

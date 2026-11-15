@@ -134,6 +134,8 @@ Yusuf's goal: Milo should hold up on any topic, not only the filmed cell. A thre
 
 **D52. The app reopens Milo's call by itself when the first try fails.** On Sun 15 Nov Milo's call failed to open on the first try in 5 of 9 headless test sessions ("could not establish pc connection"), leaving "Milo's voice hit a problem" on screen until the student pressed the button. The session now tries again by itself, up to three times, before showing that line. In the two runs after the change the first try failed, the second connected, and both sessions reached Mastered. The cost is a late greeting, 16 to 20 s after the page opens, when the first try fails. Not known whether a real browser on venue wifi fails as often as the headless test browser does.
 
+**D53. Milo says he gets it as soon as the last idea is clear, then shows the sheet when it lands.** The final sheet takes 14 to 20 s to draw on the careful model (D48). Milo used to stay on his last small question for all of that, and only said "I finally get it" when the sheet arrived. Now the app cues him the moment the brain marks every idea clear: in two spoken runs on Sun 15 Nov he said it 9 to 10 s after the student's last sentence, and when the sheet landed about 15 s later he said one short line showing the drawing ("…and your sheet is ready") without repeating the summary. A session that ends with a gap left (stuck, or "I'm done") is cued the same way: the wrap-up line came 4 s after the student asked to stop. His instant small question still comes first in both cases, because it is spoken before the brain has answered (D21).
+
 ## Still open
 
 | Question | Who can settle it |

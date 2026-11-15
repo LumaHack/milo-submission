@@ -98,7 +98,7 @@ Fill in from your own runs.
 | Milo answering after the student stops | Yes | He replied 1 to 2 s after the speech ended |
 | Milo cutting in mid-sentence | He does not | A 0.9 s pause in the middle of a sentence did not make him jump in. Eager turn-taking means he answers fast once you stop, not that he talks over you |
 | The nudge when the student goes quiet | Yes | After about 8 s of silence he helps with an easier question, then just says "Take your time" |
-| Milo wrapping up on the last board | Yes | He says he finally gets it and repeats the explanation back in the student's words |
+| Milo wrapping up | Yes, by voice, Sun 15 Nov | He says he finally gets it and repeats the explanation in the student's words 9 to 10 s after their last sentence, then shows the sheet in one short line when it lands about 15 s later |
 | Fact check and the grey question-mark drawing | Yes, by voice | Two spoken wrong answers ("the energy comes from the skin", "from the air") each came out small and grey with a red question mark. One label repeated a word ("from from") |
 | The hint after two failed tries | Yes, by voice | `node scripts/voice-test/talk.js hint`. Wrong twice about the energy: Milo said "Not quite yet, but you're onto something… I sketched a hint: little beans inside giving off sparks. What might they do?", and the student's next answer made the idea clear. One run. That call dropped near its end, and the screen said so |
 | Custom topic, history, slideshow | Yes | In the browser |

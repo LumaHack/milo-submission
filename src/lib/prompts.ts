@@ -271,6 +271,14 @@ export const MILO_SHOW_HINT = "(The student is stuck and looks at your paper. Sh
 /** A stand-in user turn that makes Milo wrap up without waiting to be asked. A stage direction in round brackets. */
 export const MILO_SHOW_FINAL = "(The student has finished. Show them the final drawing and wrap up.)";
 
+/** A stand-in user turn that makes Milo say he gets it as soon as the last idea is clear, while the final sheet is still drawing. */
+export const MILO_GOT_IT = "(The student has finished explaining. Say your line now.)";
+
+/** Sent when the last board lands after Milo has already said he gets it: he only shows the sheet. */
+export function miloSheetNote(drew: string): string {
+  return `APP NOTE: Your final drawing just landed on the paper. You have already said you get it, so do not say the explanation back again. In one short sentence, show them the drawing ("${drew}") and tell them their sheet is ready. Ask nothing more.`;
+}
+
 /** A stand-in user turn for a session that ends with a gap left: the student is stuck or asked to stop. */
 export const MILO_WRAP_UP = "(The student has stopped for today. Say your wrap-up line now.)";
 

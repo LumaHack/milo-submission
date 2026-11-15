@@ -66,10 +66,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
   });
   // Start from empty storage, then load again so the page starts the way a first-time student sees it.
-  // networkidle0: on a freshly started dev server React takes several seconds to start.
-  await page.goto("http://localhost:3000/", { waitUntil: "networkidle0" });
+  // On a freshly started dev server React takes several seconds to start, so wait for it.
+  await page.goto("http://localhost:3000/", { waitUntil: "load", timeout: 60000 });
   await page.evaluate(() => localStorage.clear());
-  await page.reload({ waitUntil: "networkidle0" });
+  await page.reload({ waitUntil: "load", timeout: 60000 });
+  // React has started once the page's buttons carry its handlers.
+  await page.waitForFunction(() => Object.keys(document.querySelector("main button") || {}).some((k) => k.startsWith("__react")), { timeout: 60000 });
   const run = ["hint", "offtopic", "notes", "done"].includes(process.argv[2]) ? process.argv[2] : "cell";
   const clips = { hint: ["h1", "h2", "h3", "h4", "h5"], offtopic: ["h1", "o2", "o3", "b"], done: ["h1", "d2", "d3"], notes: ["n1", "n2", "n3"], cell: ["a1", "a2", "b"] }[run];
   if (run === "notes") {
@@ -160,7 +162,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await sayAndWait("o2"); // small talk: not scored, not drawn, Milo steers back
     await sayAndWait("o3"); // asking for the answer: "I don't know, that's why I'm asking you."
     await say("b");
-    await quietFor(24000, "student goes quiet");
+    await quietFor(40000, "student goes quiet"); // long enough for the final sheet to land and Milo to show it
   } else if (run === "done") {
     await sayAndWait("h1");
     await sayAndWait("d2"); // an honest "I don't know": a smaller question, nothing drawn
@@ -177,7 +179,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await say("a2");
     await quietFor(14000, "student goes quiet");
     await say("b");
-    await quietFor(24000, "student goes quiet");
+    await quietFor(40000, "student goes quiet"); // long enough for the final sheet to land and Milo to show it
   }
 
   const out = await page.evaluate(() => ({
