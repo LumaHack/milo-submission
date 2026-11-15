@@ -1,6 +1,6 @@
 // Topics for v2. The cell reuses Ali's key ideas and tested board prompts as they are.
-// History is new in v2: how World War II started, drawn as a chain of falling dominoes, so the
-// board never needs people, flags, symbols or war scenes.
+// History is new in v2: how World War II started and how World War I started, each drawn as a chain
+// of falling dominoes, so the board never needs people, flags, symbols or war scenes.
 
 import { BOARD_EXAMPLES } from "@/lib/prompts";
 import { getTopic, TOPICS, type KeyIdea } from "@/lib/topics";
@@ -144,6 +144,75 @@ const WW2: V2Topic = {
   ready: true,
 };
 
+// How World War I started, told through the alliances: one cause knocking over the next, so it uses
+// the same dominoes as World War II. It has no examples of its own and draws from the layout's.
+const WW1: V2Topic = {
+  id: "ww1",
+  subject: "History",
+  title: "How World War I started",
+  blurb: "How one summer pulled a whole continent into war.",
+  about: "how World War One started",
+  firstMessage:
+    "Hi, I'm Milo! I don't know anything about how World War One started. Can you explain it to me? I'll draw what you say.",
+  tone: "This is a serious topic about a war. Milo stays curious and kind, and never jokes about war, death or suffering.",
+  keywords: [
+    "alliances",
+    "Triple Alliance",
+    "Triple Entente",
+    "Austria-Hungary",
+    "Serbia",
+    "Sarajevo",
+    "Archduke",
+    "Franz Ferdinand",
+    "ultimatum",
+    "mobilise",
+    "Russia",
+    "Belgium",
+    "neutral",
+    "Schlieffen Plan",
+  ],
+  keyIdeas: [
+    {
+      id: "alliances",
+      idea: "Before 1914 Europe's great powers had split into two armed alliances that promised to defend each other: the Triple Alliance (Germany, Austria-Hungary, Italy) and the Triple Entente (France, Russia, Britain).",
+      gapLabel: "How Europe had picked sides",
+      core: "Europe's big powers were in two rival alliances, and the members of each had promised to help one another in a war. The alliances' names and the full list of countries are bonus.",
+      term: "alliances",
+    },
+    {
+      id: "sarajevo",
+      idea: "On 28 June 1914 Archduke Franz Ferdinand, heir to the throne of Austria-Hungary, was assassinated in Sarajevo by a Bosnian Serb nationalist, Gavrilo Princip.",
+      gapLabel: "What lit the fuse",
+      core: "The heir to Austria-Hungary's throne was assassinated in Sarajevo by a Serb nationalist. The date and the names are bonus.",
+      term: "assassination of Franz Ferdinand",
+    },
+    {
+      id: "ultimatum",
+      idea: "Austria-Hungary blamed Serbia, and with Germany's promise of support sent it an ultimatum, then declared war on Serbia on 28 July 1914.",
+      gapLabel: "Who was blamed, and what followed",
+      core: "Austria-Hungary blamed Serbia and declared war on it, with Germany backing Austria-Hungary. The ultimatum and the date are bonus.",
+      term: "ultimatum",
+    },
+    {
+      id: "mobilisation",
+      idea: "Russia mobilised its army to protect Serbia, so Germany declared war on Russia on 1 August 1914 and on Russia's ally France on 3 August.",
+      gapLabel: "Who stepped in next, and why",
+      core: "Russia got its army ready to protect Serbia, so Germany declared war on Russia and on Russia's ally France. The dates are bonus.",
+      term: "mobilisation",
+    },
+    {
+      id: "belgium",
+      idea: "To reach France quickly Germany invaded neutral Belgium (the Schlieffen Plan), and Britain, which had promised to protect Belgium, declared war on Germany on 4 August 1914.",
+      gapLabel: "What pulled in the last great power",
+      core: "Germany invaded neutral Belgium to get to France, so Britain declared war on Germany. The Schlieffen Plan and the date are bonus.",
+      term: "invasion of Belgium",
+    },
+  ],
+  layout: "causes",
+  boardExamples: [],
+  ready: true,
+};
+
 /** Shown on the start screen, not built yet. */
 function placeholder(id: string, subject: Subject, title: string, blurb: string): V2Topic {
   return {
@@ -167,9 +236,10 @@ export const V2_TOPICS: V2Topic[] = [
   ...TOPICS.filter((topic) => topic.subject === "Biology" && !topic.ready).map((topic) =>
     placeholder(topic.id, "Biology", topic.title, topic.blurb),
   ),
+  // World War II stays first: it is the demo. Each subject shows four cards, so World War I took a placeholder's place.
   WW2,
+  WW1,
   placeholder("industrial", "History", "The Industrial Revolution", "Steam, factories and the first big cities."),
-  placeholder("silk-road", "History", "The Silk Road", "How goods and ideas crossed Asia."),
   placeholder("rome", "History", "The fall of Rome", "Why a giant empire broke apart."),
 ];
 
