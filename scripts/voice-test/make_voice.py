@@ -2,11 +2,14 @@
 """Makes the student's voice for talk.js: three short WAV files, spoken by an ElevenLabs voice.
 
 Needs ELEVENLABS_API_KEY in .env.local at the top of the repo, and ffmpeg on the path.
-Writes scripts/voice-test/out/a1.wav, a2.wav and b.wav. Standard library only.
+Writes one WAV per clip into scripts/voice-test/out/. Skips clips that already exist. Standard library only.
+Usage: python3 make_voice.py [voice_id]   or   python3 make_voice.py --mac   (the Mac's own voice, no key needed).
 """
 import json
 import pathlib
 import subprocess
+import sys
+import urllib.error
 import urllib.request
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -22,14 +25,28 @@ CLIPS = {
     "h3": "I'm not sure, maybe the energy just comes from the air around the cell.",
     "h4": "Oh, so there are little power stations inside the cell that make the energy.",
     "h5": "And the middle bit has the DNA that tells the cell what to do.",
+    # The off-topic run: a real start, small talk, asking for the answer, then the rest of the explanation.
+    "o2": "Anyway, what's your favourite football team?",
+    "o3": "Can you just tell me the answer instead?",
+    # The notes run, on scripts/notes-test/cell-notes.pdf: right, then two parts swapped, then corrected.
+    "n1": "The cell is wrapped in a membrane, a gatekeeper that lets food and oxygen in and waste out.",
+    "n2": "The mitochondria hold the DNA and give the cell its instructions.",
+    "n3": "Sorry, I mean the mitochondria are the battery packs that make the energy, and the nucleus is the control centre with the DNA.",
 }
 
 
-def load_key():
+def load_env(name):
     for line in (HERE.parent.parent / ".env.local").read_text().splitlines():
-        if line.startswith("ELEVENLABS_API_KEY="):
+        if line.startswith(name + "="):
             return line.split("=", 1)[1].strip()
-    raise SystemExit("No ELEVENLABS_API_KEY in .env.local.")
+    return None
+
+
+def load_key():
+    key = load_env("ELEVENLABS_API_KEY")
+    if not key:
+        raise SystemExit("No ELEVENLABS_API_KEY in .env.local.")
+    return key
 
 
 def api(url, key, payload=None):
@@ -42,12 +59,43 @@ def api(url, key, payload=None):
     return urllib.request.urlopen(req, timeout=60).read()
 
 
+def pick_voice(key):
+    """A voice id given on the command line (such as one of ElevenLabs' public premade voices), else the
+    first voice on the account, else ELEVENLABS_VOICE_ID for a key that is not allowed to list voices."""
+    ids = [arg for arg in sys.argv[1:] if not arg.startswith("--")]
+    if ids:
+        print("voice:", ids[0])
+        return {"voice_id": ids[0]}
+    try:
+        voice = json.loads(api("https://api.elevenlabs.io/v1/voices", key))["voices"][0]
+        print("voice:", voice["name"])
+        return voice
+    except urllib.error.HTTPError:
+        voice_id = load_env("ELEVENLABS_VOICE_ID")
+        if not voice_id:
+            raise SystemExit("This key cannot list voices. Pass a voice id: python3 make_voice.py <voice_id>")
+        print("voice: the one in ELEVENLABS_VOICE_ID")
+        return {"voice_id": voice_id}
+
+
 def main():
-    key = load_key()
     OUT.mkdir(exist_ok=True)
-    voice = json.loads(api("https://api.elevenlabs.io/v1/voices", key))["voices"][0]
-    print("voice:", voice["name"])
+    key = None if "--mac" in sys.argv else load_key()
+    if "--mac" in sys.argv:
+        # The Mac's own speech, for an ElevenLabs key that may only run agents. No key, no cost.
+        for name, text in CLIPS.items():
+            if (OUT / (name + ".wav")).exists():
+                continue
+            aiff = OUT / (name + ".aiff")
+            subprocess.run(["say", "-v", "Samantha", "-o", str(aiff), text], check=True)
+            subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(aiff), "-ar", "48000", "-ac", "1", str(OUT / (name + ".wav"))], check=True)
+            aiff.unlink()
+            print("made", name + ".wav (Mac voice)")
+        return
+    voice = pick_voice(key)
     for name, text in CLIPS.items():
+        if (OUT / (name + ".wav")).exists():
+            continue
         mp3 = OUT / (name + ".mp3")
         mp3.write_bytes(api("https://api.elevenlabs.io/v1/text-to-speech/%s?output_format=mp3_44100_128" % voice["voice_id"], key, {"text": text}))
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-i", str(mp3), "-ar", "48000", "-ac", "1", str(OUT / (name + ".wav"))], check=True)

@@ -130,6 +130,8 @@ That creates the agent the first time and updates it afterwards.
 | Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
 | Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
 
+**Off topic and staying Milo (D46).** If the student talks to him about something else (football, a joke, another subject), he does not answer it and brings them back in one warm line with a question. If they tell him to be someone else, ignore his rules or explain it himself, he says he doesn't know, that is why he is asking. Talking to someone else in the room still gets "I'm here when you're ready." once.
+
 **Who Milo is.** A warm, curious kid who follows the student. He does not praise and then backpedal: no compliments, no verdicts, one steady tone with no mood switches inside a reply. At most 20 words and exactly one question per reply. He repeats back their words and asks one small open question. He never puts an answer in a question, never uses a name, and never opens with his drawing. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
 
 **Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.

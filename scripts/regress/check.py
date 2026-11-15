@@ -252,6 +252,14 @@ def main():
         read = sum(entry["cacheRead"] for entry in usage)
         total = sum(entry["input"] + entry["cacheRead"] + entry["cacheWrite"] for entry in usage)
         print(f"Prompt cache: {read} of {total} input tokens read from cache ({100 * read // max(total, 1)}%)")
+        # List prices for claude-opus-5-5 in fast mode, per million tokens: input $8, output $40,
+        # cache write 1.25x input, cache read 0.05x of the standard $4 doubled for fast mode. An estimate.
+        dollars = sum(
+            entry["input"] * 8 + entry["cacheWrite"] * 10 + entry["cacheRead"] * 0.4 + entry["output"] * 40
+            for entry in usage
+        ) / 1_000_000
+        out_tokens = sum(entry["output"] for entry in usage) / len(usage)
+        print(f"Estimated Claude cost per turn: ${dollars / len(usage):.3f} (fast mode list prices), {out_tokens:.0f} output tokens on average")
     times = [entry["seconds"] for entry in run.values()]
     if times:
         print(f"Turn time: {min(times)} to {max(times)} s, average {sum(times) / len(times):.2f} s", end="")

@@ -77,15 +77,15 @@ Fill in from your own runs.
 | Measure | Value |
 |---|---|
 | Runs that worked out of 10 | |
-| End of speech to Milo's reply | |
+| End of speech to Milo's reply | 1.7 to 3.4 s (headless voice runs, Sun 15 Nov) |
 | Claude scoring one turn (`claude-opus-5-5`, low effort, fast mode) | 1.9 to 2.9 s. At standard speed it was 3.9 to 7.9 s |
 | fal, first board | 3.9 s, one run |
 | fal, edit at levels 2 and 3 | 7.2 and 8.0 s |
 | fal, final sheet (careful model) | 19.6 s, one run |
-| End of speech to new board, levels 1 to 3 | not measured with voice. Typed: about 11 to 14 s (Claude plus fal) |
+| End of speech to new board, levels 1 to 3 | 8 to 12 s (headless voice runs, Sun 15 Nov) |
 | End of speech to final sheet | not measured with voice. Typed: about 28 s |
 | fal film of the first board becoming the last | 214 s, one run on Sat 14 Nov |
-| Cost of one session | |
+| Cost of one session | Claude: about $0.03 a turn at fast-mode list prices, so about $0.20 for six turns (`scripts/regress/check.py` prints it). fal not counted |
 
 ## What has been tested, and how
 
@@ -106,6 +106,9 @@ Fill in from your own runs.
 | Notes upload | Yes, typed, Sun 15 Nov | 8-slide PDF read in 7 to 11 s into two topics, every slide reference right. A .pptx, a 25 MB file, a shopping list, an empty form and a title-slide photo each got a plain message. An injected "ignore all previous instructions" line was ignored. Not yet tried by voice |
 | Notes as the marking scheme | Yes, typed | `sweep.py notes`: a matching turn was clear, a part swap was flagged, a true claim not in the notes was ignored, "made of tiny bits of metal" was flagged, the fix reached Mastered. Turns 2.1 to 4.4 s |
 | Off-topic turns | Yes, typed | Football, "just tell me the answer" and a cat joke, mid-session on three topics: all flagged, none drawn, none counted as a try. Not yet tried by voice |
+| Voice, after the overnight changes | Yes, automated, Sun 15 Nov | `talk.js` with the Mac's own voice: cell (Mastered in two turns), hint (sketch after two misses, then Mastered, twice), off topic and notes. All reached Mastered. Recorded speech in headless Chrome, not a person at a microphone |
+| Off topic, by voice | Yes, automated | "Favourite football team?" got "Back to cells! …", "just tell me the answer" got "I don't know, that's why I'm asking." Neither was scored or drawn |
+| Notes, by voice | Yes, automated | Uploaded the test PDF, the part swap was flagged, the correction reached Mastered, Milo used the notes' word "battery packs" |
 | Answer-word check | Unit tests only | `node scripts/line-check/test.cjs`: 21 cases pass. The brain never leaked in the sweep, so the swap never fired for real |
 
 ## Likely questions

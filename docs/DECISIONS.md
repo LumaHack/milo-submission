@@ -120,6 +120,10 @@ Yusuf's goal: Milo should hold up on any topic, not only the filmed cell. A thre
 
 **D45. Off-topic turns are not part of the explanation.** Small talk, jokes, other subjects and "just tell me the answer" are flagged, not scored, not drawn, and dropped so they never count as a try towards a hint. Before this, "just tell me the answer" was marked as something to draw. Milo's ElevenLabs agent prompt is not changed: whether Ali's branch shares the same agent was not known.
 
+**D46. Milo's voice stays on topic too.** Yusuf's ElevenLabs key is separate from Ali's, so the agent prompt was changed on this branch. Talk to Milo about something else and he does not answer it: one warm line back to the topic. Ask him to explain or to be someone else and he says he doesn't know, that is why he is asking. Checked by voice.
+
+**D47. Milo skips a question that was just answered.** His instant reply uses the app note from the turn before, so he once asked "what tells everything what to do?" right after being told. The note now says to skip it if the student has just answered it. Fixed in one voice run, still seen once in another: the agent answers before the brain has scored the new turn, which is how approach A works.
+
 ## Still open
 
 | Question | Who can settle it |
