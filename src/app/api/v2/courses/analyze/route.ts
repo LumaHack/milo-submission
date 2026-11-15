@@ -93,9 +93,19 @@ export async function POST(request: Request) {
   }
 
   const encoder = new TextEncoder();
+  // The Claude call in flight, so it can be stopped if the student presses "Stop" or leaves the page.
+  let reading: { abort: () => void } | null = null;
+  let stopped = false;
   const stream = new ReadableStream<Uint8Array>({
+    cancel() {
+      stopped = true;
+      reading?.abort();
+    },
     async start(controller) {
-      const send = (line: Line) => controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
+      const send = (line: Line) => {
+        // Once the browser has gone there is nobody to write to.
+        if (!stopped) controller.enqueue(encoder.encode(`${JSON.stringify(line)}\n`));
+      };
       const client = new Anthropic();
       const model = v2Model();
       const started = Date.now();
@@ -116,6 +126,7 @@ export async function POST(request: Request) {
           system: [{ type: "text", text: analysisSystemPrompt(), cache_control: { type: "ephemeral" } }],
           messages: [{ role: "user", content: userContent(files, name) }],
         });
+        reading = run;
         let shown = 0;
         let writing = false;
         run.on("text", (_delta, snapshot) => {
@@ -166,6 +177,10 @@ export async function POST(request: Request) {
         }
         send({ type: "done", course, meta });
       } catch (error) {
+        if (stopped) {
+          logUsage({ route: "courses/analyze", stoppedByStudent: true, seconds: (Date.now() - started) / 1000 });
+          return;
+        }
         const message =
           error instanceof Anthropic.RateLimitError
             ? "Claude is busy right now. Try again in a moment."
@@ -175,7 +190,7 @@ export async function POST(request: Request) {
         logUsage({ route: "courses/analyze", failed: error instanceof Error ? error.message.slice(0, 300) : "unknown" });
         send({ type: "error", message });
       } finally {
-        controller.close();
+        if (!stopped) controller.close();
       }
     },
   });

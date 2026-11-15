@@ -59,11 +59,13 @@ export function CourseNew() {
 
   const add = (list: FileList | File[] | null) => {
     if (!list) return;
+    // Copied now: the picker's own list is emptied right after this call, before React runs the update below.
+    const picked = Array.from(list);
     setError(null);
     setFiles((current) => {
       // The same file picked twice counts once.
       const known = new Set(current.map((file) => `${file.name}:${file.size}`));
-      return [...current, ...Array.from(list).filter((file) => !known.has(`${file.name}:${file.size}`))];
+      return [...current, ...picked.filter((file) => !known.has(`${file.name}:${file.size}`))];
     });
   };
 
