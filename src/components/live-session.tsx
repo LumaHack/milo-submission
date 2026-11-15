@@ -67,6 +67,12 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   // chatter in the room after the lesson cannot start him talking again.
   const closing = useRef<{ since: number; spoke: boolean } | null>(null);
 
+  // How many times the call was reopened by itself, and whether Milo has been heard from at all.
+  const retries = useRef(0);
+  const everConnected = useRef(false);
+  const retryPending = useRef(false);
+  const reconnect = useRef<() => void>(() => {});
+
   const conversation = useConversation({
     onMessage: (payload) => {
       log.current.push({ who: payload.role, text: payload.message, at: Date.now() });
@@ -81,19 +87,36 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
       else addTurn(payload.message);
     },
     // A fresh connection clears any earlier voice error, so it cannot hide a later one.
-    onConnect: () => setVoiceError(null),
+    onConnect: () => {
+      retries.current = 0;
+      setVoiceError(null);
+    },
     // Kept in the developer log, so a dropped connection can be explained afterwards.
     onDisconnect: (details) => {
       log.current.push({ who: "disconnect", text: JSON.stringify(details) });
       // A drop that was not the student's doing gets said out loud on screen, never swallowed.
       const info = details as { reason?: string; message?: string };
-      if (info.reason === "error") {
+      if (info.reason === "error" && !retryPending.current) {
         console.error("Milo dropped out:", info.message);
         setVoiceError("Milo dropped out. Press the button under him to bring him back.");
       }
     },
     onError: (message) => {
       log.current.push({ who: "error", text: String(message) });
+      // The call sometimes fails to open on the first try (seen in testing: "could not establish pc
+      // connection"). Try again twice by ourselves before asking the student to press anything.
+      if (retryPending.current) return;
+      if (/connection|websocket|disconnected/i.test(String(message)) && retries.current < 2 && !everConnected.current) {
+        retries.current += 1;
+        retryPending.current = true;
+        log.current.push({ who: "retry", text: `Opening the call again, try ${retries.current + 1}` });
+        setVoiceError(null);
+        window.setTimeout(() => {
+          retryPending.current = false;
+          reconnect.current();
+        }, 1500 * retries.current);
+        return;
+      }
       setVoiceError(
         /permission|notallowed/i.test(message)
           ? "Milo needs your microphone. Allow it in the browser, then press the button under Milo."
@@ -102,6 +125,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
     },
   });
   const connected = conversation.status === "connected";
+  useEffect(() => {
+    if (connected) everConnected.current = true;
+  }, [connected]);
   const connecting = conversation.status === "connecting";
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
@@ -227,6 +253,7 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const connectRef = useRef(connect);
   useEffect(() => {
     connectRef.current = connect;
+    reconnect.current = () => void connect();
   });
   const idle = conversation.status === "disconnected" || conversation.status === "error";
   const tried = useRef(false);

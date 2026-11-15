@@ -82,6 +82,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [x] **A cheap check for prompt changes.** `scripts/regress/check.py`: eleven moments, about $1, prints what changed since the baseline.
 - [x] **Cached turn instructions.** About 90% of each turn's input now comes from the prompt cache. Turn time about the same, cost much lower.
 - [x] **Awkward students** (D50). Sixteen edge moments sent to the brain; "I'm done" now wraps up, "I don't know" draws nothing, and Milo's final summary is no longer swapped by mistake. Two of them are in `check.py` (13 cases, all pass). *A human must check:* how the wrap-up sounds by voice when a student says they are done.
+- [x] **Voice keeps on target and reconnects** (D51, D52). Milo's voice is told the open gaps; the call reopens by itself if the first try fails. Spoken runs on Sun 15 Nov after the changes: cell, "I'm done", off topic and hint all ended as expected. *A human must check:* one session with a real microphone, and how often the first try fails in a real browser.
 - [x] **No answer words** (D44). Unit tests in `scripts/line-check/test.cjs` (21 cases, `node scripts/line-check/test.cjs`). The brain never leaked in the sweep, so the swap has only been seen in those tests.
 
 ## Not doing
