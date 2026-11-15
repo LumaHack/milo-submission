@@ -11,7 +11,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 
-import { fallbackParams, metaFrom, v2FastMode, v2Model } from "@/lib/v2/claude";
+import { fallbackParams, metaFrom, v2FastMode, v2Model, type Effort } from "@/lib/v2/claude";
 import { buildCourse } from "@/lib/v2/course-build";
 import { describeFiles, FileProblem, readCourseFiles, type ReadFile } from "@/lib/v2/course-files";
 import { analysisInstruction, analysisSystemPrompt, CourseAnalysisSchema } from "@/lib/v2/course-prompts";
@@ -24,6 +24,13 @@ type Line =
   | { type: "error"; message: string };
 
 const TRY_AGAIN = "Claude could not sort this course into parts. Try again in a moment.";
+
+/**
+ * How hard Claude thinks while it sorts a course. Medium was chosen from our own runs
+ * (docs/COURSES.md, "Measured"): a fifth faster than high, the parts were as good, and it
+ * still ignored the instruction hidden in the messy test deck.
+ */
+const DEFAULT_EFFORT: Effort = "medium";
 
 /** The files as Claude reads them, between two markers, with the instruction after them. */
 function userContent(files: ReadFile[], name: string): Anthropic.Beta.BetaContentBlockParam[] {
@@ -40,9 +47,7 @@ function userContent(files: ReadFile[], name: string): Anthropic.Beta.BetaConten
     }
     return { type: "image", source: { type: "base64", media_type: file.mediaType, data: file.base64 } };
   });
-  // The files are the long, unchanging part of the request, so the cache point sits on the last one.
-  const last = blocks.at(-1);
-  if (last && (last.type === "document" || last.type === "image")) last.cache_control = { type: "ephemeral" };
+  // The files are not cached: a course is read once, and writing a cache costs a quarter more.
   return [
     { type: "text", text: `<course_material>\nThe student uploaded ${files.length} ${files.length === 1 ? "file" : "files"}.` },
     ...blocks,
@@ -95,12 +100,17 @@ export async function POST(request: Request) {
       const model = v2Model();
       const started = Date.now();
 
+      // Development only: ?speed=standard reads without fast mode and ?effort=… changes how hard
+      // Claude thinks, to compare time, cost and quality (docs/COURSES.md, "Measured").
+      const dev = process.env.NODE_ENV === "production" ? null : new URL(request.url).searchParams;
+      const wanted = dev?.get("effort");
+      const effort: Effort = wanted === "low" || wanted === "medium" || wanted === "high" ? wanted : DEFAULT_EFFORT;
+
       const read = async (withFastMode: boolean) => {
         const run = client.beta.messages.stream({
           model,
           max_tokens: 32000,
-          // Sorting a whole course is the one place v2 asks Claude to think hard.
-          output_config: { effort: "high", format: betaZodOutputFormat(CourseAnalysisSchema) },
+          output_config: { effort, format: betaZodOutputFormat(CourseAnalysisSchema) },
           ...(withFastMode ? { speed: "fast" as const } : {}),
           ...fallbackParams(model),
           system: [{ type: "text", text: analysisSystemPrompt(), cache_control: { type: "ephemeral" } }],
@@ -122,9 +132,7 @@ export async function POST(request: Request) {
 
       try {
         send({ type: "status", text: `Claude is reading ${describeFiles(files)}` });
-        // Development only: ?speed=standard reads without fast mode, to compare time and cost.
-        const standard = process.env.NODE_ENV !== "production" && new URL(request.url).searchParams.get("speed") === "standard";
-        let fast = v2FastMode() && !standard;
+        let fast = v2FastMode() && dev?.get("speed") !== "standard";
         let message;
         try {
           message = await read(fast);
@@ -136,7 +144,7 @@ export async function POST(request: Request) {
         }
 
         const meta = metaFrom(message, fast, started);
-        logUsage({ route: "courses/analyze", stop: message.stop_reason, files: files.length, ...meta });
+        logUsage({ route: "courses/analyze", stop: message.stop_reason, files: files.length, effort, ...meta });
 
         if (message.stop_reason === "refusal" || message.stop_reason === "max_tokens" || !message.parsed_output) {
           send({ type: "error", message: TRY_AGAIN });

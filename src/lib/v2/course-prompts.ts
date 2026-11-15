@@ -12,8 +12,8 @@ import { V2_TOPICS } from "./topics";
 const IdeaOutSchema = z.object({
   id: z.string().describe("A short slug: lower-case letters, digits and hyphens."),
   idea: z.string().describe("What a complete explanation says, in one or two sentences, with the details. Never shown to the student."),
-  core: z.string().describe("The least the student must get across, one sentence of at most 25 words. Then name any details as a bonus."),
-  term: z.string().describe("The proper word or words for this idea, as few as possible."),
+  core: z.string().describe("The least the student must get across: one point, one sentence of at most 20 words. Then name any details as a bonus."),
+  term: z.string().describe("The proper word or words for this idea, as few as possible. Empty when the idea has no name of its own."),
   gapLabel: z.string().describe("A question in everyday words, at most 8 words, no question mark, without the term or the answer."),
 });
 
@@ -21,7 +21,7 @@ const PartOutSchema = z.object({
   id: z.string().describe("A short slug: lower-case letters, digits and hyphens."),
   title: z.string().describe("At most 6 words, the way a student would name the topic."),
   blurb: z.string().describe("One line under the title, at most 10 words. Says what the part covers without explaining it."),
-  about: z.string().describe('Completes "I don\'t know anything about …": lower case, no full stop.'),
+  about: z.string().describe('Completes "I don\'t know anything about …": starts in lower case, names keep their capitals, no full stop.'),
   tone: z.string().describe("Empty, unless the topic is about war, death, illness or suffering."),
   keywords: z.array(z.string()).describe("Up to 10 hard names or terms a speech-to-text system might mishear."),
   layout: LayoutKindSchema.describe("How the part is best drawn."),
@@ -38,7 +38,7 @@ export const CourseAnalysisSchema = z.object({
   skipped: z.array(z.string()).describe("What was left out on purpose: up to 6 short lines the student will read."),
   outline: z
     .array(z.object({ heading: z.string(), facts: z.array(z.string()) }))
-    .describe("A compact map of the whole material: up to 30 headings, each with up to 6 short facts."),
+    .describe("A compact map of the whole material: up to 20 headings, each with up to 5 short facts."),
 });
 export type CourseAnalysis = z.infer<typeof CourseAnalysisSchema>;
 
@@ -96,7 +96,7 @@ For each part:
 - id: a short slug of lower-case letters, digits and hyphens.
 - title: at most 6 words, the way a student would name the topic ("How the heart pumps blood").
 - blurb: one line under the title, at most 10 words. It says what the part covers without explaining it ("Four chambers and two loops.").
-- about: completes the sentence "I don't know anything about …", in lower case with no full stop ("how the heart pumps blood").
+- about: completes the sentence "I don't know anything about …". It starts in lower case, keeps the capital letters of names, and has no full stop ("how the heart pumps blood", "why the League of Nations failed").
 - tone: empty for most parts. For a part about war, death, illness or suffering: one sentence telling Milo to stay curious and kind and never joke about it.
 - keywords: up to 10 hard names or terms from this part that a speech-to-text system might mishear.
 - layout: how the part is best drawn. Choose by the shape of the explanation, not by the subject:
@@ -105,8 +105,8 @@ ${layoutList()}
 - keyIdeas, in the order a good explanation gives them. For each:
   - id: a short slug.
   - idea: what a complete explanation says, in one or two sentences, with the details the material gives (dates, numbers, names). Never shown to the student.
-  - core: the least the student must get across for the idea to count, in one sentence of at most 25 words, in plain words. Then, if the idea has details beyond that, name them as a bonus ("The year and the numbers are a bonus."). The student is marked on the core only, so keep it short and fair: a student who understands but forgets a date must still pass.
-  - term: the proper word or words for this idea, as few as possible ("mitochondria", "Treaty of Versailles").
+  - core: the least the student must get across for the idea to count, in one sentence of at most 20 words, in plain words. It holds one point: one fact, or one cause with its effect. If you need a second "and", the rest is either another key idea or a bonus. Then, if the idea has details beyond the core, name them as a bonus ("The year and the numbers are a bonus."). The student is marked on the core only, so keep it short and fair: a student who understands but forgets a date or one item of a list must still pass.
+  - term: the proper word or words for this idea, as few as possible ("mitochondria", "Treaty of Versailles"). In exam mode the student must say it, so only give one when the subject really has a name for the idea. Leave it empty when the idea is a plain fact with no name of its own ("Germany lost land").
   - gapLabel: how the idea is named on the student's screen while it is still missing. A short question in everyday words, at most 8 words, written without a question mark. It must not contain the term and must not give the answer away ("Where the energy comes from", "Why nobody stopped him"). Never "What mitochondria do".
 
 A good part looks like this one:
@@ -136,7 +136,7 @@ parts: the parts a student should be able to explain.
 
 skipped: what you left out on purpose, as up to 6 short lines the student will read ("Exam dates and the reading list"). If a topic could only be drawn with people, flags, symbols or weapons and fits no layout, leave it out and say so here.
 
-outline: a compact map of the whole material, so that one more part can be built later without the files. Up to 30 headings in the order of the material, each with up to 6 facts of at most 20 words. Cover what the parts leave out too. Course content only.`;
+outline: a compact map of the whole material, so that one more part can be built later without the files. Up to 20 headings in the order of the material, each with up to 5 facts of at most 15 words. Cover what the parts leave out too. Course content only.`;
 }
 
 export function focusSystemPrompt(): string {

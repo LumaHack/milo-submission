@@ -53,8 +53,11 @@ export function isFiller(text: string): boolean {
 
 type ScoredTurn = V2TurnResult & { seconds: number };
 
-/** A history frame, plus what the timeline needs to label it. */
-export type V2Frame = Frame & { hintStep: HintStep; clear: number };
+/**
+ * A history frame, plus what the timeline needs to label it, and the instruction that drew it.
+ * The end page reads the instructions to know which labels belong on the finished sheet.
+ */
+export type V2Frame = Frame & { hintStep: HintStep; clear: number; drawPrompt?: string };
 
 export type V2Live = {
   level: Level | null;
@@ -221,6 +224,7 @@ export function useMiloV2(topic: V2Topic, mode: Mode, initial: SavedSession | nu
         gaps: gapsAfter(result),
         hintStep: result.hintStep,
         clear: result.ideas.filter((idea) => idea.status === "clear").length,
+        drawPrompt: result.drawPrompt,
       };
       framesRef.current = [...framesRef.current, frame];
       setFrames(framesRef.current);

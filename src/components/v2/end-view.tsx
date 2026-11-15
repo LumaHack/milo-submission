@@ -25,15 +25,25 @@ import { frameLabel, IDEA_WORD, IdeaIcon } from "./session-view-v2";
 
 /**
  * The instruction for the careful model. It tidies the last board and must not change what it says.
- * The title is given word for word: left to itself, the model made one up, with dates the student never said.
+ * - The title is given word for word: left to itself, the model made one up, with dates the student never said.
+ * - The labels are given too, when the summary could list them: the fast model sometimes leaves a
+ *   garbled or leftover word on a live board, and "change nothing" would keep it on the finished sheet.
  */
-function polishPrompt(title: string): string {
+function polishPrompt(title: string, labels: string[]): string {
+  const quote = (text: string) => `'${text.replace(/'/g, "’")}'`;
+  const writing =
+    labels.length >= 2
+      ? `The sheet must carry exactly these labels, in this order, each one written once and in full, spelled exactly as given: ${labels.map(quote).join(", ")}. ` +
+        "Erase the old writing and write each label again, straight and horizontal, never sideways, in the place " +
+        "where it was. Nothing else is written on the paper: no repeated or leftover words and no question marks. "
+      : "Do not add, remove or change any label or word. ";
   return (
-    "Keep the same drawing and the same content. Make it clean and organised like a finished revision sheet: " +
-    `neat lines, label boxes, and one title top left, spelled exactly: '${title.replace(/'/g, "’")}'. ` +
+    "Keep the same drawing, the same layout and the same colours. Make it clean and organised like a finished revision sheet: " +
+    `neat lines, label boxes, and one title top left, spelled exactly: ${quote(title)}. ` +
     "Give every part the same care: labels the same size, all easy to read. " +
-    "Do not add, remove or change any part, label or word. Do not add dates, numbers, question marks or shapes " +
-    "that are not already on the paper. No people, faces, flags, symbols or weapons."
+    writing +
+    "Do not add parts, shapes, dates or numbers that are not already on the paper. " +
+    "No people, faces, flags, symbols or weapons."
   );
 }
 
@@ -135,17 +145,47 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
   // Only a finished explanation gets one. An unfinished board stays as Milo drew it: asked to tidy
   // one, the careful model filled the gaps with things the student never said (docs/V2.md).
   const kept = complete && last && saved.polished?.from === last.imageUrl ? saved.polished.url : null;
+  const willTidy = complete && Boolean(last) && !kept;
   const [polished, setPolished] = useState<string | null>(kept);
-  const [tidying, setTidying] = useState(false);
-  const polishStarted = useRef(false);
+  const [tidying, setTidying] = useState(willTidy);
+
+  // The student's own words for what they nailed. Asked once, then kept with the saved session.
+  const keptSummary = saved.summary && saved.summary.turns === saved.turns.length ? saved.summary : null;
+  const willSummarise = !keptSummary && clear > 0 && saved.turns.length > 0;
+  const [nailed, setNailed] = useState<V2SummaryResult["nailed"] | null>(keptSummary?.nailed ?? null);
+  const [summarising, setSummarising] = useState(willSummarise);
+
+  // When the page opens: the summary first, then the tidy sheet, which uses the labels the summary found.
+  const opened = useRef(false);
   useEffect(() => {
-    if (!complete || !last || polished || polishStarted.current) return;
-    polishStarted.current = true;
-    const tidy = async () => {
-      setTidying(true);
+    if (opened.current) return;
+    opened.current = true;
+    const open = async () => {
+      let labels = keptSummary?.labels ?? [];
+      if (willSummarise) {
+        // Every board's drawing instruction, if this session kept them all. They say which labels belong on the sheet.
+        const drawPrompts = frames.map((entry) => entry.drawPrompt ?? "");
+        try {
+          const result = await postJson<V2SummaryResult>("/api/v2/summary", {
+            topicId: topic.id,
+            ...(topic.custom ? { part: topicToPart(topic) } : {}),
+            studentTurns: saved.turns,
+            ideas: topic.keyIdeas.map((idea, i) => ({ id: idea.id, status: statuses[i] })),
+            ...(willTidy && drawPrompts.every(Boolean) ? { drawPrompts } : {}),
+          });
+          labels = result.labels ?? [];
+          setNailed(result.nailed);
+          updateSession(topic.id, mode, { summary: { nailed: result.nailed, labels, turns: saved.turns.length } });
+        } catch {
+          // Without the summary the ideas are still listed, just without the student's words.
+        } finally {
+          setSummarising(false);
+        }
+      }
+      if (!willTidy || !last) return;
       try {
         const drawn = await postJson<DrawResult>("/api/v2/draw", {
-          prompt: polishPrompt(topic.title),
+          prompt: polishPrompt(topic.title, labels),
           previousImageUrl: last.imageUrl,
           final: true,
         });
@@ -159,36 +199,7 @@ function Ended({ target, saved, sessionHref }: { target: Target; saved: SavedSes
         setTidying(false);
       }
     };
-    void tidy();
-    // Runs once, when the page opens.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // The student's own words for what they nailed. Asked once, then kept with the saved session.
-  const keptSummary = saved.summary && saved.summary.turns === saved.turns.length ? saved.summary.nailed : null;
-  const [nailed, setNailed] = useState<V2SummaryResult["nailed"] | null>(keptSummary);
-  const [summarising, setSummarising] = useState(!keptSummary && clear > 0 && saved.turns.length > 0);
-  const summaryStarted = useRef(false);
-  useEffect(() => {
-    if (nailed || clear === 0 || saved.turns.length === 0 || summaryStarted.current) return;
-    summaryStarted.current = true;
-    const summarise = async () => {
-      try {
-        const result = await postJson<V2SummaryResult>("/api/v2/summary", {
-          topicId: topic.id,
-          ...(topic.custom ? { part: topicToPart(topic) } : {}),
-          studentTurns: saved.turns,
-          ideas: topic.keyIdeas.map((idea, i) => ({ id: idea.id, status: statuses[i] })),
-        });
-        setNailed(result.nailed);
-        updateSession(topic.id, mode, { summary: { nailed: result.nailed, turns: saved.turns.length } });
-      } catch {
-        // Without the summary the ideas are still listed, just without the student's words.
-      } finally {
-        setSummarising(false);
-      }
-    };
-    void summarise();
+    void open();
     // Runs once, when the page opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

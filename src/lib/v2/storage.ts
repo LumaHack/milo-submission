@@ -8,6 +8,8 @@ import type { Memory, V2Frame, V2Live } from "./use-milo-v2";
 /** The student's own words for each idea they explained clearly, picked once for the end page. */
 export type SavedSummary = {
   nailed: { id: string; words: string | null }[];
+  /** The labels the finished sheet should carry, for the tidy sheet. */
+  labels?: string[];
   /** How many student turns the summary covers. A later turn makes it out of date. */
   turns: number;
 };

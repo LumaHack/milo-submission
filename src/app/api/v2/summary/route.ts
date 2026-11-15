@@ -6,6 +6,7 @@
 import { askClaude, claudeErrorResponse } from "@/lib/v2/claude";
 import { topicFromRequest } from "@/lib/v2/part";
 import {
+  groundLabels,
   groundPicks,
   summarySystemPrompt,
   summaryUserMessage,
@@ -35,7 +36,7 @@ export async function POST(request: Request) {
   );
   // Nothing clear means nothing to quote, and no call to make.
   if (clearIdeas.length === 0) {
-    return Response.json({ nailed: [] } satisfies V2SummaryResult);
+    return Response.json({ nailed: [], labels: [] } satisfies V2SummaryResult);
   }
 
   try {
@@ -47,15 +48,19 @@ export async function POST(request: Request) {
         topicTitle: topic.title,
         clearIdeas: clearIdeas.map((idea) => ({ id: idea.id, question: idea.gapLabel, idea: idea.idea })),
         studentTurns: input.studentTurns,
+        drawPrompts: input.drawPrompts,
       }),
       effort: "low",
       maxTokens: 8000,
     });
-    const result = groundPicks(
-      output.picks,
-      clearIdeas.map((idea) => idea.id),
-      input.studentTurns,
-    );
+    const result: V2SummaryResult = {
+      nailed: groundPicks(
+        output.picks,
+        clearIdeas.map((idea) => idea.id),
+        input.studentTurns,
+      ),
+      labels: groundLabels(output.labels, input.drawPrompts ?? [], topic.title),
+    };
     return Response.json({ ...result, model: meta.model, fast: meta.fast, seconds: meta.seconds, tokens: meta.tokens });
   } catch (error) {
     return claudeErrorResponse(error);

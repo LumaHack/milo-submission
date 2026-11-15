@@ -223,14 +223,19 @@ export async function readCourseFiles(files: File[]): Promise<ReadFile[]> {
   return read;
 }
 
-/** "your 21 slides", "your 3 files": how the progress line names what Claude is reading. */
+/** "your 22 pages", "your 7 slides and 2 photos": how the progress line names what Claude is reading. */
 export function describeFiles(files: ReadFile[]): string {
-  const pages = files.reduce((sum, file) => sum + (file.kind === "photo" ? 0 : (file.pages ?? 0)), 0);
+  const count = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+  const pages = files.reduce((sum, file) => sum + (file.kind === "pdf" ? (file.pages ?? 0) : 0), 0);
+  // A PowerPoint file has slides. A Word file has no page count worth showing.
+  const slides = files.reduce((sum, file) => sum + (file.kind === "text" ? (file.pages ?? 0) : 0), 0);
   const photos = files.filter((file) => file.kind === "photo").length;
-  const countable = files.every((file) => file.kind === "photo" || file.pages !== null);
+  const uncounted = files.filter((file) => file.kind !== "photo" && file.pages === null).length;
   const parts: string[] = [];
-  if (pages > 0 && countable) parts.push(`${pages} ${pages === 1 ? "page" : "pages"}`);
-  else if (files.length - photos > 0) parts.push(`${files.length - photos} ${files.length - photos === 1 ? "file" : "files"}`);
-  if (photos > 0) parts.push(`${photos} ${photos === 1 ? "photo" : "photos"}`);
-  return `your ${parts.join(" and ")}`;
+  if (pages > 0) parts.push(count(pages, "page"));
+  if (slides > 0) parts.push(count(slides, "slide"));
+  if (uncounted > 0) parts.push(count(uncounted, "file"));
+  if (photos > 0) parts.push(count(photos, "photo"));
+  const last = parts.pop();
+  return `your ${parts.length > 0 ? `${parts.join(", ")} and ${last}` : last}`;
 }

@@ -103,12 +103,15 @@ ${examplesIntro}
 ${examples}`;
 }
 
+const NO_TERM = "(this idea has no proper term: everyday words are enough, in exam mode too)";
+
 /** The user message for /api/v2/turn. Plain JSON, easy to log and replay. */
 export function v2UserMessage(topic: V2Topic, input: V2TurnRequest): string {
   return JSON.stringify(
     {
       topic: topic.title,
-      keyIdeas: topic.keyIdeas.map(({ id, idea, core, term }) => ({ id, idea, core, term })),
+      // A part of a course can hold an idea with no proper term. Saying so keeps exam mode from waiting for one.
+      keyIdeas: topic.keyIdeas.map(({ id, idea, core, term }) => ({ id, idea, core, term: term || NO_TERM })),
       mode: input.mode,
       studentTurns: input.studentTurns,
       beforeThisTurn: {
