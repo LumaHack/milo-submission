@@ -22,9 +22,13 @@ Read, in this order:
 
 ## The product in four sentences
 
-A student explains a topic out loud to Milo, a cartoon kid who knows nothing. Milo draws exactly what the student said, and only that. The drawing starts as a messy crayon scribble and becomes a clean revision sheet as the explanation improves. Milo never explains: he gives a vague hint at the biggest gap, and he ages from 4 to 18 across the session.
+A student explains a topic out loud to Milo, a cartoon kid who knows nothing. Milo draws what the student said. The drawing starts as a messy crayon scribble and becomes a clean revision sheet as the explanation improves. Milo follows rather than leads: he asks one small question about the biggest gap, and he ages from 4 to 18 across the session.
 
-If a feature idea makes Milo explain, teach, or draw something the student did not say, it is the wrong feature.
+Milo is also a bit of a teacher, at one moment only. When the student has tried the same gap twice and is still not there, he says they are onto something, sketches a small hint on the paper in blue dashed pencil, and asks them to build on it. The idea only counts once the student says it in their own words.
+
+Every turn is fact-checked before anything is drawn. A clearly wrong statement goes on the paper small and grey with a red question mark, never as a fact, and Milo asks about it first.
+
+Outside that moment, if a feature idea makes Milo explain, lead, or draw something the student did not say, it is the wrong feature.
 
 ## Hard rules
 
@@ -55,7 +59,7 @@ If a feature idea makes Milo explain, teach, or draw something the student did n
 
 **Scope**
 - Build the backlog in order. P0 before P1 before P2. Don't start a P1 while a P0 is not working end to end.
-- Milo is the submission. Nolan (the witness-interview mode) is out of scope unless a human says otherwise.
+- Milo is the submission. Nolan (witness interviews) is a separate product in `nolan/`, with its own README and design. Don't mix the two: nothing in `src/` imports from `nolan/`, and Milo's rules about its look and scope do not apply there.
 - The demo topic is biology, "How a cell works". Don't generate images of real people, flags or war.
 
 ## How to work
@@ -77,4 +81,5 @@ If a feature idea makes Milo explain, teach, or draw something the student did n
 | `design/milo/` | Milo at ages 4, 7, 11, 18 (real fal output) |
 | `design/claude-design/` | The v3 screens as HTML. Read for exact styles. Not runnable on their own |
 | `scripts/` | The fal test scripts. Python, standard library only |
+| `nolan/` | Nolan, a separate app. See `nolan/README.md` |
 | `.claude/agents/` | `design-reviewer` and `spec-checker`. Use them before you call a screen done |

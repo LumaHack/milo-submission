@@ -1,0 +1,21 @@
+# secrets: never commit a key
+.env
+.env.*
+!.env.example
+
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+
+# cases on file: witness accounts, never committed
+.data/
+
+# output of the spoken test
+scripts/voice-test/out/
+
+# the self-signed certificate made by pnpm dev:https, for this machine only
+.cert/

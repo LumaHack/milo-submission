@@ -20,8 +20,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "The request does not match DrawRequest.", issues: body.error.issues }, { status: 400 });
   }
 
-  const { prompt, previousImageUrl, level } = body.data;
-  const endpoint = falEndpointFor(level, previousImageUrl !== null);
+  const { prompt, previousImageUrl, level, detail } = body.data;
+  const endpoint = falEndpointFor(level, previousImageUrl !== null, detail !== "basics");
   const input = {
     prompt,
     aspect_ratio: "16:9",

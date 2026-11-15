@@ -14,10 +14,10 @@ import { Page, pill } from "@/components/ui";
 import { formatClock } from "@/lib/demo";
 import { LEVELS, levelInfo, type Level } from "@/lib/levels";
 import type { Frame, IdeaStatus, MiloStatus } from "@/lib/turn";
-import type { Step } from "@/lib/use-milo-session";
+import type { Reaction, Step } from "@/lib/use-milo-session";
 
 const STATUS: Record<MiloStatus, { text: string; dot: string; busy: boolean; motion: string; ring: string }> = {
-  off: { text: "Mic is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
+  off: { text: "Milo is off", dot: "bg-miss", busy: false, motion: "animate-breathe", ring: "" },
   connecting: { text: "Waking Milo up", dot: "bg-faint", busy: true, motion: "animate-breathe", ring: "" },
   listening: { text: "Listening", dot: "bg-ok animate-pulse-dot", busy: false, motion: "animate-listen", ring: "var(--color-ok)" },
   thinking: { text: "Thinking", dot: "bg-faint", busy: true, motion: "animate-ponder", ring: "" },
@@ -37,17 +37,27 @@ const IDEA_COLOR: Record<IdeaStatus, string> = {
 export type SessionViewProps = {
   topicTitle: string;
   subjectLine: string;
+  /** Milo's first line, shown until he says something else. */
+  openingLine: string;
   frames: Frame[];
   /** State after the newest scored turn. Shown when the newest frame (or none) is selected. */
-  live: { level: Level | null; hint: string | null; gaps: string[]; ideas?: IdeaStatus[] | null };
+  live: { level: Level | null; hint: string | null; gaps: string[]; ideas?: IdeaStatus[] | null; stuck?: boolean };
+  /** The lesson has ended: everything is clear, or the student has run out. The sheet becomes the next step. */
+  over?: boolean;
   /** What Milo is saying or last said, when it comes from the voice agent. Overrides the hint. */
   spokenLine?: string | null;
   status: MiloStatus;
   drawing: boolean;
+  /** What Milo has jotted on the paper while the drawing is being made. */
+  boardNote?: string | null;
   error: string | null;
   seconds: number;
   /** What the agent has been doing, oldest first. */
   steps: Step[];
+  /** A short burst over Milo's picture. A new id replays it. */
+  reaction?: Reaction | null;
+  /** The last thing the student said, shown next to Milo's reply. */
+  heard?: string | null;
   micOn: boolean;
   micLabel: string;
   /** Shown in the mic bar instead of the waveform, for example before the session starts. */
@@ -56,6 +66,8 @@ export type SessionViewProps = {
   /** Voice level from 0 to 1: the microphone while listening, Milo's own voice while he talks. */
   getVoiceLevel?: () => number;
   onEnd?: () => void;
+  /** Replaces the usual credits line where it would not be true. */
+  credits?: string;
 };
 
 export function SessionView(props: SessionViewProps) {
@@ -65,6 +77,7 @@ export function SessionView(props: SessionViewProps) {
   const [replaying, setReplaying] = useState(false);
   const replayTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const columnRef = useRef<HTMLElement>(null);
+  const stripRef = useRef<HTMLDivElement>(null);
 
   const stopReplay = () => {
     if (replayTimer.current) clearInterval(replayTimer.current);
@@ -84,7 +97,8 @@ export function SessionView(props: SessionViewProps) {
   useEffect(() => {
     const node = columnRef.current;
     if (!node) return;
-    if (!voiceActive || !getVoiceLevel) {
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!voiceActive || !getVoiceLevel || calm) {
       node.style.setProperty("--vol", "0");
       return;
     }
@@ -101,6 +115,12 @@ export function SessionView(props: SessionViewProps) {
     return () => cancelAnimationFrame(raf);
   }, [voiceActive, getVoiceLevel]);
 
+  // Keep the newest frame in view when the strip grows past four.
+  useEffect(() => {
+    const strip = stripRef.current;
+    if (strip) strip.scrollTo({ left: strip.scrollWidth, behavior: "smooth" });
+  }, [frames.length]);
+
   // A new board always takes over the view, unless a replay is running.
   const frameCount = frames.length;
   const [seenCount, setSeenCount] = useState(frameCount);
@@ -116,11 +136,19 @@ export function SessionView(props: SessionViewProps) {
   const level: Level = (onNewest ? live.level : null) ?? frame?.level ?? 1;
   const gaps = onNewest ? live.gaps : (frame?.gaps ?? []);
   const line =
-    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ??
-    "Hi, I'm Milo. I don't know anything about cells. Can you explain how a cell works?";
+    (onNewest ? (props.spokenLine ?? live.hint) : frame?.hint) ?? props.openingLine;
   const info = levelInfo(level);
   const status = STATUS[props.status];
   const scored = live.level !== null || frames.length > 0;
+
+  // The grow-up effect is the one big moment, so it only plays when Milo really levels up:
+  // not when the page loads, not when an older frame is opened, not during a replay.
+  const [shownLevel, setShownLevel] = useState<Level>(level);
+  const [grewUp, setGrewUp] = useState(false);
+  if (level !== shownLevel) {
+    setGrewUp(level > shownLevel && onNewest && !replaying);
+    setShownLevel(level);
+  }
   const ideas = live.ideas ?? null;
 
   const replay = () => {
@@ -142,6 +170,7 @@ export function SessionView(props: SessionViewProps) {
 
   return (
     <Page
+      credits={props.credits}
       header={
         <>
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1.5">
@@ -151,10 +180,17 @@ export function SessionView(props: SessionViewProps) {
             <span className="text-[15px] text-muted">{props.subjectLine}</span>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/sheet" className={pill.light} onClick={props.onEnd}>
-              Open revision sheet
-            </Link>
-            <Link href="/" className={pill.dark} onClick={props.onEnd}>
+            {frames.length > 0 && (
+              <Link
+                key={String(props.over)}
+                href="/sheet"
+                className={props.over ? `${pill.dark} animate-pop` : pill.light}
+                onClick={props.onEnd}
+              >
+                Open revision sheet
+              </Link>
+            )}
+            <Link href="/" className={props.over ? pill.light : pill.dark} onClick={props.onEnd}>
               End session
             </Link>
           </div>
@@ -179,12 +215,14 @@ export function SessionView(props: SessionViewProps) {
                     key={level}
                     src={info.miloImage}
                     alt={`Milo, age ${info.miloAge}`}
-                    className="block h-full w-full animate-grow-up object-cover object-[50%_25%]"
+                    className={`block h-full w-full object-cover object-[50%_25%] ${grewUp ? "animate-grow-up" : "animate-rise"}`}
                   />
                 </div>
               </div>
               {/* A white flash when he grows up. */}
-              <span key={`flash-${level}`} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-flash bg-card" />
+              {grewUp && (
+                <span key={`flash-${level}`} aria-hidden="true" className="pointer-events-none absolute inset-0 animate-flash bg-card" />
+              )}
               {/* The ring thickens with the voice: green while he listens, black while he talks. */}
               {status.ring && (
                 <span
@@ -192,6 +230,15 @@ export function SessionView(props: SessionViewProps) {
                   className="pointer-events-none absolute inset-0 rounded-tile"
                   style={{ boxShadow: `inset 0 0 0 calc(2px + var(--vol, 0) * 9px) ${status.ring}` }}
                 />
+              )}
+              {props.reaction && (
+                <span
+                  key={props.reaction.id}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute top-3 right-3 animate-reaction rounded-[16px_16px_16px_4px] bg-card px-3.5 py-1.5 border border-line font-crayon text-[28px] leading-none text-ink"
+                >
+                  {props.reaction.text}
+                </span>
               )}
               <span
                 key={props.status}
@@ -210,15 +257,20 @@ export function SessionView(props: SessionViewProps) {
               </span>
             </div>
 
-            <p className="m-0 rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium">
-              <Words key={line} text={line} />
-            </p>
-            <p className="m-0 text-sm leading-normal text-muted">
-              Milo gives a hint at your biggest gap. He never gives the answer.
-            </p>
+            <div className="flex flex-col gap-2">
+              {props.heard && onNewest && (
+                <p
+                  key={props.heard}
+                  className="m-0 ml-auto max-w-[88%] animate-rise rounded-[18px_18px_4px_18px] bg-ink px-4 py-2.5 text-[15px] leading-[1.4] text-white"
+                >
+                  <span className="line-clamp-2">{props.heard}</span>
+                </p>
+              )}
+              <p className="m-0 mr-auto rounded-[18px_18px_18px_4px] bg-panel px-[18px] py-4 text-lg leading-normal font-medium">
+                <Words key={line} text={line} />
+              </p>
+            </div>
           </div>
-
-          <AgentFeed steps={props.steps} />
 
           <div className="flex flex-col gap-3 rounded-card bg-card px-4 py-[18px]">
             <div className="flex items-baseline justify-between gap-3">
@@ -257,7 +309,9 @@ export function SessionView(props: SessionViewProps) {
             )}
           </div>
 
-          <div className="sticky bottom-3 z-10 mt-auto flex items-center gap-3.5 rounded-card bg-card px-4 py-3.5 shadow-paper">
+          <AgentFeed steps={props.steps} />
+
+          <div className="mt-auto flex items-center gap-3.5 rounded-card bg-card px-4 py-3.5">
             <span className="relative flex-none">
               <button
                 type="button"
@@ -308,11 +362,28 @@ export function SessionView(props: SessionViewProps) {
                 />
               ) : (
                 <div className="flex aspect-video w-full items-center justify-center bg-paper p-6 text-center text-[15px] text-muted">
-                  Nothing drawn yet. Start explaining and Milo will draw what you say.
+                  {props.boardNote ? "" : "Nothing drawn yet. Start explaining and Milo will draw what you say."}
                 </div>
               )}
-              {props.drawing && (
-                <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full bg-card px-3.5 py-1.5 text-[13px] font-medium shadow-paper">
+              {/* Milo's jotted note: your words in his handwriting, on the paper about two seconds after you stop. */}
+              {props.boardNote && (
+                <div
+                  key={props.boardNote}
+                  className={`pointer-events-none absolute inset-x-0 flex animate-rise flex-col gap-2 px-6 py-4 ${
+                    frame ? "bottom-0 bg-paper/90" : "inset-y-0 items-center justify-center text-center"
+                  }`}
+                >
+                  <p className={`m-0 font-crayon leading-[1.15] text-ink ${frame ? "text-[26px]" : "max-w-[24ch] text-[40px]"}`}>
+                    <Words text={`“${props.boardNote}”`} />
+                  </p>
+                  <span className="inline-flex items-center gap-2 text-[13px] font-medium text-muted">
+                    Milo is drawing this
+                    <Dots />
+                  </span>
+                </div>
+              )}
+              {props.drawing && !props.boardNote && (
+                <span className="absolute bottom-3 left-1/2 inline-flex -translate-x-1/2 animate-rise items-center gap-2 rounded-full border border-line bg-card px-3.5 py-1.5 text-[13px] font-medium">
                   Milo is drawing
                   <Dots />
                 </span>
@@ -321,7 +392,7 @@ export function SessionView(props: SessionViewProps) {
           </div>
 
           {props.error && (
-            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-miss">
+            <p role="alert" className="m-0 animate-rise rounded-tile border border-line px-4 py-3 text-sm text-ink">
               {props.error}
             </p>
           )}
@@ -345,7 +416,7 @@ export function SessionView(props: SessionViewProps) {
               </button>
             </div>
             {frames.length > 0 ? (
-              <div className="flex gap-2.5 overflow-x-auto pb-1">
+              <div ref={stripRef} className="flex gap-2.5 overflow-x-auto pb-1">
                 {frames.map((entry, i) => {
                   const last = i === frames.length - 1 && entry.level === 4;
                   return (
@@ -360,12 +431,13 @@ export function SessionView(props: SessionViewProps) {
                       className={`press flex w-[calc(25%-7.5px)] min-w-[180px] flex-none animate-rise flex-col gap-2 rounded-tile border-2 bg-card p-2.5 text-left text-ink ${
                         i === index ? "border-ink" : "border-line"
                       }`}
+                      style={{ animationDelay: "400ms" }}
                     >
                       <span className="pointer-events-none block overflow-hidden rounded-lg border border-line bg-paper">
                         <img src={entry.imageUrl} alt="" className="block aspect-video w-full object-cover" />
                       </span>
                       <span className="flex justify-between gap-2 text-[13px]">
-                        <span className="font-semibold">{last ? "Final sheet" : `Turn ${entry.turn}`}</span>
+                        <span className="font-semibold">{last ? "Final sheet" : entry.hinted ? "Milo's hint" : `Turn ${entry.turn}`}</span>
                         <span className="text-muted tabular-nums">{formatClock(entry.at)}</span>
                       </span>
                       <span className="text-[13px] leading-[1.4] text-muted">“{entry.said}”</span>
@@ -380,7 +452,7 @@ export function SessionView(props: SessionViewProps) {
 
           <div className="flex flex-col gap-2.5">
             <span className="text-[15px] font-semibold">
-              {gaps.length === 0 && scored ? "No gaps left" : "Gaps Milo still hears"}
+              {gaps.length === 0 && scored ? "No gaps left" : live.stuck && onNewest ? "Look these up next" : "Gaps Milo still hears"}
             </span>
             {gaps.length > 0 && (
               <div className="flex flex-wrap gap-2">

@@ -23,8 +23,12 @@ export const FAL_FIRST_BOARD = "google/nano-banana-2-lite";
 export const FAL_FAST_EDIT = "google/nano-banana-2-lite/edit";
 export const FAL_CAREFUL_EDIT = "fal-ai/nano-banana-pro/edit";
 
-/** The first board is a new image. Every later board is an edit of the one before. */
-export function falEndpointFor(level: Level, hasPreviousBoard: boolean): string {
+/**
+ * The first board is a new image. Every later board is an edit of the one before.
+ * The careful model takes about 20 seconds, so it is only used for a dense final sheet. At the Basics
+ * level of detail the final sheet has three labels, which the fast model spells correctly.
+ */
+export function falEndpointFor(level: Level, hasPreviousBoard: boolean, dense: boolean): string {
   if (!hasPreviousBoard) return FAL_FIRST_BOARD;
-  return level === 4 ? FAL_CAREFUL_EDIT : FAL_FAST_EDIT;
+  return level === 4 && dense ? FAL_CAREFUL_EDIT : FAL_FAST_EDIT;
 }

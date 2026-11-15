@@ -53,7 +53,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [x] **Draw route.** DrawRequest in, DrawResult out, right model for the level. *Done when:* the four tested prompts in PROMPTS.md, sent in order, give four boards that look like `design/boards/`.
 - [x] **Brain route.** TurnRequest in, TurnResult out, structured output. *Done when:* the four demo turns give sensible levels (1, 2, 3, 4), hints that do not contain the answer, and drawing instructions with nothing the student did not say.
 - [x] **Brain plus drawing.** One turn of typed text goes through the brain and then fal, and the new board appears in the session screen with a new history frame. *Done when:* typing the four demo turns produces four evolving boards.
-- [x] **Voice.** *On `Ali`: approach A works. Ali spoke to Milo in Chrome on Sat 14 Nov and he answered and redrew. Not yet counted over ten runs.* Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
+- [x] **Voice.** *On `Ali`: approach A worked but lagged a turn behind, which made Milo ask for things just said. Since Sun 15 Nov, 06:30 the branch uses approach B (the `next_line` tool, see D41). Checked in text mode against the real agent and by the spoken test script. A human still needs to check it by ear with a real microphone. Not yet counted over ten runs.* Your branch's voice loop (A, B or C above). Create Milo's agent in the ElevenLabs dashboard with the prompt and settings in PROMPTS.md. *Done when:* you can explain the cell out loud across four turns in one live conversation, with no button held, interrupting Milo at least once, and Milo answers each time without giving an answer and the board redraws each time.
 - [ ] **Drawing state.** "Milo is drawing…" shows within 100 ms, the old board stays, one redraw in flight, newest result wins. *Done when:* talking fast for 30 seconds never shows an empty or out-of-order board.
 - [ ] **Failure handling.** fal slow or failing, Claude returning nothing usable, mic permission denied. *Done when:* each leaves the old board up with a plain message and the session carries on.
 
@@ -61,7 +61,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 
 - [x] **Revision sheet screen.** Final board, "In your words", "How you got here". Save to `localStorage`. *Done when:* it matches `SheetV3` and survives a page reload.
 - [ ] **Level-up moment.** Chip pop, Milo's picture and age change (rules 1, 5, 10 in DESIGN.md). *Done when:* levelling up is the one thing on screen you cannot miss.
-- [ ] **Status badge.** Listening, Thinking, Drawing, Milo is talking, Mic is off, driven by the real state.
+- [ ] **Status badge.** Listening, Thinking, Drawing, Milo is talking, Milo is off, driven by the real state.
 - [ ] **Live waveform.** The bars move with the microphone level while listening.
 - [x] **Scripted fallback mode.** (`/demo`) A switch that runs the session from the reference images with no network. *Done when:* the demo can be filmed even if the venue wifi dies. Say in the video that it is the scripted run if you use it.
 - [ ] **Time everything.** Brain call, each fal call, time from end of speech to new board. Write the numbers into SUBMISSION.md for the Q&A.
@@ -73,7 +73,7 @@ Ticks below are for the `Ali` branch. Ticked items were run, not just written: f
 - [ ] **"Mm-hm" while the student talks.** ElevenLabs has no setting for it. Play a short clip ourselves during long student turns.
 - [ ] **Figma.** Put the v3 screens in a Figma file for the Figma prize. The existing file has older screens.
 - [ ] **A second topic.** Key ideas and a test run for "Photosynthesis".
-- [ ] **Nolan.** Out of scope unless a human says so.
+- [x] **Nolan.** Built as its own product in `nolan/` on Ali's say-so (D33). Run end to end, including one spoken interview with generated speech through a simulated microphone. *A human must check:* talking to Nolan through a real microphone, and an interview link opened on a phone over https. See `nolan/README.md`.
 
 ## Not doing
 

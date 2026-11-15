@@ -1,0 +1,659 @@
+"use client";
+
+// The interview: the only screen a witness sees. From design/Main.dc.html.
+// Nolan is an ElevenLabs agent in a live conversation. The browser reads what the witness said from
+// the agent's transcript and has Claude keep the written notes. No picture is ever shown here.
+
+import type { AnamClient } from "@anam-ai/js-sdk";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Dots, Page } from "@/components/ui";
+import { formatClock, type Detail, type Fact, type Invite, type Turn, type Witness } from "@/lib/nolan";
+import { NOLAN_COVERED_NOTE, detailList, nolanCatchUpNote, nolanFirstMessage, nolanVariables } from "@/lib/prompts";
+
+/** The video element Nolan's live face is streamed into. */
+const FACE_VIDEO_ID = "nolan-face";
+
+const BAR_HEIGHTS = [10, 18, 28, 38, 22, 12, 30, 40, 24, 14, 32, 20, 10, 26, 36, 16, 28, 12, 22, 34];
+
+/** Loads the one account an interview link opens. A witness's device never asks for anything else. */
+export function InterviewScreen({ token }: { token: string }) {
+  const [invite, setInvite] = useState<Invite | null>(null);
+  const [missing, setMissing] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch(`/api/witness/${encodeURIComponent(token)}`, { cache: "no-store" });
+        const data = (await response.json().catch(() => null)) as Invite | null;
+        if (cancelled) return;
+        if (!response.ok || !data?.token) setMissing(true);
+        else setInvite(data);
+      } catch {
+        if (!cancelled) setMissing(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (missing) {
+    return (
+      <Page sub="Interviews">
+        <div className="hero">
+          <h1 className="big">This interview link is not on file</h1>
+          <p>Ask the investigator to send you the link again.</p>
+        </div>
+      </Page>
+    );
+  }
+  if (!invite) return null;
+  return (
+    <ConversationProvider>
+      <Interview key={invite.token} invite={invite} />
+    </ConversationProvider>
+  );
+}
+
+type Phase = "consent" | "live" | "break" | "done";
+
+function Interview({ invite }: { invite: Invite }) {
+  const router = useRouter();
+  const { witness } = invite;
+  // A witness who has already said something is coming back, so they are not asked for consent twice.
+  const [phase, setPhase] = useState<Phase>(witness.turns.length > 0 ? "break" : "consent");
+  const [facts, setFacts] = useState<Fact[]>(witness.facts);
+  const [spoken, setSpoken] = useState<string | null>(
+    () => [...witness.turns].reverse().find((turn) => turn.who === "nolan")?.text ?? null,
+  );
+  const [noting, setNoting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState(witness.seconds);
+
+  const turns = useRef<Turn[]>(witness.turns);
+  const secondsRef = useRef(witness.seconds);
+  const coveredSent = useRef(false);
+  // Development only: talk to the real agent in text, with no microphone. Set from the console.
+  const textMode = useRef(false);
+  const typedByUs = useRef<string | null>(null);
+
+  // Nolan's live face (Anam). Only used when the server says it is set up, and never run so far: no Anam
+  // key was available when this was written. If it fails to start, the interview carries on with his voice alone.
+  const face = useRef<AnamClient | null>(null);
+  const faceLines = useRef(new Map<string, { content: string; filed: boolean }>());
+  const faceHeard = useRef(false);
+  const [faceReady, setFaceReady] = useState(false);
+  const [faceStarting, setFaceStarting] = useState(false);
+  const [faceOn, setFaceOn] = useState(false);
+  const [faceSpeaking, setFaceSpeaking] = useState(false);
+  useEffect(() => {
+    fetch("/api/face")
+      .then((response) => response.json())
+      .then((data: { anam?: boolean }) => setFaceReady(Boolean(data.anam)))
+      .catch(() => {});
+  }, []);
+
+  // What this witness has said goes to the case file through their own link. Saves go one after another,
+  // so an older one can never land on top of a newer one.
+  const factsRef = useRef<Fact[]>(witness.facts);
+  const statusRef = useRef<Witness["status"]>(witness.status);
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
+  const persist = useCallback(
+    (next: { facts?: Fact[]; status?: Witness["status"] }) => {
+      if (next.facts) factsRef.current = next.facts;
+      if (next.status) statusRef.current = next.status;
+      else if (statusRef.current === "waiting" && turns.current.some((turn) => turn.who === "witness")) statusRef.current = "underway";
+      const body = JSON.stringify({ turns: turns.current, facts: factsRef.current, seconds: secondsRef.current, status: statusRef.current });
+      saving.current = saving.current
+        .then(() => fetch(`/api/witness/${encodeURIComponent(invite.token)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body }))
+        .catch((caught) => console.error("Saving the account:", caught));
+    },
+    [invite.token],
+  );
+
+  // The notes: one extraction in flight. If the witness says more meanwhile, run once more with everything.
+  const extracting = useRef(false);
+  const extractAgain = useRef(false);
+  const sendNote = useRef<(text: string) => void>(() => {});
+  const extract = useCallback(async () => {
+    if (extracting.current) {
+      extractAgain.current = true;
+      return;
+    }
+    extracting.current = true;
+    setNoting(true);
+    try {
+      do {
+        extractAgain.current = false;
+        const response = await fetch("/api/extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-nolan-witness": invite.token },
+          body: JSON.stringify({ title: invite.title, details: invite.details, turns: turns.current }),
+        });
+        const data = (await response.json().catch(() => null)) as { facts?: Fact[]; error?: string } | null;
+        if (!response.ok || !data?.facts) {
+          console.error("Nolan's notes:", data?.error);
+          setError("Nolan could not write that down. Keep talking, he will catch up on your next answer.");
+          continue;
+        }
+        setError(null);
+        setFacts(data.facts);
+        persist({ facts: data.facts });
+        if (!coveredSent.current && invite.details.every((detail) => data.facts?.some((fact) => fact.detailId === detail.id))) {
+          coveredSent.current = true;
+          sendNote.current(NOLAN_COVERED_NOTE);
+        }
+      } while (extractAgain.current);
+    } catch (caught) {
+      console.error("Nolan's notes:", caught);
+      setError("Nolan could not write that down. Keep talking, he will catch up on your next answer.");
+    } finally {
+      extracting.current = false;
+      setNoting(false);
+    }
+  }, [invite.title, invite.details, invite.token, persist]);
+
+  const addTurn = useCallback(
+    (who: Turn["who"], text: string) => {
+      turns.current = [...turns.current, { who, text }];
+      persist({});
+      if (who === "witness") void extract();
+    },
+    [extract, persist],
+  );
+
+  const conversation = useConversation({
+    onMessage: (payload) => {
+      // When the witness stays quiet, ElevenLabs reports a turn of "...". That is not something they said.
+      if (payload.role === "user" && !/[\p{L}\p{N}]/u.test(payload.message)) return;
+      if (payload.role !== "user") {
+        // Nolan's lines can carry delivery tags for his voice, such as [calm]. They are not for the screen.
+        const line = payload.message.replace(/\[[^\]]{1,24}\]\s*/g, "").trim();
+        if (!line) return;
+        setSpoken(line);
+        addTurn("nolan", line);
+      } else if (payload.message === typedByUs.current) {
+        // In text mode we add the turn ourselves, so skip the echo of what we just sent.
+        typedByUs.current = null;
+      } else {
+        addTurn("witness", payload.message);
+      }
+    },
+    onConnect: () => setError(null),
+    onDisconnect: (details) => {
+      const info = details as { reason?: string; message?: string };
+      if (info.reason === "error") {
+        console.error("Nolan dropped out:", info.message);
+        setError("Nolan dropped out. Press Carry on to bring him back. Your notes are safe.");
+        setPhase("break");
+      }
+    },
+    onError: (message) => {
+      console.error("Nolan's voice:", message);
+      setError(
+        /permission|notallowed|getUserMedia|mediaDevices/i.test(String(message))
+          ? "Nolan needs the microphone. Allow it in the browser, then press Carry on."
+          : "Nolan's voice hit a problem. Press Carry on to try again.",
+      );
+      setPhase("break");
+    },
+  });
+  // Nolan is on the line through his voice alone, or through his face (which carries the same voice).
+  const voiceConnected = conversation.status === "connected";
+  const connected = voiceConnected || faceOn;
+  const connecting = conversation.status === "connecting" || faceStarting;
+  const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume } = conversation;
+  const isSpeaking = faceOn ? faceSpeaking : conversation.isSpeaking;
+
+  // Notes to Nolan go over the voice connection. The face connection has no way to send one.
+  useEffect(() => {
+    sendNote.current = (text) => {
+      if (voiceConnected) sendContextualUpdate(text);
+    };
+  }, [voiceConnected, sendContextualUpdate]);
+
+  const stopFace = useCallback(() => {
+    const client = face.current;
+    face.current = null;
+    setFaceOn(false);
+    setFaceSpeaking(false);
+    if (client) void client.stopStreaming().catch(() => {});
+  }, []);
+
+  // Hang up, whichever way Nolan is connected.
+  const hangUp = useCallback(() => {
+    endSession();
+    stopFace();
+  }, [endSession, stopFace]);
+
+  // Hang up when the witness leaves the page.
+  const endRef = useRef(hangUp);
+  useEffect(() => {
+    endRef.current = hangUp;
+  }, [hangUp]);
+  useEffect(() => () => endRef.current(), []);
+
+  // The clock only runs while Nolan is on the line.
+  useEffect(() => {
+    if (!connected) return;
+    const timer = setInterval(() => {
+      secondsRef.current += 1;
+      setSeconds(secondsRef.current);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [connected]);
+
+  const alive = useRef(false);
+  const connectingNow = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  /**
+   * Starts Nolan with his live face. Anam connects to his ElevenLabs agent itself, so what was said arrives
+   * as Anam's own transcript events. True when he is on screen, false when the witness left meanwhile.
+   */
+  const startFace = async (resuming: boolean): Promise<boolean> => {
+    setFaceStarting(true);
+    try {
+      const variables = nolanVariables(invite.title, witness.where, invite.opener, invite.details, resuming);
+      if (resuming) {
+        // This connection cannot be sent a note, so what is already covered goes into his list instead.
+        const covered = invite.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
+        const open = invite.details.filter((detail) => !covered.includes(detail));
+        variables.details =
+          (open.length > 0 ? detailList(open) : "(Nothing is left on the list.)") +
+          (covered.length > 0 ? `\nAlready covered, do not ask about these again: ${covered.map((detail) => detail.label).join("; ")}.` : "");
+      }
+      const response = await fetch("/api/face/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-nolan-witness": invite.token },
+        body: JSON.stringify({ variables }),
+      });
+      const data = (await response.json().catch(() => null)) as { sessionToken?: string; error?: string } | null;
+      if (!response.ok || !data?.sessionToken) throw new Error(data?.error ?? "No face session.");
+
+      const { createClient, AnamEvent, MessageRole, ConnectionClosedCode } = await import("@anam-ai/js-sdk");
+      const client = createClient(data.sessionToken);
+      face.current = client;
+      faceLines.current = new Map();
+
+      // What is said arrives in pieces, one message id per turn. A turn is filed once it has ended.
+      client.addListener(AnamEvent.MESSAGE_STREAM_EVENT_RECEIVED, (event) => {
+        if (face.current !== client) return;
+        const line = faceLines.current.get(event.id) ?? { content: "", filed: false };
+        line.content += event.content;
+        faceLines.current.set(event.id, line);
+        const text = line.content.replace(/\[[^\]]{1,24}\]\s*/g, "").trim();
+        const nolan = event.role === MessageRole.PERSONA;
+        if (nolan) {
+          if (text) setSpoken(text);
+          setFaceSpeaking(!event.endOfSpeech && !event.interrupted);
+        }
+        if ((event.endOfSpeech || event.interrupted) && !line.filed && /[\p{L}\p{N}]/u.test(text)) {
+          line.filed = true;
+          addTurn(nolan ? "nolan" : "witness", text);
+        }
+      });
+      client.addListener(AnamEvent.USER_SPEECH_STARTED, () => {
+        faceHeard.current = true;
+      });
+      client.addListener(AnamEvent.USER_SPEECH_ENDED, () => {
+        faceHeard.current = false;
+      });
+      client.addListener(AnamEvent.CONNECTION_CLOSED, (reason, details) => {
+        if (face.current !== client) return;
+        face.current = null;
+        setFaceOn(false);
+        setFaceSpeaking(false);
+        if (reason === ConnectionClosedCode.NORMAL) return;
+        console.error("Nolan's face dropped out:", reason, details);
+        setError(
+          reason === ConnectionClosedCode.MICROPHONE_PERMISSION_DENIED
+            ? "Nolan needs the microphone. Allow it in the browser, then press Carry on."
+            : "Nolan dropped out. Press Carry on to bring him back. Your notes are safe.",
+        );
+        setPhase("break");
+      });
+
+      await client.streamToVideoElement(FACE_VIDEO_ID);
+      if (!alive.current || face.current !== client) {
+        void client.stopStreaming().catch(() => {});
+        return false;
+      }
+      setFaceOn(true);
+      return true;
+    } finally {
+      setFaceStarting(false);
+    }
+  };
+
+  const connect = async () => {
+    // One attempt at a time, and never after the witness has left the page.
+    if (connectingNow.current || !alive.current) return;
+    const text = textMode.current;
+    // Browsers only give a page the microphone on https or on localhost. Say so before anything else fails.
+    if (!text && (!window.isSecureContext || !navigator.mediaDevices)) {
+      setError(
+        "This address cannot use the microphone. Browsers only allow it on an https address or on localhost. Ask the investigator for an https link, or do the interview on their device.",
+      );
+      return;
+    }
+    connectingNow.current = true;
+    setError(null);
+    setPhase("live");
+    try {
+      const resuming = turns.current.length > 0;
+      if (!text && faceReady) {
+        try {
+          if (await startFace(resuming)) return;
+        } catch (caught) {
+          console.error("Nolan's face could not start. Carrying on with his voice alone:", caught);
+          stopFace();
+        }
+        if (!alive.current) return;
+      }
+      const response = await fetch(`/api/token${text ? "?text=1" : ""}`, { method: "POST", headers: { "x-nolan-witness": invite.token } });
+      const data = (await response.json()) as { token?: string; signedUrl?: string; error?: string };
+      if (!response.ok || !(data.token || data.signedUrl)) throw new Error(data.error ?? "Could not reach Nolan.");
+      if (!alive.current) return;
+      const dynamicVariables = nolanVariables(invite.title, witness.where, invite.opener, invite.details, resuming);
+      if (text && data.signedUrl) {
+        conversation.startSession({ signedUrl: data.signedUrl, connectionType: "websocket", textOnly: true, dynamicVariables });
+      } else if (data.token) {
+        conversation.startSession({ conversationToken: data.token, connectionType: "webrtc", dynamicVariables });
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not reach Nolan.");
+      setPhase(turns.current.length > 0 ? "break" : "consent");
+    } finally {
+      connectingNow.current = false;
+    }
+  };
+
+  // When the witness comes back from a break, tell Nolan where they were, so he does not start over.
+  useEffect(() => {
+    if (!voiceConnected || !turns.current.some((turn) => turn.who === "witness")) return;
+    const covered = invite.details.filter((detail) => factsRef.current.some((fact) => fact.detailId === detail.id));
+    const open = invite.details.filter((detail) => !covered.includes(detail));
+    sendContextualUpdate(
+      nolanCatchUpNote(
+        covered.map((detail) => detail.label),
+        open.map((detail) => detail.label),
+      ),
+    );
+  }, [voiceConnected, sendContextualUpdate, invite.details]);
+
+  const takeBreak = () => {
+    hangUp();
+    persist({});
+    setPhase("break");
+  };
+
+  // Only the investigator's own device is offered a way back to the case file.
+  const [investigator, setInvestigator] = useState(false);
+  useEffect(() => {
+    try {
+      // Read after the first paint, because the server cannot know this.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setInvestigator(window.sessionStorage.getItem("nolan.investigator") === "1");
+    } catch {
+      // Storage is blocked. The interview then ends on its thank-you screen.
+    }
+  }, []);
+
+  const end = () => {
+    hangUp();
+    const said = turns.current.some((turn) => turn.who === "witness");
+    persist({ status: said ? "done" : "waiting" });
+    if (said) setPhase("done");
+    else if (investigator) router.push("/");
+    else setPhase("consent");
+  };
+  const backToCase = async () => {
+    // Let the last save land first, so the case file opens with this account on it.
+    await saving.current;
+    router.push("/");
+  };
+
+  // Development only. From the browser console:
+  //   window.nolanText()                        connect to the real agent in text mode, with no microphone
+  //   window.nolanSay("I saw one man, alone.")  a witness turn
+  const sayRef = useRef<(text: string) => void>(() => {});
+  const textRef = useRef<() => void>(() => {});
+  const connectRef = useRef(connect);
+  useEffect(() => {
+    connectRef.current = connect;
+    sayRef.current = (text) => {
+      if (voiceConnected) {
+        typedByUs.current = text;
+        sendUserMessage(text);
+      }
+      addTurn("witness", text);
+    };
+    textRef.current = () => {
+      textMode.current = true;
+      if (connected) hangUp();
+      setTimeout(() => void connectRef.current(), 400);
+    };
+  });
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    const target = window as unknown as { nolanSay?: (text: string) => void; nolanText?: () => void };
+    target.nolanSay = (text) => sayRef.current(text);
+    target.nolanText = () => textRef.current();
+    return () => {
+      delete target.nolanSay;
+      delete target.nolanText;
+    };
+  }, []);
+
+  // Feed the voice level to CSS as --vol: the microphone while Nolan listens, his own voice while he talks.
+  const cardRef = useRef<HTMLElement>(null);
+  const voiceActive = connected;
+  useEffect(() => {
+    const node = cardRef.current;
+    if (!node) return;
+    const calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!voiceActive || calm) {
+      node.style.setProperty("--vol", "0");
+      return;
+    }
+    let raf = 0;
+    let smooth = 0;
+    const tick = () => {
+      // The face connection gives no level, only whether someone is speaking.
+      const level = faceOn
+        ? isSpeaking || faceHeard.current
+          ? 0.55
+          : 0
+        : Math.min(1, Math.max(0, (isSpeaking ? getOutputVolume() : getInputVolume()) * 2.2));
+      // Rise fast, fall slowly, like a level meter.
+      smooth = level > smooth ? level : smooth * 0.88 + level * 0.12;
+      node.style.setProperty("--vol", smooth.toFixed(3));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [voiceActive, faceOn, isSpeaking, getInputVolume, getOutputVolume]);
+
+  let status: { text: string; dot: string; busy: boolean; ring: string } = { text: "Ready", dot: "", busy: false, ring: "" };
+  if (phase === "break") status = { text: "On a break", dot: "miss", busy: false, ring: "" };
+  if (phase === "live") {
+    if (connecting || !connected) status = { text: "Connecting", dot: "", busy: true, ring: "" };
+    else if (isSpeaking) status = { text: "Nolan is talking", dot: "ink", busy: false, ring: "var(--ink)" };
+    else if (noting) status = { text: "Writing it down", dot: "", busy: true, ring: "" };
+    else status = { text: "Listening", dot: "ok pulse", busy: false, ring: "var(--ok)" };
+  }
+
+  const question =
+    phase === "consent" ? "Before we start" : phase === "done" ? "Thank you. Your account is on file." : (spoken ?? nolanFirstMessage(invite.opener));
+
+  return (
+    <Page
+      sub={`Case ${invite.caseNumber}, witness ${invite.position} of ${invite.total}`}
+      footer={faceOn ? "Voice by ElevenLabs. Face by Anam. Notes by Claude." : "Voice by ElevenLabs. Notes by Claude."}
+      actions={
+        <>
+          {(phase === "live" || phase === "break") && (
+            <span className="status" style={{ minHeight: 44, padding: "0 16px", color: "var(--muted)" }}>
+              <span aria-hidden="true" className="dot miss" />
+              Transcribed with your consent
+            </span>
+          )}
+          {phase === "live" && (
+            <button type="button" className="pill" onClick={takeBreak}>
+              Take a break
+            </button>
+          )}
+          {phase === "break" && (
+            <button type="button" className="pill" onClick={() => void connect()}>
+              Carry on
+            </button>
+          )}
+          {(phase === "live" || phase === "break") && (
+            <button type="button" className="pill dark" onClick={end}>
+              End interview
+            </button>
+          )}
+          {investigator && (phase === "consent" || phase === "done") && (
+            <button type="button" className="pill dark" onClick={() => void backToCase()}>
+              Back to the case file
+            </button>
+          )}
+        </>
+      }
+    >
+      <main className="panel">
+        <section ref={cardRef} aria-label="Nolan" className="card nolan-card">
+          <div className={`orb ${connected && isSpeaking ? "speaking" : ""}`}>
+            <div aria-hidden="true" className="orb-swirl" />
+            <div aria-hidden="true" className="orb-figure">
+              <div className="orb-head" />
+              <div className="orb-body" />
+            </div>
+            {/* Nolan's live face, when one is set up. It is always in the page so the stream has somewhere to land. */}
+            <video id={FACE_VIDEO_ID} autoPlay playsInline aria-label="Nolan" className={`orb-face ${faceOn ? "on" : ""}`} />
+            {status.ring && (
+              <span
+                aria-hidden="true"
+                className="orb-ring"
+                style={{ boxShadow: `inset 0 0 0 calc(2px + var(--vol, 0) * 9px) ${status.ring}` }}
+              />
+            )}
+            <span key={status.text} aria-live="polite" className="badge top">
+              <span aria-hidden="true" className={`dot ${status.dot}`} />
+              {status.text}
+              {status.busy && <Dots />}
+            </span>
+            <span className="badge bottom">Nolan</span>
+          </div>
+
+          <h1 className="question">
+            <Words key={question} text={question} />
+          </h1>
+
+          {phase === "consent" ? (
+            <>
+              <ul className="list muted" style={{ textAlign: "left", maxWidth: 520 }}>
+                <li>Nolan will ask you to say what you saw, in your own words and your own order.</li>
+                <li>What you say is written down as text for the investigator. Your voice is not stored.</li>
+                <li>You can take a break or stop at any time.</li>
+              </ul>
+              <button type="button" className="pill dark" onClick={() => void connect()}>
+                I agree, start the interview
+              </button>
+            </>
+          ) : phase === "done" ? (
+            <p className="body" style={{ color: "var(--muted)", maxWidth: 520 }}>
+              The investigator will read what you said. {investigator ? "Please hand this device back." : "You can close this page now."}
+            </p>
+          ) : (
+            <>
+              <p className="body" style={{ color: "var(--muted)" }}>
+                {phase === "break" ? "The interview is paused. Nolan is not listening." : "Take your time. Nolan waits while you think."}
+              </p>
+              <div className="voice-row">
+                <div aria-hidden="true" className={`wave ${connected ? "" : "idle"}`}>
+                  {BAR_HEIGHTS.map((height, i) => (
+                    <span key={i} style={{ height }} />
+                  ))}
+                </div>
+                <span className="clock">{formatClock(seconds)}</span>
+              </div>
+            </>
+          )}
+
+          {error && (
+            <p role="alert" className="alert" style={{ maxWidth: 520 }}>
+              {error}
+            </p>
+          )}
+        </section>
+
+        <section aria-label="Notes" className="side-col">
+          <div className="card stack" style={{ flex: 1, padding: 24, gap: 16 }}>
+            <h2 className="h3">What Nolan has written down</h2>
+            <Notes details={invite.details} facts={facts} />
+            <p className="meta">Say “that is wrong” and Nolan crosses the note out.</p>
+          </div>
+          <div className="card" style={{ padding: "20px 24px" }}>
+            <p className="small" style={{ color: "var(--ink)" }}>
+              No pictures are shown during an interview, so nothing shapes what you remember.
+            </p>
+          </div>
+        </section>
+      </main>
+    </Page>
+  );
+}
+
+/** Nolan's notes in his own hand: what the witness said, what they took back, and where they were not sure. */
+export function Notes({ details, facts }: { details: Detail[]; facts: Fact[] }) {
+  return (
+    <div className="notes" aria-live="polite">
+      {facts.length === 0 && <span className="empty">Nothing written yet</span>}
+      {facts.map((fact) => {
+        const detail = details.find((entry) => entry.id === fact.detailId);
+        return (
+          <span key={`${fact.detailId}-${fact.value}`} className="stack" style={{ gap: 2 }}>
+            <span className="line">
+              {fact.struck.map((old) => (
+                <span key={old}>
+                  <s>{old}</s>{" "}
+                </span>
+              ))}
+              {fact.value}
+            </span>
+            {fact.sure === "unsure" && detail && <span className="line unsure">not sure about {lowerFirst(detail.label)}</span>}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+function lowerFirst(text: string): string {
+  return `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+}
+
+/** Nolan's question arrives word by word, the way he says it. */
+function Words({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <>
+      {words.map((word, i) => (
+        <span key={i} className="word" style={{ animationDelay: `${Math.min(i * 40, 900)}ms` }}>
+          {word}
+          {i < words.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </>
+  );
+}

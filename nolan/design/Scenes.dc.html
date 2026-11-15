@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nolan scenes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+a{color:#000000}a:hover{color:#3D3D40}
+button{font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="min-height: 900px; box-sizing: border-box; padding: 20px 28px 24px; background: #FBFAF8; color: #000000; font-family: 'Instrument Sans', system-ui, sans-serif; display: flex; flex-direction: column; gap: 16px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px">
+<a href="Case.dc.html" style="font-size: 20px; font-weight: 600; letter-spacing: -0.02em; text-decoration: none">Nolan</a>
+<span style="font-size: 15px; color: #636268">Case 24-1187, bike theft outside the library</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<a href="Compare.dc.html" style="display: inline-flex; align-items: center; min-height: 44px; padding: 0 20px; border-radius: 999px; background: #FFFFFF; border: 1px solid #E5E2DD; font-size: 15px; font-weight: 500; text-decoration: none; box-sizing: border-box">Back to the comparison</a>
+<button type="button" style="min-height: 44px; padding: 0 20px; border-radius: 999px; background: #000000; border: 0; color: #FFFFFF; font-size: 15px; font-weight: 500">Add to the case report</button>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 48px; padding: 20px 0 12px">
+<h1 style="margin: 0; flex: 1 1 520px; font-size: 52px; line-height: 1.04; font-weight: 500; letter-spacing: -0.04em">Each account as a scene</h1>
+<p style="margin: 0; flex: 0 1 400px; font-size: 16px; line-height: 1.55; color: #636268">Reconstructions of what each witness said. They are not evidence, and a witness never sees one.</p>
+</div>
+
+<main style="flex: 1; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px; background: #F1EFEC; border-radius: 28px">
+
+<section aria-label="Shared scene" style="flex: 1 1 380px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 12px; overflow: hidden; border: 1px solid #E5E2DD"><dc-import name="Scene" who="shared" hint-size="100%,240px"></dc-import></div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.02em">What everyone agrees on</h2>
+<p style="margin: 0; font-size: 15px; line-height: 1.5; color: #636268">One man, alone, takes the third bike at about 5:40 pm. The jacket and the direction are left blank because the accounts differ.</p>
+</div>
+</section>
+
+<section aria-label="Three accounts" style="flex: 999 1 620px; min-width: 0; display: flex; flex-wrap: wrap; gap: 12px">
+
+<article style="flex: 1 1 240px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 12px; overflow: hidden; border: 1px solid #E5E2DD"><dc-import name="Scene" who="one" hint-size="100%,170px"></dc-import></div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em">Witness 1</h2>
+<p style="margin: 0; font-size: 15px; color: #636268">At the same bike rack</p>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #188A55"></span>Matches witness 2</span>
+</article>
+
+<article style="flex: 1 1 240px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 12px; overflow: hidden; border: 1px solid #E5E2DD"><dc-import name="Scene" who="two" hint-size="100%,170px"></dc-import></div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em">Witness 2</h2>
+<p style="margin: 0; font-size: 15px; color: #636268">Walking out of the library</p>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px"><span aria-hidden="true" style="width: 8px; height: 8px; border-radius: 50%; background: #188A55"></span>Matches witness 1</span>
+</article>
+
+<article style="flex: 1 1 240px; min-width: 0; background: #FFFFFF; border-radius: 20px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+<div style="border-radius: 12px; overflow: hidden; border: 1px solid #E5E2DD"><dc-import name="Scene" who="three" hint-size="100%,170px"></dc-import></div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h2 style="margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.02em">Witness 3</h2>
+<p style="margin: 0; font-size: 15px; color: #636268">Across the road</p>
+</div>
+<span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: #B03A22"><span aria-hidden="true" style="width: 8px; height: 8px; background: #B03A22"></span>Differs on the jacket and the direction</span>
+</article>
+
+</section>
+</main>
+
+<footer style="font-size: 13px; color: #636268">Scenes built with fal after the last interview ended. Circled details are the ones in dispute.</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -42,7 +42,7 @@ Add "Remove the old labels and highlighter patches." to the end of level 4. The 
 
 - Start every edit with "Keep the same drawing and style". Without it the model starts a new picture.
 - Put every word that should appear on the paper in single quotes after "spelled exactly:". That is what got the spelling right.
-- Say what to remove. The model does not remove old question marks or labels unless told.
+- Old writing does not go away by itself. Whenever a label is added or changed, tell the model to erase every word on the paper and then list every label that should be there. Otherwise labels pile up and repeat.
 - Name colours and positions. "A pink nucleus top right" works. "Add the nucleus" gives a random result.
 - Six labels at most, a few words each. More than that and the lettering breaks down.
 - The fast model is fine up to level 3. It mislabelled the dense final sheet. The careful model got it right.
@@ -51,131 +51,86 @@ Add "Remove the old labels and highlighter patches." to the end of level 4. The 
 
 One call per student turn. It returns the `TurnResult` from [SPEC.md](SPEC.md) as structured output.
 
-### System prompt
+**The live text is in `src/lib/prompts.ts`** (`turnSystemPrompt`, `turnUserMessage`, `DETAIL_RULES`). Edit it there. What it tells Claude:
 
-Paste the style paragraph and the four examples from section 1 where marked.
+- **Scoring.** Each key idea is missing, vague, clear or wrong, judged across everything said so far. What counts as clear depends on the level of detail (below).
+- **Level.** 1 no idea clear. 2 ideas vague, or one clear. 3 at least two clear and none wrong. 4 every idea clear.
+- **Biggest gap.** Wrong before vague before missing, because that is closest to what the student is already thinking about.
+- **Milo's line.** At most 20 words and one question. The brain is given everything Milo has said, reads the new turn as an answer to his last line, and may never ask the same thing twice in any wording. He starts from a few of the student's latest words, then asks one small open question about the biggest gap. Never a question with the answer inside it ("is it X or Y?", "…, right?"), never the missing term, never his drawing. On a wrong idea he says what it made him picture, says it looks odd, and asks them to check.
+- **Fact check.** Every turn, the brain lists statements that are clearly false at school level, in the student's words, whether or not they touch a key idea. If unsure, it leaves them out. A wrong claim is drawn small in grey pencil with a red question mark and never as a fact, and Milo's next line asks about it first.
+- **No flattery.** No praise, no verdicts, no "nice… but". Milo's help line is plain too.
+- **Help.** After two questions about the same gap (the engine counts and sends `helpGapId`), or as soon as the student says they do not know (once per gap): his line becomes a teacher line of up to 40 words, and the drawing gains a small hint sketch in blue dashed pencil marked 'hint'. No technical term. The idea still only counts when the student says it.
+- **Letting go.** Still not clear on the turn after the hint (`leaveGapId`): he drops that gap, says so in a few words, and asks about another. Only when every open gap has been let go does he wrap up and name what to look up.
+- **Drawing instruction.** Only what the student said. Vague ideas drawn vaguely, wrong ideas drawn literally. Starts with "Keep the same drawing and style" on edits. Words on the paper in single quotes after "spelled exactly:". Says what to remove. Ends with "Do not add any other parts, shapes or words."
 
-```
-You are the grading and drawing brain behind Milo, a study app.
+### Level of detail
 
-A student explains a topic out loud to Milo, a cartoon kid who knows nothing about it. Milo draws exactly what the student said on a sheet of paper. A weak explanation gives a messy crayon scribble. A strong one gives a clean, labelled revision sheet. The student learns by seeing their own explanation drawn back at them, so the drawing may only show what they actually said. If you draw a part they never mentioned, the app has given away the answer and the exercise stops working. The same goes for Milo's hint: it points at a gap and never fills it.
+The student picks this on the Start screen. It changes which key ideas count and how strict "clear" is.
 
-Each request gives you the topic, its key ideas, everything the student has said so far (oldest first, the last entry is the new turn), the level before this turn, and the instruction that produced the board now on screen.
+| Level | Key ideas marked | An idea is clear when |
+|---|---|---|
+| Basics (default) | The core ones only. For the cell: membrane, energy, nucleus | What the part does is described in everyday words. The name does not matter: none, a made-up one or a slightly wrong one ("cell wall" for the membrane) all count, and a wrong name is not flagged by the fact check |
+| Exam | All of them | The part is named and its job is stated correctly |
+| Deep | All of them | Named, job stated, and linked to at least one other part |
 
-Return these fields.
+### What a good run looks like
 
-ideas: one entry per key idea, in the order given, judged across everything said so far.
-- missing: not mentioned at all.
-- vague: pointed at without saying what it is or what it does ("it makes energy somehow").
-- clear: the part is named and its job is stated correctly. Everyday wording is fine. Speech-to-text mistakes are fine if the meaning is plain.
-- wrong: stated, but incorrect.
+From a test on Sat 14 Nov at Basics, with deliberately casual speech:
 
-level: the crayon level for the explanation so far.
-- 1, Crayon: no key idea is clear.
-- 2, Sketching: ideas are there but vague, or only one is clear.
-- 3, Clearer: at least two key ideas are clear and none is wrong.
-- 4, Mastered: every key idea is clear.
+| Student | Milo |
+|---|---|
+| "um so a cell is like a tiny thing that's alive, everything is made of them" | "Ooh, tiny alive things that everything's made of, cool! So if I zoomed in on one, what's around the outside of it?" |
+| "it's got like a skin around it that decides what gets in and out" | "Ooh, a skin that picks who gets in, like a bouncer! But once stuff's inside, where does the cell get the power to actually do things?" |
+| "i don't know what else honestly" | "That's okay, your skin idea was great! … does it eat food like me, or plug into something like a phone charger?" |
+| "there's little power stations inside that make the energy, and the middle bit has the DNA which tells it what to do" | "Whoa, power stations and a bossy middle bit, I finally get it! So a cell has a skin that decides what gets in and out, little power stations that make the energy, and a middle bit with DNA that tells it what to do!" |
 
-biggestGapId: the id of the most important key idea that is missing, vague or wrong. Prefer a wrong idea over a vague one, and a vague one over a missing one, because it is closest to what the student is already thinking about. Null when every idea is clear.
+Things to watch for when you change the prompt:
 
-hint: what Milo says next, out loud. Milo is a puzzled, slightly cheeky kid. One short sentence that starts with "Mmhh… but" and asks about the biggest gap in everyday words. Do not use the missing term and do not state the missing fact. If the student said something very broad, ask for an example instead. When every idea is clear, Milo says in one short sentence that he gets it now.
-
-said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.
-
-changed: false when the latest turn added nothing that can be drawn (filler, repeating themselves, a question to Milo). The board is then left alone.
-
-drawPrompt: the instruction for an image-editing model that edits the board now on screen. When changed is false, repeat the previous instruction unchanged.
-- If there is no board yet, start with this style paragraph word for word, then describe the drawing: "[STYLE PARAGRAPH]"
-- Otherwise start with "Keep the same drawing and style" so the model edits the picture instead of starting over.
-- Describe only what the student has said. A vague idea is drawn vaguely: a scribble, a blob, a question mark with an arrow. A wrong idea is drawn the way they said it.
-- Match the neatness to the level. Level 1 is very messy and childish crayon. Level 2 is a rough crayon outline with question marks where things are vague. Level 3 is neater coloured pencil with handwritten labels and arrows. Level 4 is clean and organised like a finished revision sheet, with a title top left and label boxes.
-- Put every word that should appear on the paper in single quotes after "spelled exactly:". Use the student's own words for labels. At most six labels, each a few words long.
-- Say what to remove: question marks that have been answered, labels that have been replaced.
-- Name colours and positions, the way the examples do. Keep it under 110 words.
-- End every instruction with: "Do not add any other parts, shapes or words." Image models like to fill a cell with extra parts, and an extra part gives the answer away.
-- No real people, logos or flags.
-
-These four instructions were tested and drew well. Match their style and length.
-
-[THE FOUR EXAMPLES, EACH AS: Level N. The student said: "…" / Instruction: …]
-```
-
-### User message
-
-Plain JSON, so it is easy to log and replay:
-
-```json
-{
-  "topic": "How a cell works",
-  "keyIdeas": [
-    { "id": "membrane", "idea": "The cell membrane surrounds the cell and controls what enters and leaves." },
-    { "id": "energy", "idea": "Mitochondria release the cell's energy, as ATP." },
-    { "id": "nucleus", "idea": "The nucleus holds the DNA, which carries the instructions for the cell." },
-    { "id": "ribosomes", "idea": "Ribosomes build proteins by following those instructions." },
-    { "id": "golgi", "idea": "The rough ER and the Golgi process, pack and send the proteins where they are needed." }
-  ],
-  "studentTurns": ["The cell does stuff and keeps the body alive.", "It takes things in and makes energy."],
-  "levelBeforeThisTurn": 1,
-  "instructionForBoardOnScreen": "A sheet of off-white textured paper, …"
-}
-```
-
-### Check it before trusting it
-
-This prompt has not been run yet. First thing to do with an Anthropic key: feed it the four demo turns one at a time and compare the `drawPrompt` values with the four tested prompts above. They should read like the same author wrote them. Things to watch for:
-
-- A part appears in `drawPrompt` that the student never said. That is the worst failure. Fix the prompt before anything else.
-- The hint contains the missing word ("membrane", "mitochondria").
-- The level jumps to 4 while a key idea is still vague.
+- A part appears in the drawing instruction that the student never said. That is the worst failure.
+- Milo's line contains the missing word ("membrane", "mitochondria").
+- Milo asks something the student cannot answer in a sentence.
 
 ## 3. Milo's voice (ElevenLabs agent)
 
-Set up in the ElevenLabs dashboard, on the agent whose id goes in `ELEVENLABS_AGENT_ID`.
+**The live text is in `src/lib/prompts.ts`** (`MILO_AGENT_PROMPT`, `MILO_FIRST_MESSAGE`). After changing it, push it to the agent:
 
-**Settings**
-
-| Setting | Value |
-|---|---|
-| First message | `Hi, I'm Milo. I don't know anything about cells. Can you explain how a cell works?` |
-| Turn eagerness | Patient |
-| Interruptions | On |
-| Voice | A young, light voice. Pick by ear |
-| Language | English |
-
-**System prompt**
-
-```
-You are Milo, a curious kid who knows nothing about how a cell works. A student is explaining it to you out loud. They are doing this to learn it themselves, so your job is to listen and to be honestly confused. You are not a teacher.
-
-How you talk:
-- One short sentence at a time. Mostly you listen.
-- You sound like a puzzled, slightly cheeky kid. Plain, everyday words.
-- When the student stops, ask about the part that made the least sense to you. Start with "Mmhh… but".
-- If they say something very broad ("it keeps you alive"), ask for an example.
-
-What you never do:
-- You never explain, define or correct anything. You do not know the answer.
-- You never use a biology word the student has not said first.
-- If they ask you for the answer, say you don't know, that is why you are asking.
-
-Be patient. Students pause, restart and correct themselves mid-sentence. Wait for them to finish. If they interrupt you, stop and listen.
-
-The app will sometimes send you a note that starts with "APP NOTE". It tells you which part of the explanation is weakest and gives you a line to say. Use that line the next time the student stops. Never read the note itself out loud.
-
-When a note says there is nothing left to ask, tell them in one short sentence that you get it now, and thank them.
+```bash
+curl -X POST http://localhost:3000/api/elevenlabs/setup
 ```
 
-**The note the app sends after each scored turn** (with `sendContextualUpdate`):
+That creates the agent the first time and updates it afterwards.
+
+**Settings the setup route applies**
+
+| Setting | Value | Why |
+|---|---|---|
+| First message | `{{milo_first_line}}`, filled in by the browser. On a new session: "Hi, I'm Milo! I know nothing about cells. Go on then, what even is a cell?". When Milo is switched back on mid-session: "Okay, I'm back! Where were we?" | A concrete first question, so the student knows where to start, and no second introduction after a restart |
+| Turn timeout | 8 seconds | If the student goes quiet, Milo helps once with an easier question, then only says "Take your time". Five seconds cut into thinking time |
+| Turn eagerness | Eager | Milo jumps in at the first small pause instead of waiting politely |
+| Speculative turn | Off | His reply comes from a tool call, which must only run on a finished turn |
+| Tool | `next_line`, a client tool that waits for a response (12 s timeout, no speech before it) | He says the line the brain wrote for the turn the student just finished |
+| Model | `claude-haiku-5-5` | He says a sentence or two at a time. Speed matters more than depth |
+| Auth | On | A conversation needs the token from `/api/elevenlabs/token` |
+
+**Who Milo is.** A warm, curious kid who follows the student. He does not praise and then backpedal: no compliments, no verdicts, one steady tone with no mood switches inside a reply. He calls `next_line` after every student turn and says exactly the line it returns, so his own rules (at most 15 words, one open question, no answer inside it) only apply if the tool fails. He never uses a name. He speaks once per student turn. He teaches only when the app tells him he has sketched a hint.
+
+**Every blank must be filled.** The prompt and first line use `{{topic_title}}`, `{{topic_about}}` and `{{milo_first_line}}`. If the browser does not send one of them, ElevenLabs closes the conversation at once ("Missing required dynamic variables"). The screen now shows that reason instead of failing silently.
+
+**What ElevenLabs cannot do.** There is no setting that makes the agent talk over the student mid-word. Eager turn-taking is the closest: he comes in the moment the student pauses. The student can always interrupt him.
+
+**What the `next_line` tool hands him** after each turn:
 
 ```
-APP NOTE: The weakest part of the explanation so far is the one this line asks about. Next time the student stops, say: "<hint>"
+Say exactly this and nothing else: "<the brain's line>"
 ```
 
-When every idea is clear:
+When the lesson is over:
 
 ```
-APP NOTE: The explanation is complete. There is nothing left to ask. Say: "<hint>"
+The lesson is over. Say exactly this and ask nothing more: "<the brain's line>"
 ```
+
+On a help turn the line is "One second, let me sketch something for you.", and the teacher line follows in an APP NOTE once the sketch is on the paper.
 
 ## 4. Milo's face (fal)
 

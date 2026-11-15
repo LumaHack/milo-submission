@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Nolan scene</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 100%; font-family: 'Instrument Sans', system-ui, sans-serif; color: #000000">
+<svg viewBox="0 0 520 320" role="img" aria-label="{{ alt }}" style="display: block; width: 100%; height: auto">
+<defs>
+<marker id="tip" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" style="fill: #000000"></path></marker>
+</defs>
+<rect x="0" y="0" width="520" height="320" style="fill: #F6F4F0"></rect>
+<rect x="0" y="0" width="520" height="64" style="fill: #E5E2DD"></rect>
+<rect x="216" y="44" width="88" height="20" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></rect>
+<text x="260" y="30" style="font-size: 13px; font-weight: 600; text-anchor: middle">Library entrance</text>
+<text x="18" y="300" style="font-size: 12px; fill: #5E5D62">Gate</text>
+<text x="502" y="300" style="font-size: 12px; fill: #5E5D62; text-anchor: end">Road</text>
+
+<rect x="96" y="128" width="22" height="46" rx="6" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></rect>
+<rect x="128" y="128" width="22" height="46" rx="6" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></rect>
+<rect x="160" y="128" width="22" height="46" rx="6" style="fill: none; stroke: #000000; stroke-width: 1.5px; stroke-dasharray: 5 5"></rect>
+<rect x="192" y="128" width="22" height="46" rx="6" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></rect>
+<rect x="224" y="128" width="22" height="46" rx="6" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></rect>
+<text x="171" y="116" style="font-size: 12px; fill: #5E5D62; text-anchor: middle">Bike taken</text>
+
+<path d="{{ route }}" style="fill: none; stroke: #000000; stroke-width: 1.5px; stroke-dasharray: 2 6; stroke-linecap: round; marker-end: url(#tip); opacity: {{ routeOpacity }}"></path>
+<ellipse cx="{{ ringX }}" cy="236" rx="46" ry="24" style="fill: none; stroke: #C8452B; stroke-width: 2px; opacity: {{ ring }}"></ellipse>
+
+<ellipse cx="270" cy="204" rx="15" ry="20" style="fill: {{ jacket }}; stroke: #000000; stroke-width: 1.5px; stroke-dasharray: {{ jacketDash }}"></ellipse>
+<circle cx="270" cy="178" r="10" style="fill: #FFFFFF; stroke: #000000; stroke-width: 1.5px"></circle>
+<circle cx="270" cy="198" r="34" style="fill: none; stroke: #C8452B; stroke-width: 2px; opacity: {{ ring }}"></circle>
+
+<text x="260" y="300" style="font-size: 12.5px; text-anchor: middle">{{ caption }}</text>
+</svg>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"who":{"editor":"enum","options":["shared","one","two","three"],"default":"one"},"$preview":{"width":520,"height":320}}'>
+class Component extends DCLogic {
+renderVals() {
+const who = this.props.who ?? 'one';
+const left = 'M250 206 C200 214 120 224 44 240';
+const right = 'M290 206 C340 214 420 224 476 240';
+const v = {
+shared: { jacket: '#FFFFFF', jacketDash: '5 5', route: left, routeOpacity: 0, ring: 0, ringX: 60, caption: 'One man, alone, at about 5:40 pm', alt: 'Shared scene: one man beside a bike rack outside the library entrance. Jacket colour and direction are left blank.' },
+one: { jacket: '#2B2B30', jacketDash: 'none', route: left, routeOpacity: 1, ring: 0, ringX: 60, caption: 'Dark jacket, went left to the gate', alt: 'Witness 1: a man in a dark jacket takes the third bike and goes left towards the gate.' },
+two: { jacket: '#2B2B30', jacketDash: 'none', route: left, routeOpacity: 1, ring: 0, ringX: 60, caption: 'Dark jacket, went left to the gate', alt: 'Witness 2: a man in a dark jacket takes the third bike and goes left towards the gate.' },
+three: { jacket: '#C8452B', jacketDash: 'none', route: right, routeOpacity: 1, ring: 1, ringX: 462, caption: 'Red jacket, went right to the road', alt: 'Witness 3: a man in a red jacket takes the third bike and goes right towards the road. Both details are circled as disputed.' }
+}[who];
+return v;
+}
+}
+</script>
+</body>
+</html>

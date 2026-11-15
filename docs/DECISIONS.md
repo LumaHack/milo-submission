@@ -50,6 +50,78 @@ All dated Saturday 14 November 2026.
 
 **D19. The credits on screen are true.** Only tools the run really used. The video says out loud what is mocked.
 
+## After the first spoken test
+
+**D20. Milo is a conversation partner, not a "Mmhh… but" machine.** *(The "guesses wildly" part was dropped in D28.)* Ali spoke to the first version on Sat 14 Nov: the repeated "Mmhh… but" opener was annoying, and the vague questions left him not knowing what to say. Milo now reacts to what was said, asks one small concrete question, guesses wildly when the student is stuck, and never opens the same way twice. D4 still holds: he never explains and never gives the proper term.
+
+**D21. Milo answers fast.** Turn-taking is Eager with speculative turn on, replacing Patient. Measured in a spoken test: he replies 1 to 2 seconds after the student stops. He does not jump in at a short pause mid-sentence (0.9 s was tried), and ElevenLabs has no setting to talk over someone. So we say "he answers fast", not "he interrupts". If the student goes quiet for 8 seconds he helps once, then waits.
+
+**D22. Level of detail: Basics, Exam, Deep. Default Basics.** Reaching Mastered at exam strictness was too hard out loud. Basics marks the three core ideas and accepts everyday words. Exam and Deep are there for students who want to be pushed.
+
+**D23. The round button switches Milo on and off.** It is not a mute button. Switching him back on starts a new voice conversation, so the app tells him what he has already heard.
+
+**D24. Any topic.** The student can type a topic and Claude writes the key ideas. D3 still holds for the demo: we film "How a cell works", because that run is the one we have tested most.
+
+**D25. History, slideshow and film.** Sessions are kept in the browser. A session can be replayed as a slideshow, or turned into a short fal video of the first board becoming the last. The film is only made on request, because it is slow and costs more than a redraw.
+
+**D26. Fast mode for Claude.** The student is waiting on this call, and fast mode cut it from about 5 s to 2 to 3 s. It costs about twice as much per token. Haiku was tried and was slower.
+
+**D27. No moving Milo.** fal's video model refused his picture as a possible likeness of a real person. He stays a still picture animated in the browser.
+
+## After the stochastic calculus call
+
+Ali ran a six-and-a-half-minute session on a typed topic on Sat 14 Nov. The pipeline held up (15 turns scored, 11 redraws, no errors). Milo's behaviour did not: he spoke 18 times to the student's 13, averaged 29 words a reply, opened 9 replies with his drawing, asked up to three questions at once, hid answers inside his questions, called the student by a misheard name, and had no way to finish.
+
+**D28. Milo follows, he does not lead.** At most 20 words and one question per reply. He repeats back a few of the student's words and asks one small open question about them. No "is it X or Y?", no "…, right?", no numbers or ideas of his own. Only what the student says in their own words is scored, so a leading question only wastes time. This replaces the "silly guess" idea from D20.
+
+**D29. One Milo turn per student turn.** He no longer announces every drawing. The board speaks for itself. He gets a cue to speak unprompted only on the final board and when he has sketched a hint.
+
+**D30. Milo is also a teacher, at one moment.** Ali's call: when the student has tried the same gap twice and is still not there, Milo does not give up. He says they are not quite there but onto something, sketches a small hint on the paper in blue dashed pencil marked "hint", and asks them to build on it. This is a deliberate exception to D4 and D5. He helps once per gap, the hint never uses the technical term, and the idea only counts when the student says it themselves.
+
+**D31. A way to finish.** If the student is still stuck on a gap after its hint, Milo wraps up: this is as far as we got, here is the bit to look up, your sheet is ready. The revision sheet lists what is still open under "Look these up next".
+
+**D32. No names, no mumbles.** Milo never calls the student by a name. Turns of one or two words are not scored.
+
+**D33. Fact check before drawing.** Ali's call after hearing Milo draw a wrong statement as if it were right. Every turn is checked for clearly false statements in the same Claude call that scores it, so it adds no waiting. A wrong claim goes on the paper small and grey with a red question mark, and Milo asks about it first. This replaces "a wrong idea is drawn literally" in D5. It is a model's judgement at school level, not a guarantee.
+
+**D34. No flattery.** Milo praised and then backpedalled in the same breath, which felt fake. No compliments, no verdicts, no "nice… but", and one steady tone per reply.
+
+**D35. The paper reacts in under three seconds.** A redraw still takes 5 to 9 seconds, because fal's edit has no faster setting. So Milo jots the student's words on the paper as soon as the brain answers (about 2.6 s), and the drawing replaces the note when it lands.
+
+## Nolan
+
+**D33. Nolan is its own product, in `nolan/`.** Ali's call on Sat 14 Nov, late evening. It replaces the "ten-second mention" in D1. Nolan takes witness accounts for an investigator: he interviews each witness alone, then shows where the accounts agree and differ. It is a separate Next.js app with its own dependencies, dev server (port 3001) and README, built from the "Nolan" design artifact. Milo's code does not import it and is not changed by it. Milo is still the submission unless the humans decide otherwise.
+
+## After the 23:10 cell call
+
+Ali ran the cell at Basics by voice and nine boards came out. What went wrong, and what changed:
+
+**D36. At Basics, names do not matter.** Ali said things get in "through the cell wall, it's semi-permeable". The brain held the idea back because "wall" is the wrong name, Milo asked the same thing again, and Ali said "I just told you". At Basics an idea is now clear once its job is described, with no name, a made-up name or a slightly wrong one. A wrong name is not a wrong claim at that level, and only the false part of a sentence is flagged (semi-permeable was right). Replayed with Ali's own words: Mastered on turn 6 instead of turn 9.
+
+**D37. Two tries after a hint, enforced in code.** Milo said "this is as far as we got today" one turn after his hint, and the next answer took the board to Mastered. The engine now counts turns since the hint and ignores an early wrap-up, and never speaks a wrap-up line over a finished explanation.
+
+**D38. Milo switches himself off when the lesson is done.** After Mastered he kept answering a side conversation about coffee. Once he has said his wrap-up he is switched off. He is also told not to join talk that is not about the topic.
+
+**D39. No repeated questions and no "You said".** The app note now lists what is already clear, and Milo may not ask about it again. Opening with "You said…" or "The … you mentioned" is out.
+
+**D40. Labels.** One board garbled a label, one showed "control center" twice, the hint was tiny with a stray quote mark, and the final sheet dropped names Ali had used. Drawing instructions now keep the student's part names, put each label once on its own line, and draw the hint a quarter of the sheet tall. Whenever a label changes, the instruction says to erase every word on the paper and lists all the labels again, because the fast fal model leaves old writing behind otherwise. Checked by eye on two replays of Ali's words: names kept and nothing garbled in both. Duplicates were gone in one and reduced in the other, so this is better, not guaranteed. The careful model was tried for the final sheet again: cleaner, but 20 s and it redraws the whole picture in another style, so Basics keeps the fast one.
+
+## After the Sunday 06:00 calls
+
+Ali: "its really annoying to talk to". Three calls (volcano, burning, pyramids) showed why.
+
+**D41. Milo waits for the brain's line.** He used to reply the instant the student stopped, from a note written for the turn before, so he asked for things they had just said ("how does it travel up?" five times in the volcano call, after "it gets pushed out"). He now calls a browser tool, `next_line`, after every turn and says the line the brain wrote for that very turn. The turn route streams, so the line is out in 1 to 2 s, ahead of the drawing instruction. Measured in text mode against the real agent: Milo's reply 1.3 to 2.7 s after the turn. This replaces "who writes Milo's line" approach A, and D39's app note.
+
+**D42. Two questions per gap, then a hint, then let it go.** Counted in code, not left to the model. Two questions about a gap, or one "I have no clue" or "you explain", and he sketches the hint. One miss after the hint and he drops that gap for good and asks about another. The lesson only wraps up when nothing is left to ask. This replaces D37's "two tries after a hint". Replayed with Ali's volcano and pyramid words: no question asked twice.
+
+**D43. The brain reads the turn as an answer.** It now gets Milo's own lines, starts the next question from the student's latest words, and may never repeat a question in any wording. When torn between vague and clear it picks clear.
+
+**D44. Short answers count.** "Wheels." and "Fire." were answers and were being thrown away as noise. Only sounds like "uh" and "okay" are skipped now.
+
+**D45. Drawing never holds up the conversation.** Scoring and drawing run side by side. Instructions that arrive during a redraw are joined into the next one instead of being dropped, because each builds on the one before. This changes the "keep only the newest" rule.
+
+**D46. He says what he learned once.** The wrap-up cue after the last board made him repeat "I finally get it…", and Ali cut him off. The cue now only says the sheet is ready.
+
 ## Still open
 
 | Question | Who can settle it |
