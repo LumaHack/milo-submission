@@ -289,7 +289,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         setNote(owed.said);
         openStep = beginStep(
           owed.help ? "Sketching a hint for you" : "Redrawing the board",
-          result.level === 4 && detail !== "basics" ? "fal, careful model" : "fal, fast model",
+          result.level === 4 ? "fal, careful model" : "fal, fast model",
         );
         const draw: DrawRequest = {
           prompt: owed.prompt,

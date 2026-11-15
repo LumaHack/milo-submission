@@ -5,10 +5,13 @@
 // Run it again whenever the prompt changes:
 //
 //   curl -X POST http://localhost:3000/api/elevenlabs/setup
+//
+// In development, ?llm=<model> tries another model for Milo's replies without touching .env.local:
+//   curl -X POST 'http://localhost:3000/api/elevenlabs/setup?llm=claude-sonnet-5-5'
 
 import { MILO_AGENT_PROMPT, MILO_FIRST_MESSAGE } from "@/lib/prompts";
 
-export async function POST() {
+export async function POST(request: Request) {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "ELEVENLABS_API_KEY is not set. Add it to .env.local." }, { status: 500 });
@@ -16,6 +19,8 @@ export async function POST() {
 
   const agentId = process.env.ELEVENLABS_AGENT_ID;
   const voiceId = process.env.ELEVENLABS_VOICE_ID;
+  const trial = process.env.NODE_ENV !== "production" ? new URL(request.url).searchParams.get("llm") : null;
+  const llm = trial || process.env.ELEVENLABS_AGENT_LLM || "claude-haiku-5-5";
   const conversationConfig = {
     agent: {
       first_message: MILO_FIRST_MESSAGE,
@@ -31,7 +36,7 @@ export async function POST() {
       prompt: {
         prompt: MILO_AGENT_PROMPT,
         // Milo says a sentence or two at a time, so a fast model keeps the conversation live.
-        llm: process.env.ELEVENLABS_AGENT_LLM || "claude-haiku-5-5",
+        llm,
       },
     },
     ...(voiceId ? { tts: { voice_id: voiceId } } : {}),
@@ -71,7 +76,7 @@ export async function POST() {
   }
   return Response.json(
     agentId
-      ? { agentId: data.agent_id, updated: true, firstMessage: MILO_FIRST_MESSAGE, promptLength: MILO_AGENT_PROMPT.length }
+      ? { agentId: data.agent_id, updated: true, llm, firstMessage: MILO_FIRST_MESSAGE, promptLength: MILO_AGENT_PROMPT.length }
       : { agentId: data.agent_id, created: true, next: "Add ELEVENLABS_AGENT_ID to .env.local." },
   );
 }

@@ -81,7 +81,7 @@ Fill in from your own runs.
 | Claude scoring one turn (`claude-opus-5-5`, low effort, fast mode) | 1.9 to 2.9 s. At standard speed it was 3.9 to 7.9 s |
 | fal, first board | 3.9 s, one run |
 | fal, edit at levels 2 and 3 | 7.2 and 8.0 s |
-| fal, final sheet (careful model) | 19.6 s, one run |
+| fal, final sheet (careful model) | 17 to 19 s, three runs on Sun 15 Nov. Now used at every level |
 | End of speech to new board, levels 1 to 3 | 8 to 12 s (headless voice runs, Sun 15 Nov) |
 | End of speech to final sheet | not measured with voice. Typed: about 28 s |
 | fal film of the first board becoming the last | 214 s, one run on Sat 14 Nov |

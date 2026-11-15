@@ -107,7 +107,7 @@ type DrawRequest = {
   prompt: string;
   previousImageUrl: string | null;   // null draws a new board. Otherwise this board is edited
   level: 1 | 2 | 3 | 4;              // picks the fal model
-  detail: "basics" | "exam" | "deep";   // the careful model is only used for a level 4 sheet above Basics
+  detail: "basics" | "exam" | "deep";   // the careful model draws every level 4 sheet (MILO_CAREFUL_FINAL=0: only above Basics)
 };
 type DrawResult = { imageUrl: string; endpoint: string; seconds: number };
 ```
@@ -273,7 +273,7 @@ Measured on Sat 14 Nov. One turn is Claude then fal, one after the other.
 | Claude scoring with the instructions cached | 1.5 to 3.8 s, average 2.1 to 2.4 s | Sun 15 Nov. The turn instructions are sent with `cache_control`, so about 90% of each turn's input is read from cache once warm. Faster by about 0.1 s, much cheaper per turn. `scripts/regress/check.py` prints the cache share |
 | fal, first board | about 4 s | |
 | fal, edit with the fast model | 7 to 9 s | This is the floor for a redraw. The endpoint has no smaller or faster setting |
-| fal, final sheet with the careful model | about 20 s | Now only used above Basics. At Basics the final sheet uses the fast model |
+| fal, final sheet with the careful model | 17 to 19 s | Used for every final sheet since Sun 15 Nov (D48). `MILO_CAREFUL_FINAL=0` goes back to the fast model at Basics |
 | fal film, first board to last | 214 s, one run | Only on request, from the revision sheet. The browser starts the job and checks on it every 5 s |
 
 ## Recommended stack

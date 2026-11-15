@@ -21,7 +21,11 @@ export async function POST(request: Request) {
   }
 
   const { prompt, previousImageUrl, level, detail } = body.data;
-  const endpoint = falEndpointFor(level, previousImageUrl !== null, detail !== "basics");
+  // The final sheet is what the student keeps and what ends the video, so it gets the careful model
+  // at every level of detail: the fast one garbles labels on a dense sheet. MILO_CAREFUL_FINAL=0 goes
+  // back to the fast model at Basics.
+  const careful = detail !== "basics" || process.env.MILO_CAREFUL_FINAL !== "0";
+  const endpoint = falEndpointFor(level, previousImageUrl !== null, careful);
   const input = {
     prompt,
     aspect_ratio: "16:9",

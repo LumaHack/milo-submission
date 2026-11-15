@@ -124,6 +124,10 @@ Yusuf's goal: Milo should hold up on any topic, not only the filmed cell. A thre
 
 **D47. Milo skips a question that was just answered.** His instant reply uses the app note from the turn before, so he once asked "what tells everything what to do?" right after being told. The note now says to skip it if the student has just answered it. Fixed in one voice run, still seen once in another: the agent answers before the brain has scored the new turn, which is how approach A works.
 
+**D48. The final sheet always gets the careful model.** Yusuf's call. Reverses the Basics part of D40. The fast model garbled "hypotenuse" on a Pythagoras final sheet. Redrawn with the careful model, the cell's final sheet kept the same paper, cell and style and spelled every label right. Pythagoras was spelled right but still repeated two labels: dense maths sheets stay imperfect. Costs about 10 s more, once, at the end. `MILO_CAREFUL_FINAL=0` undoes it.
+
+**D49. Milo's voice stays on Claude Haiku 5.5.** Claude Sonnet 5.5 was tried on the voice agent with three voice runs. It answered a little slower (median 3.0 s, Haiku 2.7 s) and avoided the stale-question slip in both runs where it was tested, but it is two runs, so not enough to switch. `POST /api/elevenlabs/setup?llm=<model>` tries another model in development.
+
 ## Still open
 
 | Question | Who can settle it |
