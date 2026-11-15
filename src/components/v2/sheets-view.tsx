@@ -3,6 +3,7 @@
 // "Your revision sheets": the finished sheets the student saved from the end page, kept in this
 // browser (src/lib/v2/sheets.ts). A list of cards; clicking one opens it big, with the student's own
 // words beside it and a timeline to watch it grow. /v2/sheets?open=<sheet id> opens on that sheet.
+// Under them, "Still in progress": every session with a board and an idea left, in either mode, to pick up.
 // Layout from the v3 revision sheet (design/claude-design/SheetV3.dc.html).
 
 /* eslint-disable @next/next/no-img-element */
@@ -14,9 +15,54 @@ import { browser } from "react-dom";
 
 import { MiloPic, Page, pill } from "@/components/ui";
 import { levelInfo } from "@/lib/levels";
+import type { Mode } from "@/lib/v2/contract";
+import { loadCourses, partTopicId } from "@/lib/v2/courses";
 import { loadSheets, removeSheet, type SavedSheet } from "@/lib/v2/sheets";
+import { loadSession } from "@/lib/v2/storage";
+import { V2_TOPICS } from "@/lib/v2/topics";
 
 import { BoardStack, ScrubTrack, type BoardStep } from "./board-timeline";
+
+type Unfinished = {
+  key: string;
+  title: string;
+  subject: string;
+  mode: Mode;
+  clear: number;
+  total: number;
+  imageUrl: string;
+  /** Names the topic and mode in an address, to open its session. */
+  query: string;
+  savedAt: number;
+};
+
+/**
+ * Every saved session that has a board and still has an idea to explain, newest first: built-in topics
+ * and the parts of the student's courses, in both modes. The start screen only shows the chosen mode.
+ */
+function loadUnfinished(): Unfinished[] {
+  const found: Unfinished[] = [];
+  const look = (topicId: string, title: string, subject: string, total: number, where: string) => {
+    for (const mode of ["coach", "exam"] as const) {
+      const saved = loadSession(topicId, mode);
+      const last = saved?.frames.at(-1);
+      if (!saved || !last || total === 0) continue;
+      const clear = saved.live.ideas?.filter((status) => status === "clear").length ?? 0;
+      if (clear >= total) continue;
+      found.push({ key: `${topicId}.${mode}`, title, subject, mode, clear, total, imageUrl: last.imageUrl, query: `${where}&mode=${mode}`, savedAt: saved.savedAt });
+    }
+  };
+  for (const topic of V2_TOPICS) {
+    if (topic.ready) look(topic.id, topic.title, topic.subject, topic.keyIdeas.length, `topic=${encodeURIComponent(topic.id)}`);
+  }
+  for (const course of loadCourses()) {
+    for (const part of course.parts) {
+      const where = `course=${encodeURIComponent(course.id)}&part=${encodeURIComponent(part.id)}`;
+      look(partTopicId(course.id, part.id), part.title, course.title, part.keyIdeas.length, where);
+    }
+  }
+  return found.sort((a, b) => b.savedAt - a.savedAt);
+}
 
 function savedOn(sheet: SavedSheet): string {
   return new Date(sheet.savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
@@ -30,6 +76,7 @@ export function SheetsView() {
   // The end page links here with the sheet it just saved. With only one sheet, that one opens.
   const [openId, setOpenId] = useState<string | null>(() => params.get("open") ?? (sheets.length === 1 ? sheets[0].id : null));
   const open = sheets.find((sheet) => sheet.id === openId) ?? null;
+  const [unfinished] = useState(() => loadUnfinished());
 
   return (
     <Page
@@ -97,6 +144,34 @@ export function SheetsView() {
               ))}
             </section>
           </>
+        )}
+        {unfinished.length > 0 && (
+          <section aria-label="Still in progress" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-2 pt-3">
+              <h2 className="m-0 text-[15px] font-semibold">Still in progress</h2>
+              <span className="text-[13px] text-muted">Pick one up where you left off. Milo remembers what you told him.</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {unfinished.map((entry) => (
+                // A plain link, so the session page loads from scratch and asks: pick up, or start fresh.
+                <a
+                  key={entry.key}
+                  href={`/v2/session?${entry.query}`}
+                  className="press flex max-w-[460px] min-w-0 flex-[1_1_300px] flex-col gap-3 rounded-card border-2 border-card bg-card p-4 text-left text-ink no-underline"
+                >
+                  <span className="block overflow-hidden rounded-tile border border-line bg-paper">
+                    <SheetPicture src={entry.imageUrl} alt="" />
+                  </span>
+                  <span className="flex flex-col gap-1 px-1">
+                    <span className="text-lg leading-[1.3] font-semibold tracking-[-0.01em]">{entry.title}</span>
+                    <span className="text-[13px] leading-[1.4] text-muted">
+                      {entry.subject}, {entry.clear} of {entry.total} explained, {entry.mode === "exam" ? "exam mode" : "coach mode"}
+                    </span>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
         )}
       </main>
     </Page>
