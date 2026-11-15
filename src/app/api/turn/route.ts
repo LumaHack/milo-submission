@@ -42,7 +42,11 @@ export async function POST(request: Request) {
       ...(model === DEFAULT_MODEL
         ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
         : {}),
-      system: turnSystemPrompt({ notes: Boolean(body.data.topic.notes) }),
+      // The instructions are the same on every turn, so they are cached: later turns read them back
+      // instead of paying for them again. There are two versions, with and without notes.
+      system: [
+        { type: "text", text: turnSystemPrompt({ notes: Boolean(body.data.topic.notes) }), cache_control: { type: "ephemeral" } },
+      ],
       messages: [
         {
           role: "user",
@@ -80,7 +84,13 @@ export async function POST(request: Request) {
       result.drawPrompt = body.data.previousDrawPrompt;
     }
 
-    return Response.json({ ...result, model: response.model, seconds: (Date.now() - started) / 1000 });
+    const usage = {
+      input: response.usage.input_tokens,
+      cacheRead: response.usage.cache_read_input_tokens ?? 0,
+      cacheWrite: response.usage.cache_creation_input_tokens ?? 0,
+      output: response.usage.output_tokens,
+    };
+    return Response.json({ ...result, model: response.model, seconds: (Date.now() - started) / 1000, usage });
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {
       return Response.json({ error: "ANTHROPIC_API_KEY was rejected." }, { status: 500 });

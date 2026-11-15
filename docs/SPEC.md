@@ -270,6 +270,7 @@ Measured on Sat 14 Nov. One turn is Claude then fal, one after the other.
 |---|---|---|
 | Claude scoring, fast mode | 1.9 to 2.9 s | `speed: "fast"` on `claude-opus-5-5`. Standard speed took 4.9 to 5.1 s. Fast mode costs about twice as much per token. Turn it off with `MILO_FAST=0` |
 | Claude scoring on `claude-haiku-5-5` | 6.3 to 7.5 s | Slower here, so we did not switch |
+| Claude scoring with the instructions cached | 1.5 to 3.8 s, average 2.1 to 2.4 s | Sun 15 Nov. The turn instructions are sent with `cache_control`, so about 90% of each turn's input is read from cache once warm. Faster by about 0.1 s, much cheaper per turn. `scripts/regress/check.py` prints the cache share |
 | fal, first board | about 4 s | |
 | fal, edit with the fast model | 7 to 9 s | This is the floor for a redraw. The endpoint has no smaller or faster setting |
 | fal, final sheet with the careful model | about 20 s | Now only used above Basics. At Basics the final sheet uses the fast model |

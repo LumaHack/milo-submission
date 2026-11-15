@@ -1,0 +1,202 @@
+{
+  "weak start": {
+    "behaviour": {
+      "level": 1,
+      "gap": "membrane",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "missing",
+        "energy": "missing",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.78,
+    "hint": "Keeps the body alive: how does stuff get into a cell in the first place?"
+  },
+  "everything clear": {
+    "behaviour": {
+      "level": 4,
+      "gap": null,
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "clear",
+        "energy": "clear",
+        "nucleus": "clear"
+      }
+    },
+    "seconds": 2.03,
+    "hint": "I finally get it! The membrane controls what goes in and out, the mitochondria make the energy as ATP, and the nucleus has the DNA with the instructions."
+  },
+  "wrong claim": {
+    "behaviour": {
+      "level": 1,
+      "gap": "energy",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 1,
+      "ideas": {
+        "membrane": "missing",
+        "energy": "wrong",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.97,
+    "hint": "I pictured the skin glowing with energy, which looks odd to me. Can you check that bit?"
+  },
+  "wrong name at basics": {
+    "behaviour": {
+      "level": 2,
+      "gap": "energy",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "clear",
+        "energy": "missing",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.92,
+    "hint": "Once things get in through that wall, what keeps the cell going?"
+  },
+  "analogy is on topic": {
+    "behaviour": {
+      "level": 2,
+      "gap": "energy",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "clear",
+        "energy": "missing",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 2.0,
+    "hint": "A little factory needs power to run its machines, so where does this one get its power?"
+  },
+  "small talk": {
+    "behaviour": {
+      "level": 2,
+      "gap": "membrane",
+      "offTopic": true,
+      "changed": false,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "vague",
+        "energy": "vague",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.79,
+    "hint": "Back to the cell taking in things: how do those things actually get inside?"
+  },
+  "asks for the answer": {
+    "behaviour": {
+      "level": 2,
+      "gap": "membrane",
+      "offTopic": true,
+      "changed": false,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "vague",
+        "energy": "vague",
+        "nucleus": "missing"
+      }
+    },
+    "seconds": 1.74,
+    "hint": "I don't know, that's why I'm asking you. How do those things get into the cell?"
+  },
+  "hint after two misses": {
+    "behaviour": {
+      "level": 3,
+      "gap": "energy",
+      "offTopic": false,
+      "changed": true,
+      "help": true,
+      "stuck": false,
+      "wrongClaims": 1,
+      "ideas": {
+        "membrane": "clear",
+        "energy": "wrong",
+        "nucleus": "clear"
+      }
+    },
+    "seconds": 3.74,
+    "hint": "The energy bit isn't there yet. I sketched a little hint: small blobs inside the cell giving off zaps. What could those blobs be doing for the cell?"
+  },
+  "exam needs names": {
+    "behaviour": {
+      "level": 2,
+      "gap": "membrane",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "vague",
+        "energy": "vague",
+        "nucleus": "missing",
+        "ribosomes": "missing",
+        "golgi": "missing"
+      }
+    },
+    "seconds": 1.98,
+    "hint": "That wall that lets things in: what is it called, and does it let everything through?"
+  },
+  "notes: swapped parts": {
+    "behaviour": {
+      "level": 1,
+      "gap": "nucleus",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 1,
+      "ideas": {
+        "membrane": "missing",
+        "nucleus": "wrong",
+        "mitochondria": "wrong"
+      }
+    },
+    "seconds": 1.97,
+    "hint": "I pictured the mitochondria holding the instructions, which looks odd to me. Can you check that bit?"
+  },
+  "notes: true but not in notes": {
+    "behaviour": {
+      "level": 2,
+      "gap": "nucleus",
+      "offTopic": false,
+      "changed": true,
+      "help": false,
+      "stuck": false,
+      "wrongClaims": 0,
+      "ideas": {
+        "membrane": "clear",
+        "nucleus": "missing",
+        "mitochondria": "missing"
+      }
+    },
+    "seconds": 3.53,
+    "hint": "Inside that animal cell with its gatekeeper, what tells everything what to do?"
+  }
+}
