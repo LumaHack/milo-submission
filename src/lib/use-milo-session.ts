@@ -37,7 +37,7 @@ export type Live = {
 
 export type MiloCallbacks = {
   /** Milo's next line, after a turn is scored. Over means the lesson has ended. Return true if it reached the voice agent. */
-  onHint?: (hint: string, over: boolean, settled: string[]) => boolean;
+  onHint?: (hint: string, over: boolean, settled: string[], open: string[]) => boolean;
   /** The final board is on screen. The text is what Milo can say about it. */
   onFinalBoard?: (drew: string) => void;
   /** A board with Milo's hint sketch is on screen. The text is his teacher line. */
@@ -268,7 +268,7 @@ export function useMiloSession(topic: Topic, detail: Detail, callbacks: MiloCall
         // The voice side can drop at any moment. A failed note must never stop the drawing.
         try {
           // On a helping turn Milo's line waits for the hint sketch, so he speaks when it is on the paper.
-          if (!helping && callbacksRef.current.onHint?.(line, gaps.length === 0 || stuck, settled)) {
+          if (!helping && callbacksRef.current.onHint?.(line, gaps.length === 0 || stuck, settled, gaps)) {
             logStep(stuck ? "Told Milo to wrap up" : "Told Milo what to ask next", gaps[0] ?? "Nothing left to ask");
           }
         } catch {

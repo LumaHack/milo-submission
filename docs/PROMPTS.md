@@ -138,16 +138,16 @@ That creates the agent the first time and updates it afterwards.
 
 **What ElevenLabs cannot do.** There is no setting that makes the agent talk over the student mid-word. Eager turn-taking is the closest: he comes in the moment the student pauses. The student can always interrupt him.
 
-**The note the app sends after each scored turn** (with `sendContextualUpdate`):
+**The note the app sends after each scored turn** (with `sendContextualUpdate`). The code is `miloAppNote` in `src/lib/prompts.ts`:
 
 ```
-APP NOTE: The weakest part of the explanation so far is the one this question is about. Ask it next, in your own words: "<hint>"
+APP NOTE: Already clear, never ask about these again: <clear gap labels>. Still missing from their explanation: <open gap labels>. The next time the student stops, ask this: "<hint>" If what they say then already answers it, do not ask it, and never ask them to repeat what they just told you. Ask one small open question that leads towards the next thing still missing instead, in a kid's words and without naming any answer.
 ```
 
-When every idea is clear:
+When every idea is clear, or the student is stuck or asked to stop:
 
 ```
-APP NOTE: The explanation is complete. There is nothing left to ask. Say something like: "<hint>"
+APP NOTE: The lesson is over. Say this line and ask nothing more: "<hint>"
 ```
 
 ## 4. Milo's face (fal)

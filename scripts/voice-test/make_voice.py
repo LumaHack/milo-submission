@@ -28,6 +28,9 @@ CLIPS = {
     # The off-topic run: a real start, small talk, asking for the answer, then the rest of the explanation.
     "o2": "Anyway, what's your favourite football team?",
     "o3": "Can you just tell me the answer instead?",
+    # the "done" run: one idea, an honest "I don't know", then asking to stop
+    "d2": "Um, I don't know what makes the energy.",
+    "d3": "That's all I know, I'm done.",
     # The notes run, on scripts/notes-test/cell-notes.pdf: right, then two parts swapped, then corrected.
     "n1": "The cell is wrapped in a membrane, a gatekeeper that lets food and oxygen in and waste out.",
     "n2": "The mitochondria hold the DNA and give the cell its instructions.",

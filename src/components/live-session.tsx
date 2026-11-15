@@ -50,11 +50,11 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const [switchedOff, setSwitchedOff] = useState(false);
 
   // The engine calls this after each scored turn. It is filled in once the conversation exists.
-  const sendNote = useRef<(hint: string, over: boolean, settled: string[]) => boolean>(() => false);
+  const sendNote = useRef<(hint: string, over: boolean, settled: string[], open: string[]) => boolean>(() => false);
   const showFinal = useRef<(drew: string) => void>(() => {});
   const showHelp = useRef<(line: string) => void>(() => {});
   const session = useMiloSession(topic, detail, {
-    onHint: (hint, over, settled) => sendNote.current(hint, over, settled),
+    onHint: (hint, over, settled, open) => sendNote.current(hint, over, settled, open),
     onFinalBoard: (drew) => showFinal.current(drew),
     onHelpBoard: (line) => showHelp.current(line),
   });
@@ -106,9 +106,9 @@ function Live({ topic, detail }: { topic: Topic; detail: Detail }) {
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } = conversation;
 
   useEffect(() => {
-    sendNote.current = (hint, over, settled) => {
+    sendNote.current = (hint, over, settled, open) => {
       if (!connected) return false;
-      sendContextualUpdate(miloAppNote(hint, over, settled));
+      sendContextualUpdate(miloAppNote(hint, over, settled, open));
       return true;
     };
     // A new board is up. Milo gets told what he drew, and if nobody is talking he speaks up about it

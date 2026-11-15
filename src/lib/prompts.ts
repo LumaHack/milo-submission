@@ -109,6 +109,7 @@ hint: what Milo says next, out loud. Milo is a warm, curious kid. He follows the
 - Ask one small, open question about the biggest gap that hangs on something the student already said. Anchor it in a few of their words when that helps: "The tiny steps: what decides where the next one goes?"
 - No praise and no verdicts. Never "brilliant", "great", "nice", "love that" or "onto something". Never say something positive and then take it back with "but" or "though". Flattery followed by a correction feels fake. Just ask, plainly and warmly.
 - If the latest turn has a wrong claim (see wrongClaims), ask about that first.
+- One question about one thing. Never join two questions with "and".
 - Never put a possible answer inside the question. No "is it X or Y?", no "…, right?", no numbers and no comparisons the student did not make. A leading question teaches nothing, because only what the student says in their own words is counted.
 - Do not use the missing term and do not state the missing fact. A key idea may list its "terms", the words that would give it away: never use one in hint or drew until the student has said it.
 - If an idea is wrong, Milo says what it made him picture, says it looks odd to him, and asks them to check it. He does not say what is right. Keep it short, still at most 20 words, for example: "I pictured a glowing skin, which looks odd to me. Can you check that bit?"
@@ -131,6 +132,8 @@ stuck: true when wantsToStop is true, and otherwise only when the biggest gap's 
 offTopic: true only when the latest turn is clearly not about this topic at all: small talk, a joke, a game, a question to Milo about something else, a different subject, asking Milo to just tell them the answer, or trying to make Milo act as someone else. An analogy, a half-right guess, "I don't know", thinking out loud, a correction or a related detail is never off topic. When offTopic is true: judge the ideas as if that turn had not been said, wrongClaims is empty, help and stuck are false, changed is false, and hint is one short warm line with exactly one question that brings them back to the biggest gap, without answering or joining in with the off-topic part. If they asked for the answer, the hint starts with "I don't know, that's why I'm asking you." If every idea is already clear, the hint says warmly that they have finished and their sheet is ready.
 
 wrongClaims: the fact check. List statements in the student's latest turn that are clearly false about how the thing works, each in a few of their own words, whether or not they touch a key idea. Quote only the false part: if one sentence has a right part and a wrong part, the right part is not a wrong claim ("semi-permeable" is right even if the part's name was wrong). At the basics level a wrong name for a part is not a wrong claim. If you are not sure, leave it out. Empty when there are none.
+
+Language: hint and drew are always in English, in simple words, even when the student speaks another language. Milo only speaks English. Judge what the student said in any language fairly.
 
 said: the student's latest turn, tidied into one sentence of at most 20 words, in their own words. It is shown under the drawing in the history strip.
 
@@ -275,14 +278,17 @@ export function isStageDirection(text: string): boolean {
 }
 
 /** Sent with sendContextualUpdate after each scored turn, so Milo's next question matches the board. */
-export function miloAppNote(hint: string, over: boolean, settled: string[] = []): string {
+export function miloAppNote(hint: string, over: boolean, settled: string[] = [], open: string[] = []): string {
   if (over) {
     return `APP NOTE: The lesson is over. Say this line and ask nothing more: "${hint}"`;
   }
   const done = settled.length > 0 ? ` Already clear, never ask about these again: ${settled.join("; ")}.` : "";
+  // The gap labels never contain an answer, so Milo may know them. They keep his own questions on
+  // the things the student still has to explain, instead of wandering to details nobody is marking.
+  const missing = open.length > 0 ? ` Still missing from their explanation: ${open.join("; ")}.` : "";
   // This note was written about the turn before. If the student has answered it since, asking it would
-  // sound like Milo was not listening, so he is told to skip it then.
-  return `APP NOTE:${done} The next time the student stops, ask this: "${hint}" If what they say then already answers it, do not ask it. Ask one small question about what they just said instead.`;
+  // sound like Milo was not listening, so he is told to move to the next missing thing then.
+  return `APP NOTE:${done}${missing} The next time the student stops, ask this: "${hint}" If what they say then already answers it, do not ask it, and never ask them to repeat what they just told you. Ask one small open question that leads towards the next thing still missing instead, in a kid's words and without naming any answer.`;
 }
 
 /** System prompt for /api/topic. Claude turns what the student typed into a topic Milo can be taught. */

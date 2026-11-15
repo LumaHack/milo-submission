@@ -11,6 +11,7 @@
 //   node scripts/voice-test/talk.js          two sentences, straight to Mastered
 //   node scripts/voice-test/talk.js hint     wrong twice about the energy, so Milo sketches a hint
 //   node scripts/voice-test/talk.js offtopic small talk and "just tell me the answer" mid-session
+//   node scripts/voice-test/talk.js done     one idea, "I don't know", then "I'm done": Milo wraps up
 //   node scripts/voice-test/talk.js notes    uploads scripts/notes-test/cell-notes.pdf, then a part swap and a fix
 //
 // It talks to the real agent, so each run uses a little ElevenLabs, Claude and fal credit.
@@ -69,8 +70,8 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.goto("http://localhost:3000/", { waitUntil: "networkidle0" });
   await page.evaluate(() => localStorage.clear());
   await page.reload({ waitUntil: "networkidle0" });
-  const run = ["hint", "offtopic", "notes"].includes(process.argv[2]) ? process.argv[2] : "cell";
-  const clips = { hint: ["h1", "h2", "h3", "h4", "h5"], offtopic: ["h1", "o2", "o3", "b"], notes: ["n1", "n2", "n3"], cell: ["a1", "a2", "b"] }[run];
+  const run = ["hint", "offtopic", "notes", "done"].includes(process.argv[2]) ? process.argv[2] : "cell";
+  const clips = { hint: ["h1", "h2", "h3", "h4", "h5"], offtopic: ["h1", "o2", "o3", "b"], done: ["h1", "d2", "d3"], notes: ["n1", "n2", "n3"], cell: ["a1", "a2", "b"] }[run];
   if (run === "notes") {
     // Upload the test notes the way a student would, then wait for Milo to set up the topics.
     await page.waitForSelector("input[type=file]");
@@ -160,6 +161,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await sayAndWait("o3"); // asking for the answer: "I don't know, that's why I'm asking you."
     await say("b");
     await quietFor(24000, "student goes quiet");
+  } else if (run === "done") {
+    await sayAndWait("h1");
+    await sayAndWait("d2"); // an honest "I don't know": a smaller question, nothing drawn
+    await say("d3"); // asking to stop: Milo wraps up and names what to look up
+    await quietFor(20000, "student goes quiet");
   } else if (run === "notes") {
     await sayAndWait("n1");
     await sayAndWait("n2"); // two parts swapped: should be flagged and drawn grey with a question mark
