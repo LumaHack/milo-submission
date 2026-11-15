@@ -22,13 +22,33 @@ const MAX_STEPS = 3;
 /** Said by Milo when Claude does not answer, so the conversation carries on. */
 export const CRAYON_SLIPPED = "Oops, my crayon slipped! Can you say that again?";
 
-/** Silences and noise that the voice agent reports as a turn. */
+/**
+ * "Wait", "hold on", "let me think": the student is asking for time, not explaining. Only a short
+ * turn that holds nothing else counts, so "Wait, the nucleus holds the DNA" is still scored.
+ */
+export function asksForTime(text: string): boolean {
+  const words = text
+    .toLowerCase()
+    .replace(/[^a-z\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!words || words.split(" ").length > 9) return false;
+  const TIME = /\b(wait|hold on|hang on|let me think|i need to think|give me (a|one) (sec|second|minute|moment|bit)|(just a|just one|a|one) (sec|second|minute|moment|bit))\b/g;
+  if (!TIME.test(words)) return false;
+  const rest = words
+    .replace(TIME, " ")
+    .replace(/\b(um+|uh+|hm+|mm+|erm?|ok|okay|so|yeah|yes|no|sorry|please|just|well|about it|about that|for a bit|for a moment)\b/g, " ")
+    .trim();
+  return rest.length === 0;
+}
+
+/** Silences, noise and requests for time that the voice agent reports as a turn. None of them is scored. */
 export function isFiller(text: string): boolean {
   const words = text
     .toLowerCase()
     .replace(/[^a-z\s']/g, " ")
     .trim();
-  return words.length === 0 || /^((um+|uh+|hm+|mm+|erm?)\s*)+$/.test(words);
+  return words.length === 0 || /^((um+|uh+|hm+|mm+|erm?)\s*)+$/.test(words) || asksForTime(text);
 }
 
 type ScoredTurn = V2TurnResult & { seconds: number };

@@ -12,6 +12,7 @@
     "@anthropic-ai/sdk": "^1.8.0",
     "@elevenlabs/react": "^1.22.1",
     "@fal-ai/client": "^1.11.0",
+    "fflate": "^0.8.3",
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",

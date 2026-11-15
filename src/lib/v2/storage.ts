@@ -35,10 +35,23 @@ export type SavedSession = {
 export type Look = "new" | "classic";
 
 const LOOK_KEY = "milo.v2.look";
+const MODE_KEY = "milo.v2.mode";
 /** Sessions older than this are not offered back. */
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const sessionKey = (topicId: string, mode: Mode) => `milo.v2.session.${topicId}.${mode}`;
+export const sessionKey = (topicId: string, mode: Mode) => `milo.v2.session.${topicId}.${mode}`;
+
+/** A saved session as it sits in storage, or null if it is missing, damaged or too old. */
+export function parseSession(raw: string | null): SavedSession | null {
+  if (!raw) return null;
+  try {
+    const saved = JSON.parse(raw) as SavedSession;
+    if (saved.version !== 1 || Date.now() - saved.savedAt > MAX_AGE_MS) return null;
+    return saved;
+  } catch {
+    return null;
+  }
+}
 
 export function saveSession(session: SavedSession): void {
   try {
@@ -50,11 +63,7 @@ export function saveSession(session: SavedSession): void {
 
 export function loadSession(topicId: string, mode: Mode): SavedSession | null {
   try {
-    const raw = window.localStorage.getItem(sessionKey(topicId, mode));
-    if (!raw) return null;
-    const saved = JSON.parse(raw) as SavedSession;
-    if (saved.version !== 1 || Date.now() - saved.savedAt > MAX_AGE_MS) return null;
-    return saved;
+    return parseSession(window.localStorage.getItem(sessionKey(topicId, mode)));
   } catch {
     return null;
   }
@@ -93,5 +102,22 @@ export function saveLook(look: Look): void {
     window.localStorage.setItem(LOOK_KEY, look);
   } catch {
     // The look still switches for this visit.
+  }
+}
+
+/** Coach or exam, as last chosen on the start screen or a course page. */
+export function loadMode(): Mode {
+  try {
+    return window.localStorage.getItem(MODE_KEY) === "exam" ? "exam" : "coach";
+  } catch {
+    return "coach";
+  }
+}
+
+export function saveMode(mode: Mode): void {
+  try {
+    window.localStorage.setItem(MODE_KEY, mode);
+  } catch {
+    // The mode still applies for this visit.
   }
 }

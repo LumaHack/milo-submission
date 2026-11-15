@@ -24,13 +24,18 @@ export const CourseSchema = z.object({
   /** True for the built-in sample courses. */
   sample: z.boolean().optional(),
   parts: z.array(CoursePartSchema).min(1).max(16),
+  /** What Claude left out on purpose, in its own short lines, for the course page. */
+  skipped: z.array(z.string().max(200)).max(8),
   /** Claude's short outline of the whole course, used to build a part the student asks for. */
   outline: z.array(z.object({ heading: z.string().max(120), facts: z.array(z.string().max(220)).max(8) })).max(40),
 });
 export type Course = z.infer<typeof CourseSchema>;
 
-const KEY = "milo.v2.courses";
+export const COURSES_KEY = "milo.v2.courses";
+const KEY = COURSES_KEY;
 export const MAX_COURSES = 12;
+/** A course holds the parts Claude found, plus the ones the student asked for, up to this many. */
+export const MAX_PARTS = 16;
 
 /** The id a part's saved session and its turns use. Unique across courses. */
 export function partTopicId(courseId: string, partId: string): string {
@@ -43,17 +48,24 @@ export function partAsTopic(course: Course, part: CoursePart): V2Topic {
   return partToTopic({ ...definition, id: partTopicId(course.id, part.id), subject: course.title });
 }
 
-export function loadCourses(): Course[] {
+/** The stored list of courses, from its raw text. A course that no longer matches the shape is skipped, never allowed to break the page. */
+export function parseCourses(raw: string | null): Course[] {
+  if (!raw) return [];
   try {
-    const raw = window.localStorage.getItem(KEY);
-    if (!raw) return [];
     const list = JSON.parse(raw) as unknown;
     if (!Array.isArray(list)) return [];
-    // A course that no longer matches the shape is skipped, never allowed to break the page.
     return list.flatMap((entry) => {
       const parsed = CourseSchema.safeParse(entry);
       return parsed.success ? [parsed.data] : [];
     });
+  } catch {
+    return [];
+  }
+}
+
+export function loadCourses(): Course[] {
+  try {
+    return parseCourses(window.localStorage.getItem(KEY));
   } catch {
     return [];
   }

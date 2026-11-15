@@ -115,13 +115,15 @@ export function groundPicks(
     nailed: clearIds.map((id) => {
       const pick = picks.find((entry) => entry.id === id);
       if (!pick) return { id, words: null };
-      const limited = tokens(pick.words).length > MAX_WORDS ? firstWords(pick.words, MAX_WORDS) : pick.words;
+      const tooLong = tokens(pick.words).length > MAX_WORDS;
+      const limited = tooLong ? firstWords(pick.words, MAX_WORDS) : pick.words;
       // The turn Claude named first, then any other turn, in case it miscounted.
       const named = studentTurns[Math.round(pick.turn) - 1];
       const order = named ? [named, ...studentTurns.filter((turn) => turn !== named)] : studentTurns;
       for (const turn of order) {
         const found = findInTurn(limited, turn);
-        if (found) return { id, words: found };
+        // A pick that had to be cut ends with "…", so it never reads like a finished sentence.
+        if (found) return { id, words: tooLong ? `${found}…` : found };
       }
       return { id, words: null };
     }),

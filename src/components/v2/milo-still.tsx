@@ -15,7 +15,7 @@ export function MiloStill({ pose, level, className = "" }: { pose: MiloPose; lev
         src={posePicture(pose, level)}
         alt={`Milo, age ${levelInfo(level).miloAge}`}
         draggable={false}
-        className="absolute h-auto max-w-none animate-rise select-none"
+        className="absolute h-auto max-w-none select-none"
         style={poseBox(pose, level)}
       />
     </div>

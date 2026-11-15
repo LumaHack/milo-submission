@@ -1,112 +1,167 @@
 "use client";
 
-// Milo v2's start screen: pick a subject, how Milo should help, then a topic.
-// Same layout and tokens as Ali's start screen (design/claude-design/StartV3.dc.html), plus the mode choice.
+// Milo v2's start screen: pick a subject or your own courses, how Milo should help, then a topic.
+// Same layout and tokens as Ali's start screen (design/claude-design/StartV3.dc.html), plus the mode
+// choice, Milo's speech bubble, saved progress on each card, and the student's own courses.
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
-import { MiloPic, Page, pill } from "@/components/ui";
+import { Page, pill } from "@/components/ui";
 import type { Mode } from "@/lib/v2/contract";
-import { V2_SUBJECTS, V2_TOPICS, type Subject } from "@/lib/v2/topics";
+import { COURSES_KEY, parseCourses, saveCourse, type Course } from "@/lib/v2/courses";
+import { SAMPLE_COURSES } from "@/lib/v2/sample-courses";
+import { V2_SUBJECTS, V2_TOPICS, type Subject, type V2Topic } from "@/lib/v2/topics";
+import { storedChanged, useStored } from "@/lib/v2/use-stored";
 
-const topicCard =
-  "flex min-h-[190px] flex-[1_1_260px] flex-col justify-between gap-5 rounded-card bg-card p-6 text-ink no-underline";
+import { MiloSays, ModeChoice, TopicCard, useMode, useProgress } from "./pick-bits";
 
-const MODES: { id: Mode; label: string; description: string }[] = [
-  { id: "coach", label: "Coach me", description: "When you are stuck, Milo gives you a hint, one small step at a time." },
-  { id: "exam", label: "Exam mode", description: "The night before the exam. Milo only asks questions and never helps." },
-];
+/** What the grid shows: a built-in subject's topics, or the student's own courses. */
+type Shelf = Subject | "courses";
+
+function onHashChange(onChange: () => void) {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
+}
+
+/** "/v2#courses" opens the screen on the student's courses. Read after the first paint, so the server agrees. */
+function useHash(): string {
+  return useSyncExternalStore(
+    onHashChange,
+    () => window.location.hash,
+    () => "",
+  );
+}
 
 export function StartV2() {
-  const [subject, setSubject] = useState<Subject>("Biology");
-  const [mode, setMode] = useState<Mode>("coach");
-  const topics = V2_TOPICS.filter((topic) => topic.subject === subject);
-  const chosenMode = MODES.find((entry) => entry.id === mode) ?? MODES[0];
+  const router = useRouter();
+  const [mode, setMode] = useMode();
+  const hash = useHash();
+  const [picked, setPicked] = useState<Shelf | null>(null);
+  const shelf: Shelf = picked ?? (hash === "#courses" ? "courses" : "Biology");
+  // What Milo talks about: the card under the pointer, or what is selected.
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const stored = useStored(COURSES_KEY);
+  const courses = useMemo(() => parseCourses(stored), [stored]);
+  const samples = SAMPLE_COURSES.filter((sample) => !courses.some((course) => course.id === sample.id));
+
+  /** A sample course is copied into this browser like any other course, then opened. */
+  const openSample = (sample: Course) => {
+    if (saveCourse(sample)) storedChanged();
+    router.push(`/v2/course?id=${sample.id}`);
+  };
+
+  const line = preview
+    ? `Great! Explain ${preview} to me in your own words, and I'll draw what I understand.`
+    : shelf === "courses"
+      ? "Bring your own course! Claude reads your slides and sorts them into parts. Then you explain them to me."
+      : mode === "exam"
+        ? "Exam mode: I'll only ask questions, no hints. Pick a topic and show me what you know."
+        : "Explain it to me out loud, like to a friend who knows nothing. I'll draw what you say, and I grow up as you get it right.";
 
   return (
-    <Page gap="gap-6" header={<span className="text-xl font-semibold tracking-[-0.02em]">Milo</span>}>
+    <Page
+      gap="gap-6"
+      header={
+        <>
+          <span className="text-xl font-semibold tracking-[-0.02em]">Milo</span>
+          <Link href="/v2/sheets" className={pill.light}>
+            Your revision sheets
+          </Link>
+        </>
+      }
+    >
       <main className="mx-auto flex w-full max-w-[1180px] flex-1 flex-col gap-9 pt-7">
         <div className="flex flex-wrap items-end justify-between gap-x-16 gap-y-6">
           <h1 className="m-0 flex-[1_1_520px] text-[68px] leading-[1.02] font-medium tracking-[-0.04em] max-sm:text-[44px]">
             What do you want to explain?
           </h1>
-          <div className="flex max-w-[420px] flex-[1_1_320px] items-center gap-[18px]">
-            <div aria-hidden="true" className="h-32 w-32 flex-none overflow-hidden rounded-full bg-milo">
-              <MiloPic level={1} />
-            </div>
-            <p className="m-0 text-base leading-[1.55] text-muted">
-              Explain it out loud, like you would to a friend who knows nothing. Milo draws what you say and grows up
-              as you get it right.
-            </p>
-          </div>
+          <MiloSays line={line} />
         </div>
 
         <div className="flex flex-wrap gap-x-16 gap-y-7">
           <div className="flex flex-col gap-3.5">
             <span className="text-[15px] font-semibold">Subject</span>
             <div className="flex flex-wrap gap-2">
-              {V2_SUBJECTS.map((entry) => (
+              {[...V2_SUBJECTS, "courses" as const].map((entry) => (
                 <button
                   key={entry}
                   type="button"
-                  aria-pressed={entry === subject}
-                  className={entry === subject ? pill.dark : pill.light}
-                  onClick={() => setSubject(entry)}
+                  aria-pressed={entry === shelf}
+                  className={entry === shelf ? pill.dark : pill.light}
+                  onClick={() => {
+                    setPicked(entry);
+                    setPreview(null);
+                  }}
                 >
-                  {entry}
+                  {entry === "courses" ? "Your courses" : entry}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="flex max-w-[460px] flex-col gap-3.5">
-            <span className="text-[15px] font-semibold">How should Milo help?</span>
-            <div className="flex flex-wrap gap-2">
-              {MODES.map((entry) => (
-                <button
-                  key={entry.id}
-                  type="button"
-                  aria-pressed={entry.id === mode}
-                  className={entry.id === mode ? pill.dark : pill.light}
-                  onClick={() => setMode(entry.id)}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
-            <p className="m-0 text-[15px] leading-normal text-muted">{chosenMode.description}</p>
-          </div>
+          <ModeChoice mode={mode} onChange={setMode} />
         </div>
 
         <div className="flex flex-col gap-3.5">
-          <span className="text-[15px] font-semibold">Four topics to choose from</span>
+          <span className="text-[15px] font-semibold">
+            {shelf === "courses" ? "Your courses" : "Four topics to choose from"}
+          </span>
           <div className="flex flex-wrap gap-3 rounded-panel bg-panel p-3">
-            {topics.map((topic) => {
-              const body = (
-                <>
-                  <span className="text-[26px] leading-[1.15] font-medium tracking-[-0.03em]">{topic.title}</span>
-                  <span className="text-[15px] leading-normal text-muted">{topic.blurb}</span>
-                </>
-              );
-              // Only ready topics open a session. The others look the same but go nowhere yet.
-              return topic.ready ? (
-                <Link
-                  key={topic.id}
-                  href={`/v2/session?topic=${topic.id}&mode=${mode}`}
-                  className={`press ${topicCard}`}
-                >
-                  {body}
-                </Link>
-              ) : (
-                <div key={topic.id} className={topicCard}>
-                  {body}
-                </div>
-              );
-            })}
+            {shelf === "courses" ? (
+              <>
+                {courses.map((course) => (
+                  <TopicCard
+                    key={course.id}
+                    title={course.title}
+                    blurb={`${course.parts.length} ${course.parts.length === 1 ? "part" : "parts"} to explain.`}
+                    note={course.sample ? "Sample course" : course.files.map((file) => file.name).join(", ")}
+                    href={`/v2/course?id=${encodeURIComponent(course.id)}`}
+                  />
+                ))}
+                <TopicCard
+                  title="New course"
+                  blurb="Upload your slides or notes. Claude sorts them into parts you can explain."
+                  note="PDF, PowerPoint, Word or photos"
+                  href="/v2/course/new"
+                />
+                {samples.map((sample) => (
+                  <TopicCard
+                    key={sample.id}
+                    title={sample.title}
+                    blurb="A sample course, ready in one click."
+                    note="Try a sample course"
+                    onClick={() => openSample(sample)}
+                  />
+                ))}
+              </>
+            ) : (
+              V2_TOPICS.filter((topic) => topic.subject === shelf).map((topic) => (
+                <BuiltInCard key={topic.id} topic={topic} mode={mode} onPreview={(on) => setPreview(on ? topic.about : null)} />
+              ))
+            )}
           </div>
         </div>
       </main>
     </Page>
+  );
+}
+
+/** A built-in topic. Only ready topics open a session; the others look the same and go nowhere yet. */
+function BuiltInCard({ topic, mode, onPreview }: { topic: V2Topic; mode: Mode; onPreview: (on: boolean) => void }) {
+  const progress = useProgress(topic.id, mode, topic.keyIdeas.length);
+  if (!topic.ready) return <TopicCard title={topic.title} blurb={topic.blurb} />;
+  const query = `topic=${topic.id}&mode=${mode}`;
+  return (
+    <TopicCard
+      title={topic.title}
+      blurb={topic.blurb}
+      progress={progress?.text}
+      // A topic that is fully explained opens its sheet. Any other opens the session.
+      href={progress?.done ? `/v2/end?${query}` : `/v2/session?${query}`}
+      onPreview={onPreview}
+    />
   );
 }

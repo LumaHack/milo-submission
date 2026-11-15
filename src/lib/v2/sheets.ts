@@ -19,6 +19,8 @@ export type SavedSheet = {
   total: number;
   /** Each idea the student explained, as its question, with their own words for it. */
   nailed: { question: string; words: string | null }[];
+  /** One entry per board, in order: the level reached and what the student said. Older sheets have none. */
+  turns?: { level: Level; said: string }[];
   /** Names the topic and mode in an address, to explain it again. */
   query: string;
 };

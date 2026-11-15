@@ -404,10 +404,12 @@ function Checklist({
   );
 }
 
-export function IdeaIcon({ status }: { status: IdeaStatus }) {
+/** The mark beside a key idea. It pops when the idea changes status; `still` shows it without the pop. */
+export function IdeaIcon({ status, still = false }: { status: IdeaStatus; still?: boolean }) {
+  const pop = still ? "" : "animate-pop";
   if (status === "clear") {
     return (
-      <span aria-hidden="true" className="inline-flex h-4 w-4 animate-pop items-center justify-center rounded-full bg-ink text-white">
+      <span aria-hidden="true" className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-ink text-white ${pop}`}>
         <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
           <path d="M2.5 6.5l2.5 2.5 4.5-5.5" />
         </svg>
@@ -415,11 +417,11 @@ export function IdeaIcon({ status }: { status: IdeaStatus }) {
     );
   }
   if (status === "wrong") {
-    return <span aria-hidden="true" className="block h-4 w-4 animate-pop rounded-full border-[5px] border-miss" />;
+    return <span aria-hidden="true" className={`block h-4 w-4 rounded-full border-[5px] border-miss ${pop}`} />;
   }
   if (status === "vague") {
     return (
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" className="animate-pop text-faint">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" className={`text-faint ${pop}`}>
         <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
         <path d="M8 1 A7 7 0 0 0 8 15 Z" fill="currentColor" />
       </svg>
