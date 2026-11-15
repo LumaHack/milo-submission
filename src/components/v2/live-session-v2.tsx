@@ -19,12 +19,21 @@ import { UPDATE_BOARD, type AgentVariant } from "@/lib/v2/agent";
 import { cleanMiloLine } from "@/lib/v2/prompts";
 import { clearSession, loadLook, saveLook, type Look, type SavedSession } from "@/lib/v2/storage";
 import type { Target } from "@/lib/v2/target";
-import { useMiloV2 } from "@/lib/v2/use-milo-v2";
+import { sameTurn, useMiloV2 } from "@/lib/v2/use-milo-v2";
 
 import { SessionViewV2, type ViewStatus } from "./session-view-v2";
 
 /** How long after the student stops the page waits for Milo to call update_board before drawing itself. */
 const SAFETY_NET_MS = 6000;
+/**
+ * Milo's line says "I drew…" and points at the paper, so he keeps quiet until the new drawing is on it.
+ * Never longer than this: a slow drawing must not leave the student waiting in silence.
+ */
+const BOARD_WAIT_MS = 12_000;
+/** update_board has to answer well inside ElevenLabs' 30 s limit for the tool (src/lib/v2/agent.ts). */
+const TOOL_BUDGET_MS = 25_000;
+/** The agent asking again with the same words this soon is the same turn, not a new one. */
+const REPEAT_MS = 30_000;
 
 /** "on" is the real thing. "text" is a typed chat with Milo, "off" has no Milo at all: both are for testing. */
 export type VoiceMode = "on" | "text" | "off";
@@ -126,12 +135,32 @@ function Live({
   const { sendContextualUpdate, sendUserMessage, endSession, getInputVolume, getOutputVolume, isSpeaking } =
     conversation;
 
+  // The calls to update_board so far, and the last point Milo sent with the line it earned.
+  const toolCalls = useRef(0);
+  const lastCall = useRef<{ point: string; at: number; line: string | null } | null>(null);
+
   useConversationClientTool(UPDATE_BOARD, async (params: { point?: string }) => {
+    const started = Date.now();
+    const call = ++toolCalls.current;
     toolCalled.current = true;
     clearSafetyNet();
-    await scoreNow(params?.point);
+    // When the student speaks over Milo's first call, the agent drops it and asks again with the same
+    // words (seen on the voice test of 15 Nov). Scoring them twice redrew the board for nothing.
+    const point = (params?.point ?? "").trim();
+    const previous = lastCall.current;
+    const repeat = previous !== null && point !== "" && started - previous.at < REPEAT_MS && sameTurn(point, previous.point);
+    if (!repeat) {
+      lastCall.current = { point, at: started, line: null };
+      await scoreNow(params?.point);
+    }
+    // Milo talks about his drawing, so the line waits until the drawing is on the paper. Before this,
+    // he said "I drew…" and asked about it several seconds before the student could see it.
+    await session.whenIdle(Math.max(0, Math.min(BOARD_WAIT_MS, TOOL_BUDGET_MS - (Date.now() - started))));
+    // A newer call is now waiting for the line: the agent dropped this one, so it leaves the line alone.
+    if (call !== toolCalls.current) return "A newer drawing is on its way.";
     // The newest line, from this call or from the safety net if it already scored this turn.
-    const line = takeLine();
+    const line = takeLine() ?? (repeat ? previous.line : null);
+    if (line && lastCall.current) lastCall.current.line = line;
     return line
       ? `Say exactly this, word for word: "${line}"`
       : "Nothing new to draw. Say one short, kind sentence inviting them to keep going.";
